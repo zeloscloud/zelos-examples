@@ -1,0 +1,14 @@
+{
+  "buses": [
+    {
+      "interface": "socketcan",
+      "channel": "vcan0",
+      "database_file": "/dbc/bench.dbc",
+      "name": "vcan0",
+      "emit_schemas_on_init": true,
+      "log_raw_frames": true,
+      "receive_own_messages": false
+    }
+  ],
+  "log_level": "INFO"
+}

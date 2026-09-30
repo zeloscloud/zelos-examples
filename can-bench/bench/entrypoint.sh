@@ -1,0 +1,71 @@
+#!/bin/bash
+# Start the agent and hand the CAN extension its configuration.
+#
+# The agent owns the extension from then on: its process, its restarts and its
+# exit codes. Configuring it here also avoids a limitation of the app, which
+# disables extension installs while more than one agent is connected.
+set -euo pipefail
+
+# The agent runs as root, and its default umask leaves everything it writes
+# into a mounted volume unreadable to the user who owns the checkout. Rendered
+# notebooks and recorded traces are meant to be opened.
+umask 022
+
+CONFIG=${BENCH_CAN_CONFIG:-/bench/can.json}
+EXTENSION=${BENCH_CAN_EXTENSION:-zeloscloud.zelos-extension-can}
+
+# zelos-agent has no --version; it logs its version on startup instead.
+echo "cli:       $(zelos --version 2>&1 | head -1)"
+echo "extension: ${EXTENSION}"
+echo "config:    ${CONFIG}"
+
+# A memory store, explicitly: the default keeps the signal catalog and discards
+# every sample, so queries return nothing.
+zelos-agent \
+    --store-type memory \
+    --store-retain-duration "${BENCH_RETAIN:-15m}" \
+    --listen-address '[::]:2300' &
+agent_pid=$!
+
+trap 'kill "${agent_pid}" 2>/dev/null || true' TERM INT
+
+# Wait for a real API call, not just for the port to open: zelos status can
+# succeed while the agent is still starting its services.
+ready=no
+for attempt in $(seq 60); do
+    if ! kill -0 "${agent_pid}" 2>/dev/null; then
+        echo "agent exited during startup" >&2
+        wait "${agent_pid}" || true
+        exit 1
+    fi
+    if zelos extensions list >/dev/null 2>&1; then
+        echo "agent answered on attempt ${attempt}"
+        ready=yes
+        break
+    fi
+    sleep 1
+done
+
+if [ "${ready}" != yes ]; then
+    echo "agent did not answer within 60s" >&2
+    exit 1
+fi
+
+# Retried because it is the first call that does real work.
+started=no
+for attempt in $(seq 10); do
+    if zelos extensions start "${EXTENSION}" --config-file "${CONFIG}"; then
+        started=yes
+        break
+    fi
+    echo "extension start failed (attempt ${attempt}), retrying" >&2
+    sleep 2
+done
+
+if [ "${started}" != yes ]; then
+    echo "could not start ${EXTENSION}" >&2
+    exit 1
+fi
+
+# The agent is the long-running process; keep this container's lifetime tied to it.
+wait "${agent_pid}"

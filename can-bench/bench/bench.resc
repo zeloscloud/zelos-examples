@@ -1,0 +1,64 @@
+:name: CAN bench
+:description: Three Zephyr nodes on one CAN bus, bridged to a host SocketCAN interface.
+
+using sysbus
+
+# Every node is the same board. Only the firmware differs.
+$repl?=@platforms/boards/nucleo_h753zi.repl
+$vcu?=@/elf/vcu.elf
+$bms?=@/elf/bms.elf
+$dcdc?=@/elf/dcdc.elf
+
+# The bus. Every node's CAN controller joins this hub.
+emulation CreateCANHub "canHub"
+
+# Two lines repeat on every machine.
+#
+# `showAnalyzer usart3` routes that node's Zephyr console to stdout, so
+# `docker compose logs renode` shows each node booting. Without it a node's
+# printk goes nowhere and the only evidence it ran is frames on the bus.
+#
+# `logLevel 3 nvic` drops the NVIC to errors only. Zephyr maintains the D-cache
+# on this part by writing registers Renode does not model, and each write logs
+# a warning: 134,221 of them in 56 minutes on one run, 99.9% of everything the
+# container printed.
+mach create "vcu"
+machine LoadPlatformDescription $repl
+logLevel 3 nvic
+showAnalyzer usart3
+sysbus LoadELF $vcu
+connector Connect sysbus.fdcan1 canHub
+
+mach create "bms"
+machine LoadPlatformDescription $repl
+logLevel 3 nvic
+showAnalyzer usart3
+sysbus LoadELF $bms
+connector Connect sysbus.fdcan1 canHub
+
+mach create "dcdc"
+machine LoadPlatformDescription $repl
+logLevel 3 nvic
+showAnalyzer usart3
+sysbus LoadELF $dcdc
+connector Connect sysbus.fdcan1 canHub
+
+# One bridge only: two bridges on one vcan interface loop frames forever.
+mach set "vcu"
+machine CreateSocketCANBridge "socketcan" "vcan0"
+connector Connect socketcan canHub
+
+# Both values were measured on this bench rather than copied from an example.
+#
+# Without serial execution, nodes stop transmitting at random with no error
+# reported, and throughput varied between 28% and 100% of real time across
+# identical runs.
+#
+# At 100 us the three nodes stay within 4 ms of each other. 25 us, which
+# upstream's two-machine example uses, costs about 23% of throughput (measured:
+# 190 vs 247 DCDC_Status frames in 60 s); 1 ms spreads the nodes 76 ms apart and
+# 10 ms spreads them 285 ms.
+emulation SetGlobalSerialExecution True
+emulation SetGlobalQuantum "0.0001"
+
+start

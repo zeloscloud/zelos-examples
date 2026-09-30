@@ -1,0 +1,16 @@
+# The only difference between the bench's two builds of this node.
+
+config BENCH_DCDC_HONOUR_LIMIT_IMMEDIATELY
+	bool "Apply a reduced pack allowance immediately"
+	default y
+	help
+	  When set, a reduction in BMS_Limits.AuxCurrentLimit takes effect at
+	  once, and only increases in pack draw are rate-limited. The rate cap
+	  protects the contactors and the input filter from inrush, which a
+	  reduction does not cause.
+
+	  When unset, the cap applies in both directions, so the converter
+	  approaches a reduced allowance gradually instead of obeying it. Every
+	  frame it sends remains legal and in range while it does.
+
+source "Kconfig.zephyr"
