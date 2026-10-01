@@ -26,7 +26,7 @@ from zelos_can import CanDecoder
 
 from zelos_testing.dbc import DBC_DIR
 from zelos_testing.dcdc import LIMITS, LIMITS_PERIOD_S, PERIOD_S, STATUS, BmsLimits, cycles, input_current, settle
-from zelos_testing.frames import assert_period, bound, count, drain, play_unless_present, until
+from zelos_testing.frames import Periodic, assert_period, bound, count, drain, play_unless_present, until
 from zelos_testing.xcp import TIMESTAMP_TICK_S, addresses, epk, odt, read, ticks, timestamp
 
 # pyxcp stamps its session with the local zone and fails on abbreviations
@@ -122,13 +122,15 @@ def recorded(pytestconfig):
     """Everything on the bus while the test runs, decoded with the bench DBC into its trace.
 
     A second receiver, so the test's own reads are untouched. XCP is not in the
-    DBC: its frames are recorded raw.
+    DBC: its frames are recorded raw. Yields the decoded source, which also
+    holds each signal's last value for `check`: `recorded["0300_DCDC_Status"].InputCurrent`.
     """
-    decoder = CanDecoder(database_file=str(DBC_DIR / "bench.dbc"), source_name="bus", log_raw_frames=True)
+    source = zelos_sdk.TraceSourceCache("bus")
+    decoder = CanDecoder(database_file=str(DBC_DIR / "bench.dbc"), source=source, log_raw_frames=True)
     with can.Bus(interface="socketcan", channel=pytestconfig.getoption("channel")) as bus:
         notifier = can.Notifier(bus, [decoder.decode_message])
         try:
-            yield
+            yield source
         finally:
             notifier.stop()
 
@@ -232,6 +234,21 @@ def test_measurements(bus, bms, xcp, a2l):
     assert read_f32(xcp, a2l["slew_step_a"]) == pytest.approx(slew * PERIOD_S)
     on_bus = STATUS.decode(cycles(bus, 1)[-1].data)["Temperature"]
     assert read_f32(xcp, a2l["temperature_c"]) == pytest.approx(on_bus, abs=1.0)
+
+
+def test_follows_the_bms_allowance(bus, recorded, xcp, a2l, check):
+    # Granted less than it demands, the node draws what the BMS allows. Read
+    # back from the decoded trace: each allowance differs from the last one
+    # checked, so a pass is the node's reaction, not a value it already held.
+    seen = until(bus, lambda frames: frames[-1].arbitration_id == LIMITS.frame_id or count(frames, STATUS.frame_id) >= 20)
+    if seen[-1].arbitration_id == LIMITS.frame_id:
+        pytest.skip("a BMS is on the bus: the allowance is not the suite's to set")
+    current = recorded[f"{STATUS.frame_id:04x}_{STATUS.name}"].InputCurrent
+    bms = BmsLimits(aux=LOW_A)
+    with calibrated(xcp, a2l, DEMAND_A=2 * LOW_A), Periodic(bus, bms, LIMITS_PERIOD_S):
+        for aux in (LOW_A, LOW_A / 2):
+            bms.aux = aux
+            check.that(current, "is_close", aux, abs_tol=0.01, temporal="within_duration", duration_s=bound(2.0), name=f"InputCurrent follows AuxCurrentLimit {aux} A")
 
 
 def test_only_registered_memory(xcp, a2l):
