@@ -114,7 +114,7 @@ def reaches(node, t0, code):
 def enter(node, state, code):
     t0 = time.time()
     node.nmt.state = state
-    # The node announces a state change with a heartbeat at once.
+    # The new state shows in the next periodic heartbeat, not at once.
     reaches(node, t0, code)
 
 
