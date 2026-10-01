@@ -20,7 +20,7 @@ rather than copying them.
 | `zephyr/`, `CMakeLists.txt`, `Kconfig` | This repository as a Zephyr module, contributing `lib/` |
 | `nodes/` | Zephyr applications, one per node, each reusable by any bench: `vcu`, `bms`, `dcdc`, `genset`, `pdu` |
 | `lib/`, `include/zelos/` | Code the nodes share, each piece off until a node's `prj.conf` enables it |
-| `snippets/` | Protocols any node can build with, e.g. `-S j1939` |
+| `snippets/` | Protocols any node can build with, e.g. `-S xcp` |
 | `dbc/` | Wire formats of the shared nodes; `lib/codec_bench/` is generated from `bench.dbc` |
 | `toolchain/` | The firmware build image |
 | `testing/` | Host-side pytest suites and fixtures, run against any SocketCAN channel |

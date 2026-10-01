@@ -5,6 +5,7 @@
 #include <zelos/can.h>
 #include <zelos/j1939.h>
 
+#include <errno.h>
 #include <string.h>
 
 #include <zephyr/kernel.h>
@@ -15,15 +16,26 @@ LOG_MODULE_REGISTER(zelos_j1939, LOG_LEVEL_INF);
 /* PF byte and the two data-page bits: every frame of one PGN, any address. */
 #define PF_MASK 0x03FF0000U
 
+/*
+ * A poll sends at most a claim, a NACK, a BAM packet and one frame per
+ * message, so this many messages bound what it can queue.
+ */
+#define MAX_MSGS 8
+
 K_MSGQ_DEFINE(rx_msgq, sizeof(struct can_frame), 16, 4);
 K_MUTEX_DEFINE(lock);
 K_THREAD_STACK_DEFINE(stack, 1024);
 static struct k_thread thread;
 
-static void send_frame(const struct zelos_j1939_frame *frame, void *user)
+/* Frames a poll produced, queued under the lock and sent after it. */
+static struct zelos_j1939_frame out[3 + MAX_MSGS];
+static size_t out_len;
+
+static void queue_frame(const struct zelos_j1939_frame *frame, void *user)
 {
 	ARG_UNUSED(user);
-	(void)zelos_can_send_ext(frame->id, frame->data, frame->len);
+	__ASSERT_NO_MSG(out_len < ARRAY_SIZE(out));
+	out[out_len++] = *frame;
 }
 
 static void run(void *p1, void *p2, void *p3)
@@ -39,6 +51,7 @@ static void run(void *p1, void *p2, void *p3)
 		uint32_t now = k_uptime_get_32();
 
 		k_mutex_lock(&lock, K_FOREVER);
+		out_len = 0;
 		/* Filters match remote frames too; they carry no J1939 data. */
 		if (got && (frame.flags & CAN_FRAME_RTR) == 0U) {
 			struct zelos_j1939_frame f = {
@@ -51,6 +64,11 @@ static void run(void *p1, void *p2, void *p3)
 		}
 		zelos_j1939_poll(j, now);
 		k_mutex_unlock(&lock);
+
+		/* Outside the lock: a slow bus must not block zelos_j1939_set(). */
+		for (size_t i = 0; i < out_len; i++) {
+			(void)zelos_can_send_ext(out[i].id, out[i].data, out[i].len);
+		}
 	}
 }
 
@@ -59,7 +77,12 @@ int zelos_j1939_start(struct zelos_j1939 *j)
 	static const uint32_t pgns[] = {ZELOS_J1939_PGN_REQUEST, ZELOS_J1939_PGN_ADDRESS_CLAIMED};
 	int err;
 
-	j->send = send_frame;
+	if (j->n_msgs > MAX_MSGS) {
+		LOG_ERR("more than %d messages", MAX_MSGS);
+		return -EINVAL;
+	}
+
+	j->send = queue_frame;
 	err = zelos_j1939_init(j, k_uptime_get_32());
 	if (err < 0) {
 		LOG_ERR("a message has a PDU1 PGN");

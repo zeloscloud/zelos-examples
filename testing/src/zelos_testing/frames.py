@@ -1,15 +1,22 @@
 """Receiving and sending frames on a bus under test."""
 
+import contextlib
 import threading
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 
 import can
 import pytest
 
-# Host seconds a wait may take per second of the node's time. The plugin sets it
-# from --time-scale: 1 on hardware, more under Renode, whose clock runs slow.
+# Set once by the plugin from the channel. SIMULATED: the nodes run under
+# Renode, whose clock runs slow and unsteady against the host's. TIME_SCALE:
+# host seconds a wait may take per second of the node's time (--time-scale).
+SIMULATED = False
 TIME_SCALE = 1.0
+
+# Waits end on the node's frames, so they run in its time whatever the host's.
+# This much of its time bounds any one of them.
+WAIT_S = 10.0
 
 
 def bound(node_s: float) -> float:
@@ -17,23 +24,34 @@ def bound(node_s: float) -> float:
     return node_s * TIME_SCALE
 
 
-def until(bus: can.BusABC, done: Callable[[list[can.Message]], bool], node_s: float, ids: Iterable[int] | None = None) -> list[can.Message]:
+def _receive(bus: can.BusABC, seconds: float, ids: Iterable[int] | None) -> Iterator[can.Message]:
+    """Data frames for host `seconds`, oldest first, optionally only these IDs."""
+    wanted = None if ids is None else set(ids)
+    end = time.monotonic() + seconds
+    while (left := end - time.monotonic()) > 0:
+        msg = bus.recv(left)
+        if msg is None or msg.is_error_frame or (wanted is not None and msg.arbitration_id not in wanted):
+            continue
+        yield msg
+
+
+def until(bus: can.BusABC, done: Callable[[list[can.Message]], bool], node_s: float = WAIT_S, ids: Iterable[int] | None = None) -> list[can.Message]:
     """Data frames, oldest first, optionally only these IDs, until done(frames) holds.
 
     done should decide on frames the node sends on its own clock, so the wait is
     in the node's time; node_s only bounds it.
     """
-    wanted = None if ids is None else set(ids)
     frames = []
-    end = time.monotonic() + bound(node_s)
-    while (left := end - time.monotonic()) > 0:
-        msg = bus.recv(left)
-        if msg is None or msg.is_error_frame or (wanted is not None and msg.arbitration_id not in wanted):
-            continue
+    for msg in _receive(bus, bound(node_s), ids):
         frames.append(msg)
         if done(frames):
             return frames
     pytest.fail(f"not done within {node_s} s of node time ({bound(node_s):.0f} s here), after {len(frames)} frames")
+
+
+def collect(bus: can.BusABC, seconds: float, ids: Iterable[int] | None = None) -> list[can.Message]:
+    """Every data frame received for `seconds`, oldest first, optionally only these IDs."""
+    return list(_receive(bus, seconds, ids))
 
 
 def count(frames: list[can.Message], frame_id: int) -> int:
@@ -41,18 +59,20 @@ def count(frames: list[can.Message], frame_id: int) -> int:
     return sum(m.arbitration_id == frame_id for m in frames)
 
 
-def collect(bus: can.BusABC, seconds: float, ids: Iterable[int] | None = None) -> list[can.Message]:
-    """Every data frame received for `seconds`, oldest first, optionally only these IDs."""
-    wanted = None if ids is None else set(ids)
-    frames = []
-    end = time.monotonic() + seconds
-    while (left := end - time.monotonic()) > 0:
-        msg = bus.recv(left)
-        if msg is None or msg.is_error_frame:
-            continue
-        if wanted is None or msg.arbitration_id in wanted:
-            frames.append(msg)
-    return frames
+def assert_period(gaps: list[float], period_s: float, tol: float):
+    """Gaps between one node's frames keep its period_s.
+
+    On hardware the mean is within tol (a fraction) of period_s, and no gap is
+    a fifth late. Under Renode the host stamps measure how fast the simulation
+    ran, not the node's period, so what holds is a steady cadence: no gap half
+    or double the mean, which would be a stall or a burst.
+    """
+    mean = sum(gaps) / len(gaps)
+    if SIMULATED:
+        assert mean / 2 < min(gaps) and max(gaps) < 2 * mean, f"gaps {min(gaps):.4f}..{max(gaps):.4f} s, mean {mean:.4f} s"
+    else:
+        assert abs(mean - period_s) < tol * period_s, f"mean {mean * 1000:.2f} ms for {period_s * 1000:.0f} ms"
+        assert max(gaps) < 1.2 * period_s, f"max {max(gaps) * 1000:.2f} ms for {period_s * 1000:.0f} ms"
 
 
 class Periodic:
@@ -87,3 +107,18 @@ class Periodic:
                 self._stop.wait(self.period_s)
         except can.CanError as err:
             self._error = err
+
+
+@contextlib.contextmanager
+def play_unless_present(bus: can.BusABC, frame_id: int, make_msg: Callable[[], can.Message], period_s: float, window: Callable[[list[can.Message]], bool]):
+    """Play the peer that sends frame_id for the block, unless one is on the bus.
+
+    window(frames) holds once enough of the node's time has passed for the
+    peer to have sent frame_id.
+    """
+    seen = until(bus, lambda frames: frames[-1].arbitration_id == frame_id or window(frames))
+    if seen[-1].arbitration_id == frame_id:
+        yield
+        return
+    with Periodic(bus, make_msg, period_s):
+        yield

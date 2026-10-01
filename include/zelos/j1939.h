@@ -126,7 +126,7 @@ void zelos_j1939_poll(struct zelos_j1939 *j, uint32_t now_ms);
 /*
  * Zephyr glue. Needs zelos_can_init() first. One J1939 node per firmware: this
  * subscribes to requests and claims, sets j->send, and runs the core on its own
- * thread every CONFIG_ZELOS_J1939_TICK_MS.
+ * thread every CONFIG_ZELOS_J1939_TICK_MS. At most 8 messages.
  */
 int zelos_j1939_start(struct zelos_j1939 *j);
 

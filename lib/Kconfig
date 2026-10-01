@@ -10,6 +10,7 @@ config ZELOS_CAN_BITRATE
 
 rsource "can/Kconfig"
 rsource "codec_bench/Kconfig"
+rsource "codec_genset/Kconfig"
 rsource "xcp/Kconfig"
 rsource "j1939/Kconfig"
 rsource "canopen/Kconfig"

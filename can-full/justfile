@@ -5,8 +5,9 @@
 set shell := ["bash", "--noprofile", "--norc", "-euo", "pipefail", "-c"]
 
 NODES := "vcu bms dcdc-xcp genset pdu"
-# The suites `just test` runs, each against the node it is named for.
-SUITES := "suites/xcp suites/j1939 suites/canopen"
+# Each node with a suite, as node:suite. `just test` runs every suite on the
+# bench; `just hil` runs one node's.
+SUITES := "dcdc-xcp:xcp genset:j1939 pdu:canopen"
 
 # The firmware is built by the repository's shared recipes, one level up.
 FIRMWARE := quote(just_executable()) + " --justfile " + quote(justfile_directory() / ".." / "justfile")
@@ -33,7 +34,7 @@ bus:
 # Run the protocol suites against the running bench. --no-deps, because
 # recreating the bus would strand the nodes in the old network namespace.
 test:
-    docker compose run --rm --no-deps tester {{ SUITES }}
+    docker compose run --rm --no-deps tester {{ replace_regex(SUITES, '\S+:', 'suites/') }}
 
 # Rebuild every node; the DC-DC with XCP, and its A2L beside it.
 firmware:
@@ -55,13 +56,11 @@ firmware:
 hil NODE CHANNEL: (_elf NODE)
     #!/usr/bin/env bash
     set -euo pipefail
-    case "{{ NODE }}" in
-        # The DC-DC's own behaviour must survive adding XCP.
-        dcdc-xcp) suites="xcp can_raw" ;;
-        genset)   suites="j1939" ;;
-        pdu)      suites="canopen" ;;
-        *)        echo "usage: just hil dcdc-xcp|genset|pdu CHANNEL" >&2; exit 2 ;;
-    esac
+    suites=$(for pair in {{ SUITES }}; do [ "${pair%%:*}" != "{{ NODE }}" ] || echo "${pair#*:}"; done)
+    [ -n "$suites" ] || { echo "usage: just hil NODE CHANNEL, NODE one of: {{ replace_regex(SUITES, ':\S+', '') }}" >&2; exit 2; }
+    # The DC-DC's own behaviour must survive adding XCP. can_raw plays the BMS,
+    # so `just test`, whose bench has one, cannot run it.
+    [ "{{ NODE }}" != dcdc-xcp ] || suites+=" can_raw"
     {{ FIRMWARE }} hil "build/{{ NODE }}.elf" {{ CHANNEL }} $suites
 
 # Remove the cached Zephyr workspace. Frees about 2 GB.
@@ -82,13 +81,6 @@ _elf ELFS:
         echo "    just firmware" >&2
         exit 1
     fi
-    # A stale binary is worse than a missing one.
-    sources=(../nodes ../lib ../include ../snippets ../tools ../dbc/bench.dbc
-             ../west.yml ../CMakeLists.txt ../Kconfig ../zephyr)
-    stale=$(for node in {{ ELFS }}; do find "${sources[@]}" -type f -newer "build/$node.elf"; done | sort -u | head -3)
-    if [ -n "${stale}" ]; then
-        echo "build/ is older than the sources it came from:" >&2
-        echo "${stale}" | sed 's/^/    /' >&2
-        echo "Rebuild: just firmware" >&2
-        exit 1
-    fi
+    {{ FIRMWARE }} _fresh "$(printf 'build/%s.elf ' {{ ELFS }})" \
+        ../nodes ../lib ../include ../snippets ../tools ../dbc/bench.dbc \
+        ../west.yml ../CMakeLists.txt ../Kconfig ../zephyr

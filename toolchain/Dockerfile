@@ -24,10 +24,11 @@ ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 RUN python3 -m venv "${VIRTUAL_ENV}"
 
 # west, plus the Python packages Zephyr's build imports, taken from the Zephyr
-# tag the nodes build against.
+# tag the nodes build against. pyelftools is among them, pinned here because
+# tools/a2l_addresses.py writes an XCP build's A2L with it.
 RUN curl -fsSL -o /tmp/requirements-base.txt \
       "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/${ZEPHYR_VERSION}/scripts/requirements-base.txt" \
- && pip install --no-cache-dir west -r /tmp/requirements-base.txt \
+ && pip install --no-cache-dir west -r /tmp/requirements-base.txt pyelftools==0.33 \
  && rm /tmp/requirements-base.txt
 
 # Twister: its build-test requirements from the same tag, plus the four

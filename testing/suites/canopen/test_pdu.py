@@ -12,7 +12,8 @@ from pathlib import Path
 import canopen
 import pytest
 
-from zelos_testing.frames import bound
+from zelos_testing import frames as bench
+from zelos_testing.frames import WAIT_S, bound
 
 # testing/suites/canopen/ -> the repository root. The bench's tester mounts
 # nodes/ at the same place relative to its copy of this suite.
@@ -39,10 +40,6 @@ EMC_CURRENT_OUTPUT = 0x2300
 INPUTS = "Read input 8-bit.Input 1 to 8"
 OUTPUTS = "Write output 8-bit.Output 1 to 8"
 
-# Waits end on the node's frames, so they run in its time whatever the host's.
-# This much of its time bounds any one of them.
-WAIT_S = 10.0
-
 pytestmark = pytest.mark.usefixtures("bus_health")
 
 
@@ -61,7 +58,8 @@ class Frames:
         return self.by_id[cob]
 
 
-def until(done, what):
+def wait_for(done, what):
+    """done()'s first truthy result. The Notifier owns the bus, so this polls what it caught."""
     end = time.monotonic() + bound(WAIT_S)
     while time.monotonic() < end:
         if result := done():
@@ -72,7 +70,7 @@ def until(done, what):
 
 def bootup(node, t0):
     """When the node announced its first boot-up after t0."""
-    return until(lambda: next((ts for ts, d in node.frames[HEARTBEAT] if ts > t0 and d == bytes([BOOTUP])), None), "boot-up")
+    return wait_for(lambda: next((ts for ts, d in node.frames[HEARTBEAT] if ts > t0 and d == bytes([BOOTUP])), None), "boot-up")
 
 
 @pytest.fixture
@@ -100,7 +98,7 @@ def after(node, cob, t0, count):
         got = [f for f in node.frames[cob] if f[0] > t0]
         return got[:count] if len(got) >= count else None
 
-    return until(ready, f"{count} frames on {cob:#05x}")
+    return wait_for(ready, f"{count} frames on {cob:#05x}")
 
 
 def states_after(node, t0, count):
@@ -110,8 +108,7 @@ def states_after(node, t0, count):
 
 def reaches(node, t0, code):
     """Wait for a heartbeat after t0 in this NMT state."""
-    until(lambda: code in [d[0] & 0x7F for ts, d in node.frames[HEARTBEAT] if ts > t0],
-          f"heartbeat state {code:#04x}")
+    wait_for(lambda: code in [d[0] & 0x7F for ts, d in node.frames[HEARTBEAT] if ts > t0], f"heartbeat state {code:#04x}")
 
 
 def enter(node, state, code):
@@ -121,14 +118,14 @@ def enter(node, state, code):
     reaches(node, t0, code)
 
 
-def test_boots_pre_operational_with_heartbeat(node, pytestconfig):
+def test_boots_pre_operational_with_heartbeat(node):
     # A heartbeat already on its way when the reset went out can arrive after
     # it, so the count starts at the boot-up.
     beats = after(node, HEARTBEAT, node.booted_at, 3)
     assert [data for _, data in beats] == [bytes([PRE_OPERATIONAL])] * 3
 
     gaps = [b[0] - a[0] for a, b in zip(beats, beats[1:])]
-    if pytestconfig.getoption("channel").startswith("vcan"):
+    if bench.SIMULATED:
         # Virtual time only ever runs slow against the host's clock.
         assert all(g > 0.95 * HEARTBEAT_S for g in gaps), gaps
     else:
@@ -138,7 +135,7 @@ def test_boots_pre_operational_with_heartbeat(node, pytestconfig):
 def test_nmt_start_stop(node):
     t0 = time.time()
     enter(node, "OPERATIONAL", OPERATIONAL)
-    until(lambda: [f for f in node.frames[TPDO1] if f[0] > t0], "TPDO1 once operational")
+    wait_for(lambda: [f for f in node.frames[TPDO1] if f[0] > t0], "TPDO1 once operational")
 
     enter(node, "STOPPED", STOPPED)
     t0 = time.time()
@@ -173,7 +170,7 @@ def test_sdo_download_to_outputs(node):
     for outputs in (0b0000_0101, 0b0110_0000, 0):
         node.sdo[0x6200][1].raw = outputs
         assert node.sdo[0x6200][1].raw == outputs
-        until(lambda: sdo_io(node) == expect_io(outputs), f"inputs for outputs {outputs:#04x}")
+        wait_for(lambda: sdo_io(node) == expect_io(outputs), f"inputs for outputs {outputs:#04x}")
 
 
 def tpdo_io(node):
@@ -193,11 +190,11 @@ def test_rpdo_command_reflected_by_tpdos(node):
     enter(node, "OPERATIONAL", OPERATIONAL)
     for outputs in (0b0000_0011, 0b0100_1000):
         command(node, outputs)
-        until(lambda: tpdo_io(node) == expect_io(outputs), f"TPDOs for outputs {outputs:#04x}")
+        wait_for(lambda: tpdo_io(node) == expect_io(outputs), f"TPDOs for outputs {outputs:#04x}")
 
     # Nothing changes now, so TPDO1 repeats on its event timer alone.
     t0 = time.time()
-    until(lambda: len([f for f in node.frames[TPDO1] if f[0] > t0]) >= 3, "TPDO1 event timer")
+    wait_for(lambda: len([f for f in node.frames[TPDO1] if f[0] > t0]) >= 3, "TPDO1 event timer")
     stamps = [f[0] for f in node.frames[TPDO1] if f[0] > t0]
     assert all(b - a > 0.9 * TPDO1_EVENT_S for a, b in zip(stamps, stamps[1:])), stamps
 
@@ -217,7 +214,7 @@ def test_overcurrent_trips_with_emcy_and_recovers(node):
         enter(node, "OPERATIONAL", OPERATIONAL)
         t0 = time.time()
         command(node, 0b0000_0001 | shorted)
-        code, register, error_bit, info = until(lambda: emcys_after(node, t0), "EMCY")[0]
+        code, register, error_bit, info = wait_for(lambda: emcys_after(node, t0), "EMCY")[0]
         assert (code, error_bit, info) == (EMC_CURRENT_OUTPUT, 0x30 + SHORTED - 1, SHORTED)
         assert register != 0
 
@@ -229,7 +226,7 @@ def test_overcurrent_trips_with_emcy_and_recovers(node):
         # Commanding the channel off clears the trip: EMCY error reset.
         t0 = time.time()
         node.sdo[0x6200][1].raw = 0b0000_0001
-        code, register, _, _ = until(lambda: emcys_after(node, t0), "EMCY reset")[0]
+        code, register, _, _ = wait_for(lambda: emcys_after(node, t0), "EMCY reset")[0]
         assert (code, register) == (0x0000, 0)
 
     # A communication reset clears the node's error state but not the short:
@@ -237,10 +234,10 @@ def test_overcurrent_trips_with_emcy_and_recovers(node):
     enter(node, "OPERATIONAL", OPERATIONAL)
     t0 = time.time()
     command(node, shorted)
-    until(lambda: emcys_after(node, t0), "EMCY")
+    wait_for(lambda: emcys_after(node, t0), "EMCY")
     t0 = time.time()
     node.nmt.state = "RESET COMMUNICATION"
-    trips = until(lambda: [e for e in emcys_after(node, t0) if e[0] == EMC_CURRENT_OUTPUT], "EMCY after the reset")
+    trips = wait_for(lambda: [e for e in emcys_after(node, t0) if e[0] == EMC_CURRENT_OUTPUT], "EMCY after the reset")
     _, register, error_bit, info = trips[0]
     assert (error_bit, info) == (0x30 + SHORTED - 1, SHORTED)
     assert register != 0

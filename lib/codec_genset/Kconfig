@@ -1,0 +1,5 @@
+config ZELOS_CODEC_GENSET
+	bool "Pack and unpack code for dbc/genset.dbc"
+	help
+	  The cantools codec for the genset's J1939 messages, with the
+	  periods from the DBC as GENSET_*_CYCLE_TIME_MS.

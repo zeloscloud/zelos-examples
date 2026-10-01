@@ -6,7 +6,6 @@
 set -euo pipefail
 
 : "${BENCH_ELFS:?ELF names in /elf, space separated}"
-MONITOR_PORT=${BENCH_MONITOR_PORT:-1234}
 RESC=/tmp/bench.resc
 
 for elf in ${BENCH_ELFS}; do
@@ -66,4 +65,4 @@ first=
 
 # The monitor is served on a port rather than on stdin: with --console Renode
 # exits as soon as stdin reaches EOF, which in a container is immediately.
-exec renode --disable-gui --hide-monitor -P "${MONITOR_PORT}" -e "include @${RESC}"
+exec renode --disable-gui --hide-monitor -P 1234 -e "include @${RESC}"

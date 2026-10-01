@@ -1,8 +1,8 @@
 """pytest plugin: which channel the nodes are on, and fixtures for it."""
 
 import json
-import os
 import subprocess
+from pathlib import Path
 
 import can
 import pytest
@@ -29,9 +29,17 @@ def pytest_addoption(parser):
     )
     parser.addoption(
         "--a2l",
-        default=os.environ.get("ZELOS_A2L"),
-        help="A2L generated beside an XCP node's ELF, e.g. build/dcdc-xcp.a2l (default: $ZELOS_A2L)",
+        type=Path,
+        help="A2L generated beside an XCP node's ELF, e.g. build/dcdc-xcp.a2l "
+        "(default: the one *.a2l in /elf, where a bench's tester mounts its ELFs)",
     )
+
+
+def pytest_configure(config):
+    """Whether the nodes are simulated, and how long a wait may take, decided once."""
+    frames.SIMULATED = _link(config.getoption("channel"))["info_kind"] == "vcan"
+    scale = config.getoption("time_scale")
+    frames.TIME_SCALE = scale if scale is not None else 20.0 if frames.SIMULATED else 1.0
 
 
 @pytest.fixture
@@ -40,16 +48,6 @@ def bus(pytestconfig):
     channel = pytestconfig.getoption("channel")
     with can.Bus(interface="socketcan", channel=channel, receive_own_messages=True) as b:
         yield b
-
-
-@pytest.fixture(scope="session", autouse=True)
-def time_scale(pytestconfig):
-    """The --time-scale every wait is bounded by, also through frames.bound."""
-    scale = pytestconfig.getoption("time_scale")
-    if scale is None:
-        scale = 20.0 if _link(pytestconfig.getoption("channel"))["info_kind"] == "vcan" else 1.0
-    frames.TIME_SCALE = scale
-    return scale
 
 
 def _link(channel: str) -> dict:
@@ -68,12 +66,12 @@ def bus_health(pytestconfig):
 
     A virtual channel has no controller, so there this checks nothing.
     """
-    channel = pytestconfig.getoption("channel")
-    before = _link(channel)
-    if before["info_kind"] == "vcan":
+    if frames.SIMULATED:
         yield
         return
 
+    channel = pytestconfig.getoption("channel")
+    before = _link(channel)
     assert before["info_data"]["state"] == "ERROR-ACTIVE", f"{channel} before: {before['info_data']}"
     yield
     after = _link(channel)

@@ -12,12 +12,12 @@ import os
 import re
 import struct
 import time
+from pathlib import Path
 
-import can
 import pytest
 
-from zelos_testing import dbc
-from zelos_testing.frames import Periodic, bound, count, until
+from zelos_testing.dcdc import LIMITS, LIMITS_PERIOD_S, PERIOD_S, STATUS, BmsLimits, cycles, input_current, settle
+from zelos_testing.frames import assert_period, bound, count, play_unless_present, until
 
 # pyxcp stamps its session with the local zone and fails on abbreviations
 # such as PST, so it runs in UTC.
@@ -32,29 +32,28 @@ CRO, DTO = 0x6F0, 0x6F1
 ERR_WRITE_PROTECTED = 0x23
 ERR_ACCESS_DENIED = 0x24
 
-DB = dbc.load("bench")
-STATUS = DB.get_message_by_name("DCDC_Status")
-LIMITS = DB.get_message_by_name("BMS_Limits")
-PERIOD_S = STATUS.cycle_time / 1000
 # The allowance this suite sends when it plays the BMS.
 AUX_A = 10.0
 # A demand below every allowance either BMS grants (a real one: 2 to 6 A by
 # mode), so the current it settles at does not depend on which BMS is present.
 LOW_A = 1.5
-# Waits count the node's frames, so they run in its time whatever the host's.
-# This much of its time bounds any one of them.
-WAIT_S = 10.0
 
 pytestmark = pytest.mark.usefixtures("bus_health")
 
 
 @pytest.fixture(scope="module")
 def a2l(pytestconfig):
-    """Object name -> address, from the generated A2L."""
+    """Object name -> address, from the A2L generated beside the ELF.
+
+    --a2l, or the one in /elf, where a bench's tester mounts its ELFs.
+    """
     path = pytestconfig.getoption("a2l")
-    if not path:
-        pytest.fail("pass --a2l with the A2L built beside the ELF")
-    text = open(path).read()
+    if path is None:
+        found = sorted(Path("/elf").glob("*.a2l"))
+        if len(found) != 1:
+            pytest.fail(f"{len(found)} A2Ls in /elf: pass --a2l with the one built beside the ELF")
+        path = found[0]
+    text = path.read_text()
     addrs = {}
     for kind, name, body in re.findall(r"/begin (MEASUREMENT|CHARACTERISTIC) (\S+)(.*?)/end \1", text, re.S):
         field = r"ECU_ADDRESS\s+(0x[0-9A-Fa-f]+)" if kind == "MEASUREMENT" else r'^\s*"[^"]*"\s+\S+\s+(0x[0-9A-Fa-f]+)'
@@ -94,25 +93,7 @@ def xcp(pytestconfig):
 def bms(bus):
     """Plays the BMS with a generous allowance, unless a real BMS is on the bus."""
     # A second of the node's time sees ten from a BMS.
-    if count(cycles(bus, 20, [LIMITS.frame_id]), LIMITS.frame_id):
-        yield
-        return
-    counter = 0
-
-    def msg():
-        nonlocal counter
-        counter = (counter + 1) & 0xFF
-        data = LIMITS.encode(
-            {
-                "DischargeCurrentLimit": 200.0,
-                "ChargeCurrentLimit": 50.0,
-                "AuxCurrentLimit": AUX_A,
-                "Counter": counter,
-            }
-        )
-        return can.Message(arbitration_id=LIMITS.frame_id, data=data, is_extended_id=False)
-
-    with Periodic(bus, msg, LIMITS.cycle_time / 1000):
+    with play_unless_present(bus, LIMITS.frame_id, BmsLimits(aux=AUX_A), LIMITS_PERIOD_S, lambda frames: count(frames, STATUS.frame_id) >= 20):
         yield
 
 
@@ -148,24 +129,10 @@ class calibrated:
                     write_f32(self.xcp, addr, value)
 
 
-def cycles(bus, n, ids=()):
-    """Frames on ids, with DCDC_Status, over the node's next n cycles."""
-    return until(bus, lambda frames: count(frames, STATUS.frame_id) >= n, WAIT_S, [*ids, STATUS.frame_id])
-
-
-def input_current(frame):
-    return round(STATUS.decode(frame.data)["InputCurrent"], 2)
-
-
 def next_allowance(bus):
     """AuxCurrentLimit of the next BMS_Limits on the bus."""
-    frames = until(bus, lambda frames: True, WAIT_S, [LIMITS.frame_id])
+    frames = until(bus, lambda frames: True, ids=[LIMITS.frame_id])
     return LIMITS.decode(frames[0].data)["AuxCurrentLimit"]
-
-
-def settle(bus, amps):
-    """Wait until DCDC_Status.InputCurrent reads `amps`."""
-    until(bus, lambda frames: input_current(frames[-1]) == amps, WAIT_S, [STATUS.frame_id])
 
 
 def test_connect(xcp):
@@ -227,7 +194,7 @@ def test_calibration_is_bounded(bus, bms, xcp, a2l):
         assert read_f32(xcp, a2l["slew_step_a"]) == pytest.approx(0.1 * PERIOD_S)
 
 
-def test_daq_on_cycle_event(bus, bms, xcp, a2l, pytestconfig):
+def test_daq_on_cycle_event(bus, bms, xcp, a2l):
     # One list on event 0 (the 50 ms cycle), two ODTs of one float each.
     xcp.freeDaq()
     xcp.allocDaq(1)
@@ -255,11 +222,9 @@ def test_daq_on_cycle_event(bus, bms, xcp, a2l, pytestconfig):
     # One sample per cycle, each the value the same cycle put on the bus.
     assert len(samples) == pytest.approx(len(status), abs=1), (len(samples), len(status))
     assert len(temps) == pytest.approx(len(samples), abs=1), (len(samples), len(temps))
-    if not pytestconfig.getoption("channel").startswith("vcan"):
-        gaps = [b.timestamp - a.timestamp for a, b in zip(samples, samples[1:])]
-        assert sum(gaps) / len(gaps) == pytest.approx(PERIOD_S, rel=0.05)
+    assert_period([b.timestamp - a.timestamp for a, b in zip(samples, samples[1:])], PERIOD_S, 0.05)
     ic = [round(struct.unpack("<f", m.data[1:5])[0], 2) for m in samples]
-    assert set(ic) <= {round(STATUS.decode(m.data)["InputCurrent"], 2) for m in status}
+    assert set(ic) <= {input_current(m) for m in status}
 
     # The bench frame is untouched: every cycle present, counter unbroken.
     counters = [STATUS.decode(m.data)["Counter"] for m in status]

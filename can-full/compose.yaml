@@ -33,13 +33,11 @@ services:
     volumes:
       - ./bench:/bench:ro
 
-  # Started by `just test`, not by `up`.
+  # Started by `just test`, not by `up`. The xcp suite reads the DC-DC's A2L,
+  # generated beside its ELF, from /elf.
   tester:
     extends:
       file: ../bench/compose.yaml
       service: tester
     volumes:
       - ./build:/elf:ro
-    environment:
-      # The DC-DC's A2L, generated beside its ELF with that build's addresses.
-      ZELOS_A2L: /elf/dcdc-xcp.a2l

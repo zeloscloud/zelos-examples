@@ -7,6 +7,8 @@
 
 #include <string.h>
 
+#include <zephyr/sys/byteorder.h>
+
 enum {
 	CMD_CONNECT = 0xFF,
 	CMD_DISCONNECT = 0xFE,
@@ -72,25 +74,6 @@ enum {
 #define ODT_PAYLOAD (ZELOS_XCP_MAX_DTO - 1)
 /* PIDs from 0xFC up are reserved for responses, errors, events and service. */
 _Static_assert(CONFIG_ZELOS_XCP_ODTS <= 0xFC, "absolute ODT numbers must stay below 0xFC");
-
-static uint16_t get_u16(const uint8_t *p)
-{
-	return (uint16_t)(p[0] | (p[1] << 8));
-}
-
-static uint32_t get_u32(const uint8_t *p)
-{
-	return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) |
-	       ((uint32_t)p[3] << 24);
-}
-
-static void put_u32(uint8_t *p, uint32_t v)
-{
-	p[0] = (uint8_t)v;
-	p[1] = (uint8_t)(v >> 8);
-	p[2] = (uint8_t)(v >> 16);
-	p[3] = (uint8_t)(v >> 24);
-}
 
 static uint32_t xcp_addr(const void *ptr)
 {
@@ -229,7 +212,7 @@ static void get_id(struct zelos_xcp_core *xcp, uint8_t type)
 
 	if (r != NULL) {
 		/* Mode 0: the master uploads the text from the MTA. */
-		put_u32(&r[4], len);
+		sys_put_le32(len, &r[4]);
 	}
 	xcp->mta = xcp_addr(xcp->config->id);
 }
@@ -294,7 +277,7 @@ static void download(struct zelos_xcp_core *xcp, uint8_t n, const uint8_t *data)
 
 static struct zelos_xcp_daq_list *daq_at(struct zelos_xcp_core *xcp, const uint8_t *p)
 {
-	uint16_t i = get_u16(p);
+	uint16_t i = sys_get_le16(p);
 
 	return i < xcp->daq_count ? &xcp->daq[i] : NULL;
 }
@@ -391,7 +374,7 @@ static void set_daq_ptr(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 		return;
 	}
 
-	xcp->ptr_daq = get_u16(&cmd[2]);
+	xcp->ptr_daq = sys_get_le16(&cmd[2]);
 	xcp->ptr_odt = cmd[4];
 	xcp->ptr_entry = cmd[5];
 	(void)res(xcp, 1);
@@ -400,7 +383,7 @@ static void set_daq_ptr(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 static void write_daq(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 {
 	uint8_t size = cmd[2];
-	uint32_t addr = get_u32(&cmd[4]);
+	uint32_t addr = sys_get_le32(&cmd[4]);
 	struct zelos_xcp_daq_list *d;
 	struct zelos_xcp_odt *o;
 	struct zelos_xcp_odt_entry *e;
@@ -454,7 +437,7 @@ static void write_daq(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 static void set_daq_list_mode(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 {
 	struct zelos_xcp_daq_list *d = daq_at(xcp, &cmd[2]);
-	uint16_t channel = get_u16(&cmd[4]);
+	uint16_t channel = sys_get_le16(&cmd[4]);
 
 	if (d == NULL || channel >= xcp->config->event_count || cmd[6] == 0) {
 		err(xcp, ERR_OUT_OF_RANGE);
@@ -636,7 +619,7 @@ void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *cmd, uin
 			err(xcp, ERR_OUT_OF_RANGE);
 			break;
 		}
-		xcp->mta = get_u32(&cmd[4]);
+		xcp->mta = sys_get_le32(&cmd[4]);
 		(void)res(xcp, 1);
 		break;
 	case CMD_UPLOAD:
@@ -647,7 +630,7 @@ void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *cmd, uin
 			err(xcp, ERR_OUT_OF_RANGE);
 			break;
 		}
-		xcp->mta = get_u32(&cmd[4]);
+		xcp->mta = sys_get_le32(&cmd[4]);
 		upload(xcp, cmd[1]);
 		break;
 	case CMD_DOWNLOAD:
@@ -661,7 +644,7 @@ void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *cmd, uin
 		free_daq(xcp);
 		break;
 	case CMD_ALLOC_DAQ:
-		alloc_daq(xcp, get_u16(&cmd[2]));
+		alloc_daq(xcp, sys_get_le16(&cmd[2]));
 		break;
 	case CMD_ALLOC_ODT:
 		alloc_odt(xcp, cmd);
@@ -702,7 +685,7 @@ void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *cmd, uin
 		}
 		break;
 	case CMD_GET_DAQ_EVENT_INFO:
-		get_daq_event_info(xcp, get_u16(&cmd[2]));
+		get_daq_event_info(xcp, sys_get_le16(&cmd[2]));
 		break;
 	default:
 		err(xcp, ERR_CMD_UNKNOWN);

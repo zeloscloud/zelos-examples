@@ -7,6 +7,8 @@
 #include <errno.h>
 #include <string.h>
 
+#include <zephyr/sys/byteorder.h>
+
 #define PF(pgn)  (((pgn) >> 8) & 0xFFU)
 #define PDU1(pgn) (PF(pgn) < 240U)
 
@@ -47,23 +49,6 @@ static void emit(struct zelos_j1939 *j, uint8_t prio, uint32_t pgn, const uint8_
 	j->send(&f, j->user);
 }
 
-static void put_le(uint8_t *p, uint64_t v, int n)
-{
-	for (int i = 0; i < n; i++) {
-		p[i] = (uint8_t)(v >> (8 * i));
-	}
-}
-
-static uint64_t get_le(const uint8_t *p, int n)
-{
-	uint64_t v = 0;
-
-	for (int i = n - 1; i >= 0; i--) {
-		v = (v << 8) | p[i];
-	}
-	return v;
-}
-
 /*
  * J1939-81 has several nodes that cannot claim answer a request after a
  * pseudo-random 0 to 153 ms, so their identical IDs do not collide. The NAME
@@ -74,9 +59,10 @@ static uint32_t cannot_claim_delay(const struct zelos_j1939 *j)
 	return (uint32_t)((j->name ^ (j->name >> 32)) % 154U);
 }
 
-static void claim(struct zelos_j1939 *j, uint8_t address, uint32_t now_ms)
+static void claim(struct zelos_j1939 *j, enum zelos_j1939_state state, uint8_t address,
+		  uint32_t now_ms)
 {
-	j->state = ZELOS_J1939_CLAIMING;
+	j->state = state;
 	j->address = address;
 	j->claim_pending = true;
 	j->claim_started = false;
@@ -96,15 +82,11 @@ static void lose(struct zelos_j1939 *j, uint32_t now_ms)
 			next = DYNAMIC_FIRST;
 		}
 		j->tried++;
-		claim(j, next, now_ms);
+		claim(j, ZELOS_J1939_CLAIMING, next, now_ms);
 		return;
 	}
 
-	j->state = ZELOS_J1939_CANNOT_CLAIM;
-	j->address = ZELOS_J1939_ADDR_NULL;
-	j->claim_pending = true;
-	j->claim_due_ms = now_ms;
-	j->bam.active = false;
+	claim(j, ZELOS_J1939_CANNOT_CLAIM, ZELOS_J1939_ADDR_NULL, now_ms);
 }
 
 int zelos_j1939_init(struct zelos_j1939 *j, uint32_t now_ms)
@@ -118,7 +100,7 @@ int zelos_j1939_init(struct zelos_j1939 *j, uint32_t now_ms)
 	}
 	j->tried = DYNAMIC(j->preferred) ? 1U : 0U;
 	j->nack_pending = false;
-	claim(j, j->preferred, now_ms);
+	claim(j, ZELOS_J1939_CLAIMING, j->preferred, now_ms);
 	return 0;
 }
 
@@ -131,7 +113,7 @@ static void on_claim(struct zelos_j1939 *j, uint8_t sa, const struct zelos_j1939
 		return;
 	}
 
-	theirs = get_le(f->data, 8);
+	theirs = sys_get_le64(f->data);
 	if (theirs == j->name) {
 		return;
 	}
@@ -153,7 +135,7 @@ static void on_request(struct zelos_j1939 *j, uint8_t da, uint8_t sa,
 		return;
 	}
 
-	pgn = (uint32_t)get_le(f->data, 3);
+	pgn = sys_get_le24(f->data);
 
 	if (pgn == ZELOS_J1939_PGN_ADDRESS_CLAIMED) {
 		j->claim_pending = true;
@@ -204,7 +186,7 @@ static void send_claim(struct zelos_j1939 *j, uint32_t now_ms)
 {
 	uint8_t name[8];
 
-	put_le(name, j->name, 8);
+	sys_put_le64(j->name, name);
 	emit(j, PRIO_CLAIM, ZELOS_J1939_PGN_ADDRESS_CLAIMED, name, sizeof(name));
 	j->claim_pending = false;
 
@@ -218,7 +200,7 @@ static void send_nack(struct zelos_j1939 *j)
 {
 	uint8_t d[8] = {ACK_NACK, 0xFF, 0xFF, 0xFF, j->nack_to};
 
-	put_le(&d[5], j->nack_pgn, 3);
+	sys_put_le24(j->nack_pgn, &d[5]);
 	emit(j, PRIO_CLAIM, ZELOS_J1939_PGN_ACK, d, sizeof(d));
 	j->nack_pending = false;
 }
@@ -235,10 +217,10 @@ static void bam_start(struct zelos_j1939 *j, const struct zelos_j1939_msg *m, ui
 	j->bam.due_ms = now_ms + ZELOS_J1939_BAM_GAP_MS;
 	memcpy(j->bam.buf, m->data, m->len);
 
-	put_le(&cm[1], m->len, 2);
+	sys_put_le16(m->len, &cm[1]);
 	cm[3] = j->bam.packets;
 	cm[4] = 0xFF;
-	put_le(&cm[5], m->pgn, 3);
+	sys_put_le24(m->pgn, &cm[5]);
 	emit(j, PRIO_TP, ZELOS_J1939_PGN_TP_CM, cm, sizeof(cm));
 }
 

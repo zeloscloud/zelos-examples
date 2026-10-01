@@ -8,6 +8,7 @@
  */
 
 #include <bench.h>
+#include <genset.h>
 #include <zelos/can.h>
 #include <zelos/j1939.h>
 
@@ -15,6 +16,7 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/byteorder.h>
 
 LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 
@@ -22,9 +24,12 @@ LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 #define PGN_ET1  65262U /* Engine Temperature 1 */
 #define PGN_DM1  65226U /* Active Diagnostic Trouble Codes */
 
-/* J1939-71 ties EEC1's rate to engine speed, tens of ms; 100 ms keeps the bench bus light. */
-#define EEC1_PERIOD_MS 100U
-#define ET1_PERIOD_MS  1000U
+/*
+ * EEC1 and ET1 periods come from dbc/genset.dbc. J1939-71 ties EEC1's rate to
+ * engine speed, tens of ms; 100 ms keeps the bench bus light.
+ */
+#define EEC1_PERIOD_MS GENSET_EEC1_CYCLE_TIME_MS
+#define ET1_PERIOD_MS  GENSET_ET1_CYCLE_TIME_MS
 #define DM1_PERIOD_MS  1000U
 
 /* A self-configurable address, so the NAME says arbitrary-address capable. */
@@ -157,31 +162,37 @@ static void step(struct engine *e)
 }
 
 /*
- * SPN 513 Actual Engine Percent Torque: byte 3, 1 %/bit, -125 %.
- * SPN 190 Engine Speed: bytes 4-5, 0.125 rpm/bit.
+ * EEC1 and ET1 carry only the SPNs in dbc/genset.dbc. J1939 sends the rest as
+ * all ones, not available; cantools packs them as zeros.
  */
 static void encode_eec1(const struct engine *e, uint8_t *d)
 {
-	uint16_t speed = (uint16_t)(e->rpm / 0.125f);
+	const struct genset_eec1_t m = {
+		.actual_engine_percent_torque =
+			genset_eec1_actual_engine_percent_torque_encode(e->torque_pct),
+		.engine_speed = genset_eec1_engine_speed_encode(e->rpm),
+	};
 
-	memset(d, 0xFF, 8);
-	d[2] = (uint8_t)(e->torque_pct + 125.0f);
-	d[3] = speed & 0xFFU;
-	d[4] = speed >> 8;
+	(void)genset_eec1_pack(d, &m, GENSET_EEC1_LENGTH);
+	d[0] = d[1] = 0xFF;
+	memset(&d[5], 0xFF, 3);
 }
 
-/* SPN 110 Engine Coolant Temperature, byte 1, 1 degC/bit, -40 degC. */
 static void encode_et1(const struct engine *e, uint8_t *d)
 {
-	memset(d, 0xFF, 8);
-	d[0] = (uint8_t)CLAMP(e->coolant_c + 40.0f, 0.0f, 250.0f);
+	const struct genset_et1_t m = {
+		.engine_coolant_temp =
+			genset_et1_engine_coolant_temp_encode(CLAMP(e->coolant_c, -40.0f, 210.0f)),
+	};
+
+	(void)genset_et1_pack(d, &m, GENSET_ET1_LENGTH);
+	memset(&d[1], 0xFF, 7);
 }
 
 /* J1939-73 DTC: SPN low 16 bits, then SPN high 3 bits over the FMI, then occurrence count. */
 static void put_dtc(uint8_t *p, uint32_t spn, uint8_t fmi, uint8_t occurrences)
 {
-	p[0] = spn & 0xFFU;
-	p[1] = (spn >> 8) & 0xFFU;
+	sys_put_le16(spn & 0xFFFFU, p);
 	p[2] = (uint8_t)(((spn >> 16) & 0x7U) << 5) | (fmi & 0x1FU);
 	p[3] = occurrences & 0x7FU;
 }
@@ -209,9 +220,9 @@ static void publish(const struct engine *e)
 	uint16_t len;
 
 	encode_eec1(e, buf);
-	zelos_j1939_set(&msgs[0], buf, 8);
+	zelos_j1939_set(&msgs[0], buf, GENSET_EEC1_LENGTH);
 	encode_et1(e, buf);
-	zelos_j1939_set(&msgs[1], buf, 8);
+	zelos_j1939_set(&msgs[1], buf, GENSET_ET1_LENGTH);
 	len = encode_dm1(e, buf);
 	zelos_j1939_set(&msgs[2], buf, len);
 }

@@ -7,8 +7,8 @@ name: zelos-bench
 # runs several benches side by side on one host.
 #
 # BENCH_ELF_DIR is mounted as /elf; BENCH_ELFS names the ELFs in it to run, one
-# node each, and BENCH_A2L is the A2L there of an XCP node. `just test-bench` at
-# the repository root sets them; a bench that extends these services sets its
+# node each. An XCP node's A2L sits beside its ELF there, where the tester's
+# suites find it. `just test-bench` at the repository root sets both; a bench that extends these services sets its
 # own. Not required here, because compose interpolates this whole file even for
 # a bench that overrides them; an empty BENCH_ELFS stops renode-run.sh instead.
 
@@ -92,5 +92,3 @@ services:
       # Node descriptions the suites read, such as a CANopen node's EDS.
       - ../nodes:/nodes:ro
       - ${BENCH_ELF_DIR:-.}:/elf:ro
-    environment:
-      ZELOS_A2L: ${BENCH_A2L:-}
