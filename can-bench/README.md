@@ -187,9 +187,9 @@ and is how a real bench is usually arranged.
 
 ### The bench runs slower than wall clock
 
-Three emulated Cortex-M7 cores share one host CPU. On a 16-core machine the
-bench runs at roughly a fifth of real time: a message declared at 100 ms arrives
-about every 500 ms.
+Three emulated Cortex-M7 cores take turns on one host core. The bench runs at
+about a fifth of real time on a 12th Gen Core i7-1260P and about a quarter on an
+Intel N100, so a message declared at 100 ms arrives every 400 to 500 ms.
 
 Serial execution and the 100 µs quantum in `bench/bench.resc` were chosen by
 measuring this bench, not copied from an example; the file records what the
@@ -231,46 +231,24 @@ applied to reductions as well as increases.
 just test
 ```
 
-Each file in `notebooks/` is a test, and `just test` runs all of them:
+Each file in `notebooks/` is a test, and `just test` runs both:
 
-- `nodes-are-alive.md` — every node is still transmitting. A silent node
-  reports nothing anywhere, so it needs an explicit check.
-- `signals-are-plausible.md` — the state of charge is inside its range, the
-  cells are within a sensible spread, the converter is not implausibly hot, and
-  the low-voltage rail holds near its 13.8 V setpoint. These are the checks
-  that catch a scaling mistake in the DBC or a unit error in firmware.
-- `dcdc-respects-allowance.md` — the draw exceeds the allowance only in the
-  first couple of samples after the allowance changes.
+- `bench-health.md` — every node is still sending, and the state of charge,
+  the low-voltage rail and the converter temperature are physically sensible.
+  It catches a node that has gone quiet, a scaling mistake in the DBC, or a
+  unit error in firmware.
+- `dcdc-respects-allowance.md` — the converter's draw sits above the allowance
+  for at most a couple of samples after each cut. It waits for the BMS to lower
+  the allowance rather than assuming the bench has been up long enough.
 
-The last one defines that rule once and runs it against two sets of data: a
-recorded run of the defective firmware, which it must flag, and the live bus,
-which it must find clean. Because the rule is written once rather than copied
-into a separate self-test, what passes is the rule itself.
+`just flash defect` loads the defective DC-DC build, and the second notebook
+fails on it. `traces/dcdc-defect.trz` is a recording of that build, if you want
+to look at the fault without running it.
 
-It also waits for the BMS to lower the allowance rather than assuming the bench
-has been running long enough, and says so if that never happens.
-
-`traces/dcdc-defect.trz` is that recording. `agent.trace()` opens it with the
-same query and check API as live data, and on a trace the file is the clock, so
-the assertion means the same thing however fast the simulation runs. Record
-another from whatever is on the bench with:
-
-```bash
-just record my-run
-```
-
-Each notebook is also a report. They chart what they measured, tabulate it, and
-end with their verdicts, so the rendered page is worth reading whether it passed
-or failed.
-
-`just test` exits non-zero if any notebook fails, and writes a self-contained
-HTML page beside each one — `notebooks/nodes-are-alive.html` and so on. Charts
-are interactive and the page opens with no network access, because the plotting
-runtime is embedded in it. That is most of each page's 900 KB; the data is a
-few tens of KB.
-
-CI keeps those pages as a `test-results` artifact on every run, including failed
-ones, so a red build comes with the evidence attached rather than just a log.
+Each notebook is also a report: it charts what it measured and ends with its
+checks. `just test` exits non-zero if either fails, and writes a self-contained
+HTML page beside each notebook. CI keeps those pages as a `test-results`
+artifact on every run, including failed ones.
 
 ## What this bench cannot show you
 
@@ -296,10 +274,11 @@ the bench on a network you trust.
 
 ## Going to real hardware
 
-The CAN extension takes a channel name, so pointing it at `can0` instead of
-`vcan0` and stopping the Renode container reads a physical adapter instead. That
-is the design rather than a tested claim: it is one line of configuration, and
-it has not been run here.
+The bench's containers share their own network namespace, so a USB adapter's
+`can0` on the host is not visible inside them. For real hardware, run a Zelos
+agent on the machine the adapter is plugged into, install the CAN extension
+there, and set its interface, channel and DBC from the gear next to the
+extension in the app's Explorer. This has not been run here.
 
 ## Versions
 
@@ -310,7 +289,7 @@ it has not been run here.
 | Renode | `antmicro/renode:1.16.1` |
 | Zelos agent | `26.0.8` |
 | Zelos CLI | `0.1.9` |
-| CAN extension | `zeloscloud/zelos-extension-can` `v0.1.15` |
+| CAN extension | `zeloscloud/zelos-extension-can` `v0.1.17` |
 | cantools | `41.3.1` |
 
 Renode is pinned at 1.16.1 for a specific reason: releases before 1.16.0

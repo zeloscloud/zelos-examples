@@ -9,7 +9,7 @@ ARG CLI_VERSION=0.1.9
 # The marketplace identifier is the repository path, and the version is the git
 # tag, including its leading "v".
 ARG CAN_EXTENSION=zeloscloud/zelos-extension-can
-ARG CAN_EXTENSION_VERSION=v0.1.15
+ARG CAN_EXTENSION_VERSION=v0.1.17
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl procps \
