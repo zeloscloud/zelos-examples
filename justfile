@@ -110,8 +110,9 @@ test-bench SUITE +ELFS:
     # --no-deps: recreating the bus would strand the nodes in the old namespace.
     "${compose[@]}" run --rm --no-deps tester "suites/{{ SUITE }}"
 
-# Flash one node with probe-rs, then run testing/ suites against it on a
-# physical channel. ELF is relative to where just was run.
+# ELF is relative to where just was run.
+
+# Flash a node with probe-rs, then run testing/ suites on a physical channel.
 hil ELF CHANNEL +SUITES:
     #!/usr/bin/env bash
     set -euo pipefail

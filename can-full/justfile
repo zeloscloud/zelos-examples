@@ -30,9 +30,11 @@ down:
 bus:
     docker compose exec renode candump -td vcan0
 
+# --no-deps, because recreating the bus would strand the nodes in the old
+# network namespace.
+
 # Run the protocol suites against the running bench.
 test:
-    # --no-deps: recreating the bus would strand the nodes in the old namespace.
     docker compose run --rm --no-deps tester {{ SUITES }}
 
 # Rebuild every node; the DC-DC with XCP, and its A2L beside it.
@@ -51,8 +53,7 @@ firmware:
         echo "The bench is running the previous firmware: just down && just up"
     fi
 
-# Flash one node to a board with probe-rs and run its suites on a physical
-# channel, e.g. `just hil genset can0`.
+# Flash a node and run its suites on a channel, e.g. `just hil genset can0`.
 hil NODE CHANNEL: _elf
     #!/usr/bin/env bash
     set -euo pipefail
