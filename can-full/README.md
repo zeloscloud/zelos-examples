@@ -61,7 +61,7 @@ inputs and per-channel current, and trips channel 8, which is shorted.
 
 | Suite | Against | Proves |
 |---|---|---|
-| `../testing/suites/xcp` | DC-DC | Connect and identify; reads restricted to the registered variables; a calibration takes effect on the bus, both ways, and is bounded to the A2L's limits, NaN included; DAQ samples once per cycle, matching the frame the same cycle sent |
+| `../testing/suites/xcp` | DC-DC | Connect and identify; the EPK matches the A2L's; reads restricted to the registered variables; a calibration takes effect on the bus, both ways, and is bounded to the A2L's limits, NaN included; DAQ samples once per cycle, matching the frame the same cycle sent; DAQ properties as the A2L declares them; timestamps from the GET_DAQ_CLOCK clock, one cycle apart (and within 2 % of the host's clock, on hardware); a running list's layout refused changes; invalid modes refused; another master's CONNECT stops DAQ and the first master recovers |
 | `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; requests answered; periods; DM1 by BAM, reassembled by python-can-j1939 |
 | `../testing/suites/canopen` | PDU | Boot-up and heartbeat; NMT start, stop and pre-operational; SDO identity and downloads; RPDO commands reflected in TPDOs; an overcurrent trip raises EMCY and recovers, and trips again after a communication reset |
 

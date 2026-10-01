@@ -54,6 +54,12 @@ def collect(bus: can.BusABC, seconds: float, ids: Iterable[int] | None = None) -
     return list(_receive(bus, seconds, ids))
 
 
+def drain(bus: can.BusABC):
+    """Drop the frames received so far, so the next wait sees only new ones."""
+    while bus.recv(0) is not None:
+        pass
+
+
 def count(frames: list[can.Message], frame_id: int) -> int:
     """How many of frames are on frame_id."""
     return sum(m.arbitration_id == frame_id for m in frames)

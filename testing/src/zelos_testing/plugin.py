@@ -40,6 +40,17 @@ def pytest_configure(config):
     frames.SIMULATED = _link(config.getoption("channel"))["info_kind"] == "vcan"
     scale = config.getoption("time_scale")
     frames.TIME_SCALE = scale if scale is not None else 20.0 if frames.SIMULATED else 1.0
+    config.addinivalue_line("markers", "hardware: measures the node against the host's clock; skipped on vcan")
+
+
+def pytest_collection_modifyitems(config, items):
+    """Under Renode the node's clock does not keep the host's, so hardware tests skip."""
+    if not frames.SIMULATED:
+        return
+    skip = pytest.mark.skip(reason="the node's clock is simulated on vcan")
+    for item in items:
+        if item.get_closest_marker("hardware"):
+            item.add_marker(skip)
 
 
 @pytest.fixture
