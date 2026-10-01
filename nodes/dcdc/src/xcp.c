@@ -40,6 +40,7 @@ static const struct zelos_xcp_config config = {
 	.events = events,
 	.event_count = ARRAY_SIZE(events),
 	.id = "dcdc",
+	.epk = zelos_xcp_epk,
 };
 
 int dcdc_xcp_start(void)

@@ -21,6 +21,20 @@ static K_SEM_DEFINE(dto_sem, 0, 1);
 static K_MUTEX_DEFINE(core_lock);
 static struct zelos_xcp_core core;
 
+/* Differs with every build, so a stale A2L is caught before measuring. */
+const char zelos_xcp_epk[] = __DATE__ " " __TIME__;
+
+/* The DAQ clock: microseconds since boot, wrapping at 32 bits. */
+static uint32_t daq_clock(void)
+{
+#if defined(CONFIG_TIMER_HAS_64BIT_CYCLE_COUNTER)
+	return (uint32_t)k_cyc_to_us_floor64(k_cycle_get_64());
+#else
+	/* At the kernel tick's resolution. */
+	return (uint32_t)k_ticks_to_us_floor64(k_uptime_ticks());
+#endif
+}
+
 static void send_pending(void)
 {
 	struct zelos_xcp_frame frame;
@@ -60,7 +74,8 @@ static void xcp_thread(void *p1, void *p2, void *p3)
 
 		while (k_msgq_get(&xcp_cro_msgq, &frame, K_NO_WAIT) == 0) {
 			k_mutex_lock(&core_lock, K_FOREVER);
-			zelos_xcp_core_on_frame(&core, frame.data, can_dlc_to_bytes(frame.dlc));
+			zelos_xcp_core_on_frame(&core, frame.data, can_dlc_to_bytes(frame.dlc),
+						daq_clock());
 			k_mutex_unlock(&core_lock);
 			send_pending();
 		}
@@ -93,7 +108,7 @@ int zelos_xcp_start(const struct zelos_xcp_config *config)
 void zelos_xcp_event(uint8_t channel)
 {
 	k_mutex_lock(&core_lock, K_FOREVER);
-	zelos_xcp_core_event(&core, channel);
+	zelos_xcp_core_event(&core, channel, daq_clock());
 	k_mutex_unlock(&core_lock);
 	k_sem_give(&dto_sem);
 }
