@@ -15,7 +15,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates curl wget git file make gcc libc6-dev \
       cmake ninja-build gperf device-tree-compiler xz-utils \
-      python3 python3-venv \
+      python3 python3-venv ccache \
  && rm -rf /var/lib/apt/lists/*
 
 # Ubuntu's Python is externally managed; install into a virtualenv.
@@ -50,3 +50,13 @@ RUN curl -fsSL \
 
 ENV ZEPHYR_TOOLCHAIN_VARIANT=zephyr
 ENV ZEPHYR_SDK_INSTALL_DIR="/opt/zephyr-sdk-${ZSDK_VERSION}"
+
+# The workspace is mounted in and may belong to another user, as it does when CI
+# restores it from a cache. Git would refuse it as "dubious ownership", and west
+# would then not see Zephyr's commands. The image only ever builds that tree.
+RUN git config --system --add safe.directory '*'
+
+# Zephyr compiles through ccache when it finds it. Keeping the cache in the
+# workspace makes a pristine rebuild cheap, locally and in CI.
+ENV CCACHE_DIR=/workspace/.ccache
+ENV CCACHE_MAXSIZE=500M

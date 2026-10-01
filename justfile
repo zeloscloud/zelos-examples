@@ -10,11 +10,14 @@ CANOPEN_EDITOR := "v4.2.3"
 DOTNET_SDK := "mcr.microsoft.com/dotnet/sdk:8.0@sha256:78235e09001f52b6592c458ac010775ebac6725422e80cd0c1650590f67b2743"
 # The Zephyr tag west.yml pins, so the toolchain is built for the same one.
 ZEPHYR := `sed -n '/- name: zephyr$/,/revision:/s/^ *revision: *//p' west.yml`
-TOOLCHAIN := "zelos-examples-toolchain:" + ZEPHYR
+# Tagged by the Dockerfile's content too, so an unchanged image is never rebuilt
+# and a changed Dockerfile always is.
+TOOLCHAIN := "zelos-examples-toolchain:" + ZEPHYR + "-" + `shasum -a 256 toolchain/Dockerfile | cut -c1-12`
 BOARD := "nucleo_h753zi"
 # The part on that board, for probe-rs.
 CHIP := "STM32H753ZITx"
-# The Docker volume holding the west workspace. Override to build two trees at once.
+# The Docker volume holding the west workspace, or an absolute host path to
+# bind instead. Override to build two trees at once.
 WORKSPACE := env("ZELOS_WEST_VOLUME", "zxws")
 
 # Show the available recipes.
@@ -149,7 +152,8 @@ _fresh ELFS +SOURCES:
 
 # Build the firmware toolchain image. Cached by Docker after the first run.
 _toolchain:
-    docker build -q --build-arg ZEPHYR_VERSION={{ ZEPHYR }} -f toolchain/Dockerfile -t {{ TOOLCHAIN }} toolchain/ > /dev/null
+    docker image inspect {{ TOOLCHAIN }} > /dev/null 2>&1 || \
+        docker build -q --build-arg ZEPHYR_VERSION={{ ZEPHYR }} -f toolchain/Dockerfile -t {{ TOOLCHAIN }} toolchain/ > /dev/null
 
 # Create the pinned west workspace, and bring it up to date when west.yml
 # changes. Cached in a Docker volume.
@@ -157,12 +161,11 @@ _west:
     #!/usr/bin/env bash
     set -euo pipefail
     manifest=$(sha256sum west.yml | cut -d' ' -f1)
-    if docker volume inspect {{ WORKSPACE }} >/dev/null 2>&1 && \
-       [ "$(docker run --rm -v {{ WORKSPACE }}:/w alpine cat /w/.manifest 2>/dev/null)" = "$manifest" ]; then
+    # Docker creates the volume, or the host directory, on first use.
+    if [ "$(docker run --rm -v {{ WORKSPACE }}:/w alpine cat /w/.manifest 2>/dev/null)" = "$manifest" ]; then
         exit 0
     fi
     echo "==> updating the pinned Zephyr workspace to west.yml"
-    docker volume create {{ WORKSPACE }} >/dev/null
     docker run --rm --user root -v {{ WORKSPACE }}:/workspace -v "$PWD:/workspace/zelos-examples:ro" \
         {{ TOOLCHAIN }} bash -c \
         "cd /workspace && { [ -d .west ] || west init -l zelos-examples; } \
