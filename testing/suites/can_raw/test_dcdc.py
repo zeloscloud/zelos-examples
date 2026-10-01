@@ -4,13 +4,11 @@ This suite plays the BMS, so it needs the DC-DC without one. Each test sets the
 allowance it starts from, so none depends on what the node did before.
 """
 
-import time
-
 import can
 import pytest
 
 from zelos_testing import dbc
-from zelos_testing.frames import Periodic, collect
+from zelos_testing.frames import Periodic, collect, count, until
 
 DB = dbc.load("bench")
 STATUS = DB.get_message_by_name("DCDC_Status")
@@ -20,9 +18,9 @@ PERIOD_S = STATUS.cycle_time / 1000
 # From nodes/dcdc: what the 12 V loads draw, and the slew cap per status frame.
 DEMAND_A = 4.5
 STEP_A = 10.0 * PERIOD_S
-# Renode's virtual time is not tied to the host clock and runs several times
-# slower on a loaded host, so waits are bounded generously and exit early.
-TIMEOUT_S = 20.0
+# Waits count the node's status frames, so they run in its time whatever the
+# host's. This much of its time bounds any one of them.
+WAIT_S = 10.0
 
 pytestmark = pytest.mark.usefixtures("bus_health")
 
@@ -31,25 +29,23 @@ def current(frame) -> float:
     return round(frame[1]["InputCurrent"], 2)
 
 
-def status(bus, seconds):
-    """DCDC_Status frames over `seconds`, as (timestamp, signals)."""
-    return [(m.timestamp, STATUS.decode(m.data)) for m in collect(bus, seconds, [STATUS.frame_id])]
+def decoded(frames):
+    return [(m.timestamp, STATUS.decode(m.data)) for m in frames]
 
 
-def until(bus, done):
-    """DCDC_Status frames until done(frames) holds."""
-    frames = []
-    end = time.monotonic() + TIMEOUT_S
-    while time.monotonic() < end:
-        frames += status(bus, 0.25)
-        if frames and done(frames):
-            return frames
-    pytest.fail(f"timed out; InputCurrent {[current(f) for f in frames[-20:]]}")
+def status(bus, done):
+    """DCDC_Status frames, as (timestamp, signals), until done(those) holds."""
+    return decoded(until(bus, lambda frames: done(decoded(frames)), WAIT_S, [STATUS.frame_id]))
+
+
+def cycles(bus, n):
+    """DCDC_Status over the node's next n cycles."""
+    return status(bus, lambda frames: len(frames) >= n)
 
 
 def settle(bus, amps):
     """DCDC_Status frames until InputCurrent reads `amps`."""
-    return until(bus, lambda frames: current(frames[-1]) == amps)
+    return status(bus, lambda frames: current(frames[-1]) == amps)
 
 
 def rises(frames):
@@ -80,8 +76,10 @@ class Bms:
 @pytest.fixture
 def bms(bus):
     """Plays the BMS, starting at zero allowance."""
-    # Two BMS_Limits sources would take turns setting the allowance.
-    assert not collect(bus, 1.0, [LIMITS.frame_id]), "another node sends BMS_Limits; run without a BMS"
+    # Two BMS_Limits sources would take turns setting the allowance. A second of
+    # the node's time sees ten from a BMS.
+    seen = until(bus, lambda frames: count(frames, STATUS.frame_id) >= 20, WAIT_S, [STATUS.frame_id, LIMITS.frame_id])
+    assert not count(seen, LIMITS.frame_id), "another node sends BMS_Limits; run without a BMS"
     bms = Bms()
     with Periodic(bus, bms.msg, LIMITS.cycle_time / 1000) as sender:
         bms.sender = sender
@@ -90,7 +88,7 @@ def bms(bus):
 
 
 def test_status_is_periodic(bus, pytestconfig):
-    frames = until(bus, lambda f: len(f) >= 60)
+    frames = cycles(bus, 60)
     gaps = [b[0] - a[0] for a, b in zip(frames, frames[1:])]
     mean = sum(gaps) / len(gaps)
 
@@ -111,7 +109,7 @@ def test_status_is_periodic(bus, pytestconfig):
 
 
 def test_idle_signals_plausible(bus, bms):
-    _, s = status(bus, 0.5)[-1]
+    _, s = cycles(bus, 1)[-1]
     assert s["InputCurrent"] == 0.0
     assert abs(s["OutputVoltage"] - 13.8) < 0.05
     assert 20 <= s["Temperature"] <= 50
@@ -128,7 +126,7 @@ def test_ramps_up_at_slew_rate(bus, bms):
 def test_capped_at_demand(bus, bms):
     bms.aux = 10.0
     frames = settle(bus, DEMAND_A)
-    frames += status(bus, 0.5)
+    frames += cycles(bus, 10)
     assert all(r <= STEP_A + 0.005 for r in rises(frames)), [current(f) for f in frames]
     assert max(current(f) for f in frames) == DEMAND_A
 
@@ -138,10 +136,7 @@ def test_reduction_honoured_immediately(bus, bms):
     settle(bus, DEMAND_A)
 
     bms.aux = 1.0
-    frames = []
-    end = time.monotonic() + TIMEOUT_S
-    while len([f for f in frames if f.arbitration_id == STATUS.frame_id]) < 20 and time.monotonic() < end:
-        frames += collect(bus, 0.25, [STATUS.frame_id, LIMITS.frame_id])
+    frames = until(bus, lambda frames: count(frames, STATUS.frame_id) >= 20, WAIT_S, [STATUS.frame_id, LIMITS.frame_id])
 
     # The first BMS_Limits carrying the reduction, back from the bus.
     t = next(m.timestamp for m in frames if m.arbitration_id == LIMITS.frame_id and LIMITS.decode(m.data)["AuxCurrentLimit"] == 1.0)

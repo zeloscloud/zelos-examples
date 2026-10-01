@@ -40,7 +40,7 @@ static void capture(const struct zelos_j1939_frame *frame, void *user)
 	n_sent++;
 }
 
-static void start(uint64_t name)
+static void start_at(uint64_t name, uint32_t t0)
 {
 	for (size_t i = 0; i < sizeof(dm1); i++) {
 		dm1[i] = (uint8_t)i;
@@ -57,15 +57,20 @@ static void start(uint64_t name)
 		.send = capture,
 	};
 	n_sent = 0;
-	now = 0;
-	zelos_j1939_init(&j, now);
+	now = t0;
+	zassert_ok(zelos_j1939_init(&j, now));
 	zelos_j1939_poll(&j, now);
 }
 
-/* Advance to `until`, polling every tick as the Zephyr glue does. */
+static void start(uint64_t name)
+{
+	start_at(name, 0);
+}
+
+/* Advance to `until`, polling every tick as the Zephyr glue does. Wrap-safe. */
 static void run_until(uint32_t until)
 {
-	while (now < until) {
+	while ((int32_t)(until - now) > 0) {
 		now += TICK_MS;
 		zelos_j1939_poll(&j, now);
 	}
@@ -199,15 +204,11 @@ ZTEST(j1939, test_requests)
 	zassert_equal(n_sent, from + 1);
 }
 
-ZTEST(j1939, test_bam)
+/* DM1 went out by BAM: the announcement, then three packets at legal gaps. */
+static void assert_bam(void)
 {
 	const uint8_t cm[8] = {32, sizeof(dm1), 0, 3, 0xFF, 0xCA, 0xFE, 0x00};
 	int at;
-
-	start(FIXED);
-	run_until(500);
-	inject_request(ZELOS_J1939_ADDR_GLOBAL, PGN_DM1);
-	run_until(1000);
 
 	at = find(ID(7, 0xECFFU, SA), 0);
 	zassert_true(at >= 0);
@@ -228,6 +229,35 @@ ZTEST(j1939, test_bam)
 		zassert_mem_equal(sent[at].frame.data, expect, 8);
 	}
 	zassert_equal(find(ID(7, 0xEBFFU, SA), at + 1), -1);
+}
+
+ZTEST(j1939, test_bam)
+{
+	start(FIXED);
+	run_until(500);
+	inject_request(ZELOS_J1939_ADDR_GLOBAL, PGN_DM1);
+	run_until(1000);
+	assert_bam();
+}
+
+/* The uptime counter wraps after 49.7 days; timing must not notice. */
+ZTEST(j1939, test_wraparound)
+{
+	/* The claim wait spans the wrap. */
+	start_at(FIXED, UINT32_MAX - 100U);
+	run_until(1000);
+	int et1_at = find(ID(6, PGN_ET1, SA), 0);
+
+	zassert_equal(et1_at, 1);
+	zassert_equal(sent[et1_at].at - sent[0].at, ZELOS_J1939_CLAIM_WAIT_MS);
+
+	/* So does a BAM. */
+	start_at(FIXED, UINT32_MAX - 300U);
+	run_until(UINT32_MAX - 40U);
+	zassert_equal(j.state, ZELOS_J1939_CLAIMED);
+	inject_request(ZELOS_J1939_ADDR_GLOBAL, PGN_DM1);
+	run_until(500);
+	assert_bam();
 }
 
 ZTEST_SUITE(j1939, NULL, NULL, NULL, NULL, NULL);

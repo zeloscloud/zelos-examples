@@ -5,7 +5,9 @@ plays the BMS unless a real one is on the bus. Every test connects afresh and
 sets what it relies on, and a calibration test restores the value it found.
 """
 
+import contextlib
 import logging
+import math
 import os
 import re
 import struct
@@ -15,7 +17,7 @@ import can
 import pytest
 
 from zelos_testing import dbc
-from zelos_testing.frames import Periodic, collect
+from zelos_testing.frames import Periodic, bound, count, until
 
 # pyxcp stamps its session with the local zone and fails on abbreviations
 # such as PST, so it runs in UTC.
@@ -27,6 +29,7 @@ from pyxcp.master import Master  # noqa: E402
 from pyxcp.types import XcpResponseError  # noqa: E402
 
 CRO, DTO = 0x6F0, 0x6F1
+ERR_WRITE_PROTECTED = 0x23
 ERR_ACCESS_DENIED = 0x24
 
 DB = dbc.load("bench")
@@ -38,7 +41,9 @@ AUX_A = 10.0
 # A demand below every allowance either BMS grants (a real one: 2 to 6 A by
 # mode), so the current it settles at does not depend on which BMS is present.
 LOW_A = 1.5
-TIMEOUT_S = 20.0
+# Waits count the node's frames, so they run in its time whatever the host's.
+# This much of its time bounds any one of them.
+WAIT_S = 10.0
 
 pytestmark = pytest.mark.usefixtures("bus_health")
 
@@ -63,6 +68,7 @@ def xcp(pytestconfig):
     app = create_application_from_config(
         {
             "Transport": {
+                "timeout": bound(2.0),
                 "CAN": {
                     "interface": "socketcan",
                     "channel": pytestconfig.getoption("channel"),
@@ -87,7 +93,8 @@ def xcp(pytestconfig):
 @pytest.fixture
 def bms(bus):
     """Plays the BMS with a generous allowance, unless a real BMS is on the bus."""
-    if collect(bus, 1.0, [LIMITS.frame_id]):
+    # A second of the node's time sees ten from a BMS.
+    if count(cycles(bus, 20, [LIMITS.frame_id]), LIMITS.frame_id):
         yield
         return
     counter = 0
@@ -118,55 +125,47 @@ def write_f32(xcp, addr, value):
     xcp.download(struct.pack("<f", value))
 
 
-class demand:
-    """DEMAND_A calibrated to `amps` for the block, then restored."""
+class calibrated:
+    """Characteristics calibrated to these values for the block, then restored."""
 
-    def __init__(self, xcp, a2l, amps):
-        self.xcp, self.addr, self.amps = xcp, a2l["DEMAND_A"], amps
+    def __init__(self, xcp, a2l, **values):
+        self.xcp, self.values = xcp, {a2l[name]: value for name, value in values.items()}
 
     def __enter__(self):
-        self.found = read_f32(self.xcp, self.addr)
-        write_f32(self.xcp, self.addr, self.amps)
+        self.found = {addr: read_f32(self.xcp, addr) for addr in self.values}
+        for addr, value in self.values.items():
+            write_f32(self.xcp, addr, value)
         return self
 
     def __exit__(self, *exc):
-        write_f32(self.xcp, self.addr, self.found)
-        assert read_f32(self.xcp, self.addr) == self.found
+        for addr, value in self.found.items():
+            if exc[0] is None:
+                write_f32(self.xcp, addr, value)
+                assert read_f32(self.xcp, addr) == value
+            else:
+                # The block's failure is the one to report.
+                with contextlib.suppress(Exception):
+                    write_f32(self.xcp, addr, value)
 
 
-def input_current(bus, seconds):
-    return [round(STATUS.decode(m.data)["InputCurrent"], 2) for m in collect(bus, seconds, [STATUS.frame_id])]
+def cycles(bus, n, ids=()):
+    """Frames on ids, with DCDC_Status, over the node's next n cycles."""
+    return until(bus, lambda frames: count(frames, STATUS.frame_id) >= n, WAIT_S, [*ids, STATUS.frame_id])
+
+
+def input_current(frame):
+    return round(STATUS.decode(frame.data)["InputCurrent"], 2)
 
 
 def next_allowance(bus):
     """AuxCurrentLimit of the next BMS_Limits on the bus."""
-    end = time.monotonic() + TIMEOUT_S
-    while time.monotonic() < end:
-        if frames := collect(bus, 0.25, [LIMITS.frame_id]):
-            return LIMITS.decode(frames[0].data)["AuxCurrentLimit"]
-    pytest.fail("no BMS_Limits")
+    frames = until(bus, lambda frames: True, WAIT_S, [LIMITS.frame_id])
+    return LIMITS.decode(frames[0].data)["AuxCurrentLimit"]
 
 
 def settle(bus, amps):
     """Wait until DCDC_Status.InputCurrent reads `amps`."""
-    seen = []
-    end = time.monotonic() + TIMEOUT_S
-    while time.monotonic() < end:
-        seen += input_current(bus, 0.25)
-        if seen and seen[-1] == amps:
-            return
-    pytest.fail(f"InputCurrent never reached {amps}: {seen[-20:]}")
-
-
-def cycles(bus, count, ids):
-    """Frames on ids, with DCDC_Status, over the node's next `count` cycles."""
-    frames = []
-    end = time.monotonic() + TIMEOUT_S
-    while sum(m.arbitration_id == STATUS.frame_id for m in frames) < count:
-        if time.monotonic() > end:
-            pytest.fail(f"{count} cycles took over {TIMEOUT_S} s")
-        frames += collect(bus, 0.25, [*ids, STATUS.frame_id])
-    return frames
+    until(bus, lambda frames: input_current(frames[-1]) == amps, WAIT_S, [STATUS.frame_id])
 
 
 def test_connect(xcp):
@@ -177,7 +176,7 @@ def test_connect(xcp):
 
 def test_measurements(bus, bms, xcp, a2l):
     slew = read_f32(xcp, a2l["SLEW_A_PER_S"])
-    with demand(xcp, a2l, LOW_A):
+    with calibrated(xcp, a2l, DEMAND_A=LOW_A):
         settle(bus, LOW_A)
         # A real BMS changes the allowance with the VCU's mode, so the node
         # holds the allowance of a frame just before or just after the read.
@@ -187,7 +186,7 @@ def test_measurements(bus, bms, xcp, a2l):
         assert read_f32(xcp, a2l["setpoint_a"]) == pytest.approx(LOW_A)
         assert read_f32(xcp, a2l["input_current_a"]) == pytest.approx(LOW_A, abs=0.01)
     assert read_f32(xcp, a2l["slew_step_a"]) == pytest.approx(slew * PERIOD_S)
-    on_bus = STATUS.decode(collect(bus, 0.2, [STATUS.frame_id])[-1].data)["Temperature"]
+    on_bus = STATUS.decode(cycles(bus, 1)[-1].data)["Temperature"]
     assert read_f32(xcp, a2l["temperature_c"]) == pytest.approx(on_bus, abs=1.0)
 
 
@@ -196,7 +195,7 @@ def test_only_registered_memory(xcp, a2l):
     xcp.setMta(a2l["input_current_a"])
     with pytest.raises(XcpResponseError) as e:
         xcp.download(b"\0\0\0\0")
-    assert int(e.value.get_error_code()) == ERR_ACCESS_DENIED
+    assert int(e.value.get_error_code()) == ERR_WRITE_PROTECTED
 
     # Nothing outside the registered variables: not flash, not a read that
     # straddles a variable's end, not the word after the last one.
@@ -208,11 +207,24 @@ def test_only_registered_memory(xcp, a2l):
 
 def test_calibration_is_live(bus, bms, xcp, a2l):
     # Down, then up, so the current is seen to follow the calibration both ways.
-    with demand(xcp, a2l, LOW_A / 2):
+    with calibrated(xcp, a2l, DEMAND_A=LOW_A / 2):
         settle(bus, LOW_A / 2)
         write_f32(xcp, a2l["DEMAND_A"], LOW_A)
         assert read_f32(xcp, a2l["DEMAND_A"]) == LOW_A
         settle(bus, LOW_A)
+
+
+def test_calibration_is_bounded(bus, bms, xcp, a2l):
+    # The node bounds what it is sent to the A2L's limits: past the top to the
+    # upper bound, NaN to the lower. Measured two cycles on, once it has run.
+    with calibrated(xcp, a2l, DEMAND_A=1000.0, SLEW_A_PER_S=1000.0):
+        cycles(bus, 2)
+        assert read_f32(xcp, a2l["setpoint_a"]) <= 20.0
+        assert read_f32(xcp, a2l["slew_step_a"]) == pytest.approx(100.0 * PERIOD_S)
+    with calibrated(xcp, a2l, DEMAND_A=math.nan, SLEW_A_PER_S=math.nan):
+        cycles(bus, 2)
+        assert read_f32(xcp, a2l["setpoint_a"]) == 0.0
+        assert read_f32(xcp, a2l["slew_step_a"]) == pytest.approx(0.1 * PERIOD_S)
 
 
 def test_daq_on_cycle_event(bus, bms, xcp, a2l, pytestconfig):

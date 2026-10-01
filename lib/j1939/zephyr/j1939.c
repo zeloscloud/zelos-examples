@@ -39,7 +39,8 @@ static void run(void *p1, void *p2, void *p3)
 		uint32_t now = k_uptime_get_32();
 
 		k_mutex_lock(&lock, K_FOREVER);
-		if (got) {
+		/* Filters match remote frames too; they carry no J1939 data. */
+		if (got && (frame.flags & CAN_FRAME_RTR) == 0U) {
 			struct zelos_j1939_frame f = {
 				.id = frame.id,
 				.len = MIN(can_dlc_to_bytes(frame.dlc), 8),
@@ -56,18 +57,22 @@ static void run(void *p1, void *p2, void *p3)
 int zelos_j1939_start(struct zelos_j1939 *j)
 {
 	static const uint32_t pgns[] = {ZELOS_J1939_PGN_REQUEST, ZELOS_J1939_PGN_ADDRESS_CLAIMED};
+	int err;
+
+	j->send = send_frame;
+	err = zelos_j1939_init(j, k_uptime_get_32());
+	if (err < 0) {
+		LOG_ERR("a message has a PDU1 PGN");
+		return err;
+	}
 
 	for (size_t i = 0; i < ARRAY_SIZE(pgns); i++) {
-		int err = zelos_can_subscribe_ext(pgns[i] << 8, PF_MASK, &rx_msgq);
-
+		err = zelos_can_subscribe_ext(pgns[i] << 8, PF_MASK, &rx_msgq);
 		if (err < 0) {
 			LOG_ERR("subscribe to PGN %u: %d", pgns[i], err);
 			return err;
 		}
 	}
-
-	j->send = send_frame;
-	zelos_j1939_init(j, k_uptime_get_32());
 
 	k_thread_create(&thread, stack, K_THREAD_STACK_SIZEOF(stack), run, j, NULL, NULL,
 			K_PRIO_PREEMPT(5), 0, K_NO_WAIT);

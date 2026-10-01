@@ -18,7 +18,6 @@ enum {
 	CMD_UPLOAD = 0xF5,
 	CMD_SHORT_UPLOAD = 0xF4,
 	CMD_DOWNLOAD = 0xF0,
-	CMD_SHORT_DOWNLOAD = 0xED,
 	CMD_SET_DAQ_PTR = 0xE2,
 	CMD_WRITE_DAQ = 0xE1,
 	CMD_SET_DAQ_LIST_MODE = 0xE0,
@@ -43,6 +42,7 @@ enum {
 	ERR_CMD_UNKNOWN = 0x20,
 	ERR_CMD_SYNTAX = 0x21,
 	ERR_OUT_OF_RANGE = 0x22,
+	ERR_WRITE_PROTECTED = 0x23,
 	ERR_ACCESS_DENIED = 0x24,
 	ERR_MODE_NOT_VALID = 0x27,
 	ERR_SEQUENCE = 0x29,
@@ -50,7 +50,11 @@ enum {
 	ERR_MEMORY_OVERFLOW = 0x30,
 };
 
-/* CONNECT: calibration and DAQ available; no STIM, no programming. */
+/*
+ * CONNECT: calibration and DAQ available; no STIM, no programming. CAL/PAG
+ * comes without the page commands: it is how a master learns it may
+ * calibrate, and the node has only the one page.
+ */
 #define RESOURCE_CAL_PAG 0x01
 #define RESOURCE_DAQ 0x04
 /* Intel byte order, byte granularity, GET_COMM_MODE_INFO available. */
@@ -248,7 +252,14 @@ static void upload(struct zelos_xcp_core *xcp, uint8_t n)
 
 	r = res(xcp, 1 + n);
 	if (r != NULL) {
-		memcpy(&r[1], src, n);
+		/* As download stores it: an aligned 32-bit value in one access. */
+		if (n == 4 && ((uintptr_t)src & 3U) == 0U) {
+			uint32_t v = *(const volatile uint32_t *)src;
+
+			memcpy(&r[1], &v, 4);
+		} else {
+			memcpy(&r[1], src, n);
+		}
 		xcp->mta += n;
 	}
 }
@@ -258,7 +269,9 @@ static void download(struct zelos_xcp_core *xcp, uint8_t n, const uint8_t *data)
 	uint8_t *dst = (uint8_t *)resolve(xcp, xcp->mta, n, true);
 
 	if (dst == NULL) {
-		err(xcp, ERR_ACCESS_DENIED);
+		/* Readable but not writable is protected; anything else is not ours. */
+		err(xcp, resolve(xcp, xcp->mta, n, false) != NULL ? ERR_WRITE_PROTECTED
+								   : ERR_ACCESS_DENIED);
 		return;
 	}
 
@@ -543,7 +556,6 @@ static uint8_t min_len(uint8_t cmd)
 	switch (cmd) {
 	case CMD_SET_MTA:
 	case CMD_SHORT_UPLOAD:
-	case CMD_SHORT_DOWNLOAD:
 	case CMD_WRITE_DAQ:
 		return 8;
 	case CMD_SET_DAQ_LIST_MODE:
@@ -645,15 +657,6 @@ void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *cmd, uin
 		}
 		download(xcp, cmd[1], &cmd[2]);
 		break;
-	case CMD_SHORT_DOWNLOAD:
-		/* An 8-byte CTO leaves no room for data after the 8-byte header. */
-		if (cmd[1] == 0 || cmd[1] > len - 8 || cmd[3] != 0) {
-			err(xcp, ERR_OUT_OF_RANGE);
-			break;
-		}
-		xcp->mta = get_u32(&cmd[4]);
-		download(xcp, cmd[1], &cmd[8]);
-		break;
 	case CMD_FREE_DAQ:
 		free_daq(xcp);
 		break;
@@ -719,7 +722,8 @@ void zelos_xcp_core_event(struct zelos_xcp_core *xcp, uint8_t channel)
 
 		/*
 		 * A sample is all of a list's ODTs or none, so overload drops whole
-		 * samples. One slot stays free for a command response.
+		 * samples, silently: no overload indication (a known limitation).
+		 * One slot stays free for a command response.
 		 */
 		if (ZELOS_XCP_TX_QUEUE - xcp->tx_len - 1 < d->odt_count) {
 			continue;

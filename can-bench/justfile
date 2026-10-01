@@ -131,8 +131,12 @@ _elf:
     fi
 
     # A stale binary is worse than a missing one: the bus looks healthy while
-    # the firmware under test is not the firmware on disk.
-    stale=$(find ../nodes ../lib ../include ../dbc -type f -newer build/dcdc.elf 2>/dev/null | head -3)
+    # the firmware under test is not the firmware on disk. Only what these
+    # nodes build from counts, so work on another bench's nodes does not.
+    sources=(../nodes/vcu ../nodes/bms ../nodes/dcdc ../lib/can ../lib/codec_bench
+             ../lib/Kconfig ../lib/CMakeLists.txt ../include/zelos/can.h ../dbc/bench.dbc
+             ../west.yml ../CMakeLists.txt ../Kconfig ../zephyr)
+    stale=$(find "${sources[@]}" -type f -newer build/dcdc.elf | head -3)
     if [ -n "${stale}" ]; then
         echo "build/ is older than the sources it came from:" >&2
         echo "${stale}" | sed 's/^/    /' >&2

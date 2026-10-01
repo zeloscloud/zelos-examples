@@ -8,8 +8,9 @@
 
 #include <zephyr/ztest.h>
 
-#define ERR_CMD_UNKNOWN   0x20
-#define ERR_ACCESS_DENIED 0x24
+#define ERR_CMD_UNKNOWN     0x20
+#define ERR_WRITE_PROTECTED 0x23
+#define ERR_ACCESS_DENIED   0x24
 
 /* A readable measurement, a writable parameter, and a secret nobody registered. */
 static uint8_t meas[4] = {0x11, 0x22, 0x33, 0x44};
@@ -82,6 +83,8 @@ ZTEST(xcp, test_connect)
 
 	CMD(&f, 0xC0); /* not implemented */
 	assert_err(&f, ERR_CMD_UNKNOWN);
+	CMD(&f, 0xED, 4, 0, 0, LE32(ADDR(&param))); /* SHORT_DOWNLOAD: no room in 8 bytes */
+	assert_err(&f, ERR_CMD_UNKNOWN);
 }
 
 ZTEST(xcp, test_short_upload)
@@ -114,7 +117,7 @@ ZTEST(xcp, test_download_allowlist)
 	/* Readable is not writable. */
 	CMD(&f, 0xF6, 0, 0, 0, LE32(ADDR(meas)));
 	CMD(&f, 0xF0, 1, 0x99);
-	assert_err(&f, ERR_ACCESS_DENIED);
+	assert_err(&f, ERR_WRITE_PROTECTED);
 	zassert_equal(meas[0], 0x11);
 
 	CMD(&f, 0xF6, 0, 0, 0, LE32(ADDR(&secret)));

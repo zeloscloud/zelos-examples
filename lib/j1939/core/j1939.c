@@ -4,6 +4,7 @@
 
 #include <zelos/j1939.h>
 
+#include <errno.h>
 #include <string.h>
 
 #define PF(pgn)  (((pgn) >> 8) & 0xFFU)
@@ -18,6 +19,7 @@
 /* Where an arbitrary-address-capable node looks when it loses its address. */
 #define DYNAMIC_FIRST 128U
 #define DYNAMIC_LAST  247U
+#define DYNAMIC(a)    ((a) >= DYNAMIC_FIRST && (a) <= DYNAMIC_LAST)
 
 /* Wrap-safe: has `now` reached `t`? */
 static bool reached(uint32_t now, uint32_t t)
@@ -86,13 +88,14 @@ static void lose(struct zelos_j1939 *j, uint32_t now_ms)
 {
 	bool arbitrary = (j->name >> 63) != 0U;
 
-	if (arbitrary && j->moves < DYNAMIC_LAST - DYNAMIC_FIRST) {
+	/* Each dynamic address at most once, the preferred one included. */
+	if (arbitrary && j->tried < DYNAMIC_LAST - DYNAMIC_FIRST + 1U) {
 		uint8_t next = j->address + 1U;
 
-		if (next < DYNAMIC_FIRST || next > DYNAMIC_LAST) {
+		if (!DYNAMIC(next)) {
 			next = DYNAMIC_FIRST;
 		}
-		j->moves++;
+		j->tried++;
 		claim(j, next, now_ms);
 		return;
 	}
@@ -104,15 +107,19 @@ static void lose(struct zelos_j1939 *j, uint32_t now_ms)
 	j->bam.active = false;
 }
 
-void zelos_j1939_init(struct zelos_j1939 *j, uint32_t now_ms)
+int zelos_j1939_init(struct zelos_j1939 *j, uint32_t now_ms)
 {
-	j->moves = 0U;
-	j->nack_pending = false;
 	for (size_t i = 0; i < j->n_msgs; i++) {
-		j->msgs[i].due_ms = now_ms;
+		/* Sent to global only: a PDU1 PGN would need the requester as DA. */
+		if (PDU1(j->msgs[i].pgn)) {
+			return -EINVAL;
+		}
 		j->msgs[i].requested = false;
 	}
+	j->tried = DYNAMIC(j->preferred) ? 1U : 0U;
+	j->nack_pending = false;
 	claim(j, j->preferred, now_ms);
+	return 0;
 }
 
 static void on_claim(struct zelos_j1939 *j, uint8_t sa, const struct zelos_j1939_frame *f,
@@ -297,6 +304,10 @@ void zelos_j1939_poll(struct zelos_j1939 *j, uint32_t now_ms)
 	if (j->state == ZELOS_J1939_CLAIMING && j->claim_started &&
 	    reached(now_ms, j->claimed_ms + ZELOS_J1939_CLAIM_WAIT_MS)) {
 		j->state = ZELOS_J1939_CLAIMED;
+		/* Periods run from here, so a move neither bunches nor shifts them. */
+		for (size_t i = 0; i < j->n_msgs; i++) {
+			j->msgs[i].due_ms = now_ms;
+		}
 	}
 	if (j->state != ZELOS_J1939_CLAIMED) {
 		return;

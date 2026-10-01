@@ -5,6 +5,40 @@ import time
 from collections.abc import Callable, Iterable
 
 import can
+import pytest
+
+# Host seconds a wait may take per second of the node's time. The plugin sets it
+# from --time-scale: 1 on hardware, more under Renode, whose clock runs slow.
+TIME_SCALE = 1.0
+
+
+def bound(node_s: float) -> float:
+    """Host seconds to allow for node_s of the node's time. A safety bound only."""
+    return node_s * TIME_SCALE
+
+
+def until(bus: can.BusABC, done: Callable[[list[can.Message]], bool], node_s: float, ids: Iterable[int] | None = None) -> list[can.Message]:
+    """Data frames, oldest first, optionally only these IDs, until done(frames) holds.
+
+    done should decide on frames the node sends on its own clock, so the wait is
+    in the node's time; node_s only bounds it.
+    """
+    wanted = None if ids is None else set(ids)
+    frames = []
+    end = time.monotonic() + bound(node_s)
+    while (left := end - time.monotonic()) > 0:
+        msg = bus.recv(left)
+        if msg is None or msg.is_error_frame or (wanted is not None and msg.arbitration_id not in wanted):
+            continue
+        frames.append(msg)
+        if done(frames):
+            return frames
+    pytest.fail(f"not done within {node_s} s of node time ({bound(node_s):.0f} s here), after {len(frames)} frames")
+
+
+def count(frames: list[can.Message], frame_id: int) -> int:
+    """How many of frames are on frame_id."""
+    return sum(m.arbitration_id == frame_id for m in frames)
 
 
 def collect(bus: can.BusABC, seconds: float, ids: Iterable[int] | None = None) -> list[can.Message]:

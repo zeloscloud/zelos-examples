@@ -35,23 +35,30 @@ int zelos_canopen_run(void (*tick)(void))
 		uint32_t elapsed_ms = 0U;
 		int64_t stamp;
 
+		/* The stack's PDO thread must not run on a half-built stack. */
+		CO_LOCK_OD();
 		/* The stack takes kbit/s. */
 		err = CO_init(&can, CONFIG_ZELOS_CANOPEN_NODE_ID, CONFIG_ZELOS_CAN_BITRATE / 1000);
+		if (err == CO_ERROR_NO) {
+			CO_CANsetNormalMode(CO->CANmodule[0]);
+		}
+		CO_UNLOCK_OD();
 		if (err != CO_ERROR_NO) {
 			LOG_ERR("CO_init: %d", err);
 			return -EIO;
 		}
-
-		CO_CANsetNormalMode(CO->CANmodule[0]);
 		LOG_INF("CANopen node 0x%02x up at %d bit/s", CONFIG_ZELOS_CANOPEN_NODE_ID,
 			CONFIG_ZELOS_CAN_BITRATE);
 
 		stamp = k_uptime_get();
 
-		do {
+		for (;;) {
 			uint16_t timeout_ms = 1U;
 
 			reset = CO_process(CO, (uint16_t)elapsed_ms, &timeout_ms);
+			if (reset != CO_RESET_NOT) {
+				break;
+			}
 
 			CO_LOCK_OD();
 			tick();
@@ -60,12 +67,10 @@ int zelos_canopen_run(void (*tick)(void))
 			(void)k_sem_take(&rx_sem, K_MSEC(timeout_ms));
 			/* From one stamp, so sub-millisecond wakeups do not lose time. */
 			elapsed_ms = (uint32_t)k_uptime_delta(&stamp);
-		} while (reset == CO_RESET_NOT);
+		}
 	}
 
 	LOG_INF("NMT reset-node");
 	CO_delete(&can);
 	sys_reboot(SYS_REBOOT_COLD);
-
-	return 0;
 }

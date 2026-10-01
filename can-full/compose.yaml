@@ -25,26 +25,13 @@ services:
     environment:
       BENCH_ELFS: vcu.elf bms.elf dcdc-xcp.elf genset.elf pdu.elf
 
-  # The shared agent image, decoding with bench/can.json.
+  # The shared agent, decoding with bench/can.json.
   agent:
-    build:
-      context: ../bench
-      dockerfile: agent.Dockerfile
-    image: zelos-bench-agent:26.0.8
-    pull_policy: build
-    depends_on:
-      renode:
-        condition: service_healthy
-    network_mode: "service:bus"
+    extends:
+      file: ../bench/compose.yaml
+      service: agent
     volumes:
       - ./bench:/bench:ro
-      - ../dbc:/dbc:ro
-    healthcheck:
-      test: ["CMD", "zelos", "status"]
-      interval: 3s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
 
   # Started by `just test`, not by `up`.
   tester:
@@ -52,7 +39,7 @@ services:
       file: ../bench/compose.yaml
       service: tester
     volumes:
-      # The DC-DC's A2L, generated beside its ELF with that build's addresses.
-      - ./build:/build:ro
+      - ./build:/elf:ro
     environment:
-      ZELOS_A2L: /build/dcdc-xcp.a2l
+      # The DC-DC's A2L, generated beside its ELF with that build's addresses.
+      ZELOS_A2L: /elf/dcdc-xcp.a2l

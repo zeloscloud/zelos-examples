@@ -27,8 +27,11 @@
 /* J1939-81: after a claim, wait this long for a contender before using it. */
 #define ZELOS_J1939_CLAIM_WAIT_MS 250U
 
-/* J1939-21 spaces BAM packets 50 to 200 ms apart; the low end, plus the poll period. */
-#define ZELOS_J1939_BAM_GAP_MS 50U
+/*
+ * J1939-21 spaces BAM packets 50 to 200 ms apart. Above the low end, so a
+ * packet that waits in the controller's queue still leaves 50 ms on the wire.
+ */
+#define ZELOS_J1939_BAM_GAP_MS 55U
 
 /* Longest message this core sends. DM1 with 15 DTCs fits. */
 #define ZELOS_J1939_MAX_LEN 64U
@@ -49,13 +52,17 @@ struct zelos_j1939_frame {
 	uint8_t data[8];
 };
 
-/* A message the node sends: periodically, when requested, or both. */
+/*
+ * A message the node sends: periodically, when requested, or both. Always to
+ * global, so PDU2 PGNs only. Longer than 8 bytes goes by BAM, never RTS/CTS,
+ * even when the request was addressed to this node.
+ */
 struct zelos_j1939_msg {
 	uint32_t pgn;
 	uint8_t priority;
 	/* 0: only on request. */
 	uint16_t period_ms;
-	/* More than 8 goes by BAM. At most ZELOS_J1939_MAX_LEN. */
+	/* At most ZELOS_J1939_MAX_LEN. */
 	uint16_t len;
 	uint8_t *data;
 
@@ -88,7 +95,7 @@ struct zelos_j1939 {
 	uint32_t claim_due_ms;
 	bool claim_pending;
 	bool claim_started;
-	uint8_t moves;
+	uint8_t tried;
 	bool nack_pending;
 	uint8_t nack_to;
 	uint32_t nack_pgn;
@@ -103,8 +110,11 @@ struct zelos_j1939 {
 	} bam;
 };
 
-/* Start claiming the preferred address. Sends nothing until the next poll. */
-void zelos_j1939_init(struct zelos_j1939 *j, uint32_t now_ms);
+/*
+ * Start claiming the preferred address. Sends nothing until the next poll.
+ * Returns -EINVAL if a message has a PDU1 PGN.
+ */
+int zelos_j1939_init(struct zelos_j1939 *j, uint32_t now_ms);
 
 /* Feed one received frame. Sends nothing; replies go out on the next poll. */
 void zelos_j1939_on_frame(struct zelos_j1939 *j, const struct zelos_j1939_frame *frame,

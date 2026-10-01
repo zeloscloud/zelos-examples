@@ -45,7 +45,7 @@ same default, so run one bench at a time or move one.
 | BMS | `../nodes/bms` | | `0x200`-`0x202` |
 | DC-DC | `../nodes/dcdc`, `-S xcp` | XCP on CAN | `0x300`; CRO `0x6F0`, DTO `0x6F1` |
 | genset | `../nodes/genset` | J1939 | 29-bit, source address `0x80` |
-| PDU | `../nodes/pdu` | CANopen, node-id `0x20` | `0x0A0`, `0x1A0`-`0x320`, `0x5A0`, `0x620`, `0x720` |
+| PDU | `../nodes/pdu` | CANopen, node-id `0x20` | NMT `0x000`, SYNC `0x080`, EMCY `0x0A0`, TPDO1 `0x1A0`, RPDO1 `0x220`, TPDO2 `0x2A0`, SDO `0x5A0`/`0x620`, heartbeat `0x720` |
 
 The first three are can-bench's, unchanged except that the DC-DC is built with
 XCP: its demand and slew rate become calibration parameters, its setpoint,
@@ -61,14 +61,22 @@ inputs and per-channel current, and trips channel 8, which is shorted.
 
 | Suite | Against | Proves |
 |---|---|---|
-| `../testing/suites/xcp` | DC-DC | Connect and identify; reads restricted to the registered variables; a calibration takes effect on the bus, both ways; DAQ samples once per cycle, matching the frame the same cycle sent |
+| `../testing/suites/xcp` | DC-DC | Connect and identify; reads restricted to the registered variables; a calibration takes effect on the bus, both ways, and is bounded to the A2L's limits, NaN included; DAQ samples once per cycle, matching the frame the same cycle sent |
 | `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; requests answered; periods; DM1 by BAM, reassembled by python-can-j1939 |
-| `../testing/suites/canopen` | PDU | Boot-up and heartbeat; NMT start, stop and pre-operational; SDO identity and downloads; RPDO commands reflected in TPDOs; an overcurrent trip raises EMCY and recovers |
+| `../testing/suites/canopen` | PDU | Boot-up and heartbeat; NMT start, stop and pre-operational; SDO identity and downloads; RPDO commands reflected in TPDOs; an overcurrent trip raises EMCY and recovers, and trips again after a communication reset |
 
 The suites drive the other nodes' roles themselves when those nodes are absent,
 so the same suites run here, with every node present, and against one board.
 Every test sets its own preconditions over the bus rather than assuming a fresh
 boot.
+
+The raw-CAN DC-DC suite, `../testing/suites/can_raw`, plays the BMS, so it runs
+only where there is none: on hardware, or on a bench of its own, which CI runs
+too. From the repository root:
+
+```bash
+just test-bench can_raw can-full/build/dcdc-xcp.elf
+```
 
 ## Timing under Renode
 
@@ -76,8 +84,10 @@ The bench runs at a fifth of real time on a 16-core machine, the same as
 can-bench: five nodes cost no more than three there. Renode's clock is not tied
 to the host's, so on this bench the suites assert timing relative to the node's
 own frames: ten EEC1 per ET1, one DAQ sample per DC-DC cycle, heartbeats never
-faster than declared. Waits end on frames counted in the node's time where they
-can. Absolute periods and latencies are asserted on hardware only.
+faster than declared. Waits end on frames counted in the node's time; host
+seconds only bound them, scaled by pytest's `--time-scale`: 1 on a physical
+channel, 20 on vcan. Absolute periods and latencies are asserted on hardware
+only.
 
 ## On hardware
 
@@ -85,7 +95,7 @@ The same firmware runs on a NUCLEO-H753ZI. With the board on a SocketCAN
 adapter at 500 kbit/s, and probe-rs and uv installed:
 
 ```bash
-just hil dcdc-xcp can0   # flash, then the xcp suite and can-bench's DC-DC suite
+just hil dcdc-xcp can0   # flash, then the xcp suite and the raw-CAN DC-DC suite
 just hil genset can0
 just hil pdu can0
 ```

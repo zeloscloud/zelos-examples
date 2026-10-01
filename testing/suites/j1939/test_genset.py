@@ -16,7 +16,7 @@ import j1939
 import pytest
 
 from zelos_testing import dbc
-from zelos_testing.frames import Periodic, collect
+from zelos_testing.frames import Periodic, bound, collect, count, until
 
 GENSET = dbc.load("genset")
 EEC1 = GENSET.get_message_by_name("EEC1")
@@ -38,10 +38,10 @@ TESTER = 0xF9
 
 # From nodes/genset: a hot engine's DTCs (SPN, FMI) and its amber lamp.
 HOT_DTCS = {(110, 16), (1569, 31)}
-# Renode's virtual time is not tied to the host clock, so waits are generous.
-TIMEOUT_S = 30.0
-# The VCU's drive cycle, in VCU_Command frames: 15 s at 100 ms. See nodes/vcu.
-VCU_CYCLE_FRAMES = 150
+# This much of the node's time bounds any one wait.
+WAIT_S = 10.0
+# The VCU's drive cycle. See nodes/vcu.
+VCU_CYCLE_S = 15.0
 
 pytestmark = pytest.mark.usefixtures("bus_health")
 
@@ -61,9 +61,18 @@ def parse(msg):
     return pgn, da, msg.arbitration_id & 0xFF
 
 
-def j1939_frames(bus, seconds):
-    """Frames from J1939 nodes other than us, oldest first."""
-    return [m for m in collect(bus, seconds) if m.is_extended_id and parse(m)[2] != TESTER]
+def theirs(msg):
+    """A frame from a J1939 node other than us."""
+    return msg.is_extended_id and parse(msg)[2] != TESTER
+
+
+def quiet_window(bus, node_s):
+    """Frames from J1939 nodes other than us over node_s of the node's time.
+
+    For a node that stays silent, which leaves no frames to count: a host
+    window, at the time scale.
+    """
+    return [m for m in collect(bus, bound(node_s)) if theirs(m)]
 
 
 def send(bus, prio, pgn, data, sa=TESTER, da=GLOBAL):
@@ -99,24 +108,39 @@ def nth(want, n):
     return counted
 
 
-def first(bus, want, seconds=TIMEOUT_S):
+def gather(bus, done, node_s=WAIT_S):
+    """Frames from J1939 nodes other than us, oldest first, until done(those) holds."""
+    got = []
+
+    def step(frames):
+        if not theirs(frames[-1]):
+            return False
+        got.append(frames[-1])
+        return done(got)
+
+    until(bus, step, node_s)
+    return got
+
+
+def first(bus, want):
     """Frames up to and including the first for which want(msg) holds."""
-    frames = []
-    end = time.monotonic() + seconds
-    while time.monotonic() < end:
-        msg = bus.recv(end - time.monotonic())
-        if msg is not None and msg.is_extended_id and parse(msg)[2] != TESTER:
-            frames.append(msg)
-            if want(msg):
-                return frames
-    pytest.fail(f"timed out after {len(frames)} frames")
+    return gather(bus, lambda got: want(got[-1]))
+
+
+def answered(got):
+    """A claim came back, and the claimant's next two EEC1 left time for any other."""
+    found = claims(got)
+    if not found:
+        return False
+    t, sa, _ = found[0]
+    return sa == NULL or len([m for m in got if m.timestamp > t and is_from(PGN_EEC1, sa)(m)]) >= 2
 
 
 @pytest.fixture
 def node(bus):
     """(sa, NAME) of the one J1939 node on the bus, as it answers a request."""
     request(bus, PGN_CLAIM)
-    found = [(sa, name) for _, sa, name in claims(j1939_frames(bus, 1.0))]
+    found = [(sa, name) for _, sa, name in claims(gather(bus, answered))]
     assert len(found) == 1, f"expected one claimant, got {found}"
     sa, name = found[0]
     assert sa != NULL, "the node could not claim an address"
@@ -143,7 +167,7 @@ def test_yields_address_to_lower_name(bus, node, pytestconfig):
     t, moved, _ = claims(first(bus, lambda m: parse(m)[0] == PGN_CLAIM and int.from_bytes(m.data, "little") == name))[-1]
     assert moved != sa, "did not yield"
     if moved == NULL:
-        assert not [m for m in j1939_frames(bus, 1.5) if parse(m)[0] != PGN_CLAIM], "sent after Cannot Claim Address"
+        assert not [m for m in quiet_window(bus, 1.5) if parse(m)[0] != PGN_CLAIM], "sent after Cannot Claim Address"
         return
 
     later = first(bus, lambda m: parse(m)[2] == moved and parse(m)[0] != PGN_CLAIM)
@@ -195,20 +219,18 @@ def test_periods(bus, node, pytestconfig):
     assert all(0 <= s <= 3000 for s in speeds), speeds
 
 
-def hot(bus, bam_dm1):
+def hot(bus, sa, bam_dm1):
     """The first DM1 BAM announcement, within two passes of the VCU's drive cycle.
 
-    Counted in VCU_Command frames, so the bound is the node's time whether the
-    real VCU or this suite sends them.
+    Counted in the genset's own EEC1, so the bound is the node's time whether
+    the real VCU or this suite drives it.
     """
-    commands = 0
-    while commands < 2 * VCU_CYCLE_FRAMES:
-        msg = bus.recv(TIMEOUT_S)
-        assert msg is not None, "the bus went quiet"
-        commands += msg.arbitration_id == VCU_COMMAND.frame_id and not msg.is_extended_id
-        if msg.is_extended_id and bam_dm1(msg):
-            return msg
-    pytest.fail(f"no DM1 by BAM in {commands} VCU_Command frames")
+    eec1 = is_from(PGN_EEC1, sa)
+    limit = 2 * VCU_CYCLE_S * 1000 / EEC1.cycle_time
+    frames = gather(bus, lambda got: bam_dm1(got[-1]) or sum(map(eec1, got)) > limit, 2 * VCU_CYCLE_S + WAIT_S)
+    if not bam_dm1(frames[-1]):
+        pytest.fail(f"no DM1 by BAM in {limit:.0f} EEC1")
+    return frames[-1]
 
 
 def test_dm1_by_bam_when_hot(bus, node, pytestconfig):
@@ -231,19 +253,25 @@ def test_dm1_by_bam_when_hot(bus, node, pytestconfig):
         return pgn == PGN_TP_CM and src == sa and m.data[0] == TP_BAM and int.from_bytes(m.data[5:8], "little") == PGN_DM1
 
     with contextlib.ExitStack() as stack:
-        if not collect(bus, 1.0, [VCU_COMMAND.frame_id]):
+        # A second of the node's time sees ten from a VCU.
+        seen = until(bus, lambda frames: sum(theirs(m) and is_from(PGN_EEC1, sa)(m) for m in frames) >= 10, WAIT_S)
+        if not count(seen, VCU_COMMAND.frame_id):
             stack.enter_context(Periodic(bus, drive, VCU_COMMAND.cycle_time / 1000))
-        cm = hot(bus, bam_dm1)
+        cm = hot(bus, sa, bam_dm1)
         size, packets = int.from_bytes(cm.data[1:3], "little"), cm.data[3]
         frames = [cm] + first(bus, lambda m: parse(m)[0] == PGN_TP_DT and parse(m)[2] == sa and m.data[0] == packets)
 
     tp = [m for m in frames if parse(m)[2] == sa and parse(m)[0] in (PGN_TP_CM, PGN_TP_DT)]
     assert [m.data[0] for m in tp[1:]] == list(range(1, packets + 1)), [bytes(m.data).hex() for m in tp]
 
-    # J1939-21: 50 to 200 ms between BAM packets. Renode's clock only bounds the low end.
+    # J1939-21: 50 to 200 ms between BAM packets. Renode's clock only runs slow
+    # against the host's, so there only the low end holds, within 10%.
     gaps = [b.timestamp - a.timestamp for a, b in zip(tp, tp[1:])]
-    upper = float("inf") if pytestconfig.getoption("channel").startswith("vcan") else 0.2
-    assert all(0.045 <= g <= upper for g in gaps), [round(g * 1000, 1) for g in gaps]
+    if pytestconfig.getoption("channel").startswith("vcan"):
+        lower, upper = 0.9 * 0.05, float("inf")
+    else:
+        lower, upper = 0.05, 0.2
+    assert all(lower <= g <= upper for g in gaps), [round(g * 1000, 1) for g in gaps]
 
     data = b"".join(bytes(m.data[1:]) for m in tp[1:])[:size]
 

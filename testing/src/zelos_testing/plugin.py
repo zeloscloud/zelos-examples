@@ -1,10 +1,13 @@
 """pytest plugin: which channel the nodes are on, and fixtures for it."""
 
 import json
+import os
 import subprocess
 
 import can
 import pytest
+
+from zelos_testing import frames
 
 # Counters that stay flat on a healthy bus. Arbitration loss is normal traffic.
 ERROR_COUNTERS = ("restarts", "bus_error", "error_warning", "error_passive", "bus_off")
@@ -17,6 +20,18 @@ def pytest_addoption(parser):
         help="SocketCAN interface the nodes are on: vcan0 on a Renode bench, "
         "or a physical adapter such as can0 (default: vcan0)",
     )
+    parser.addoption(
+        "--time-scale",
+        type=float,
+        help="Host seconds a wait may take per second of the node's time. Waits end "
+        "on the node's frames; this only bounds them (default: 1 on a physical "
+        "channel, 20 on vcan, where Renode runs several times slower than real time)",
+    )
+    parser.addoption(
+        "--a2l",
+        default=os.environ.get("ZELOS_A2L"),
+        help="A2L generated beside an XCP node's ELF, e.g. build/dcdc-xcp.a2l (default: $ZELOS_A2L)",
+    )
 
 
 @pytest.fixture
@@ -25,6 +40,16 @@ def bus(pytestconfig):
     channel = pytestconfig.getoption("channel")
     with can.Bus(interface="socketcan", channel=channel, receive_own_messages=True) as b:
         yield b
+
+
+@pytest.fixture(scope="session", autouse=True)
+def time_scale(pytestconfig):
+    """The --time-scale every wait is bounded by, also through frames.bound."""
+    scale = pytestconfig.getoption("time_scale")
+    if scale is None:
+        scale = 20.0 if _link(pytestconfig.getoption("channel"))["info_kind"] == "vcan" else 1.0
+    frames.TIME_SCALE = scale
+    return scale
 
 
 def _link(channel: str) -> dict:

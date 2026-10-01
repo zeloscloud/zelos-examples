@@ -12,6 +12,8 @@ from pathlib import Path
 import canopen
 import pytest
 
+from zelos_testing.frames import bound
+
 # testing/suites/canopen/ -> the repository root. The bench's tester mounts
 # nodes/ at the same place relative to its copy of this suite.
 EDS = Path(__file__).resolve().parents[3] / "nodes" / "pdu" / "od" / "pdu.eds"
@@ -37,8 +39,9 @@ EMC_CURRENT_OUTPUT = 0x2300
 INPUTS = "Read input 8-bit.Input 1 to 8"
 OUTPUTS = "Write output 8-bit.Output 1 to 8"
 
-# Renode's virtual time is not tied to the host clock, so waits are generous.
-TIMEOUT_S = 20.0
+# Waits end on the node's frames, so they run in its time whatever the host's.
+# This much of its time bounds any one of them.
+WAIT_S = 10.0
 
 pytestmark = pytest.mark.usefixtures("bus_health")
 
@@ -59,7 +62,7 @@ class Frames:
 
 
 def until(done, what):
-    end = time.monotonic() + TIMEOUT_S
+    end = time.monotonic() + bound(WAIT_S)
     while time.monotonic() < end:
         if result := done():
             return result
@@ -67,16 +70,23 @@ def until(done, what):
     pytest.fail(f"timed out waiting for {what}")
 
 
+def bootup(node, t0):
+    """When the node announced its first boot-up after t0."""
+    return until(lambda: next((ts for ts, d in node.frames[HEARTBEAT] if ts > t0 and d == bytes([BOOTUP])), None), "boot-up")
+
+
 @pytest.fixture
 def node(bus):
     network = canopen.Network(bus)
     pdu = network.add_node(NODE_ID, str(EDS))
     pdu.frames = Frames(network, (HEARTBEAT, EMCY, TPDO1, TPDO2))
+    # An SDO answer takes the node no time, but Renode's clock runs slow.
+    pdu.sdo.RESPONSE_TIMEOUT = bound(pdu.sdo.RESPONSE_TIMEOUT)
     network.connect()
     try:
-        pdu.reset_at = time.time()
+        reset_at = time.time()
         pdu.nmt.state = "RESET"
-        pdu.nmt.wait_for_bootup(TIMEOUT_S)
+        pdu.booted_at = bootup(pdu, reset_at)
         yield pdu
     finally:
         # The bus belongs to its fixture; only stop listening on it.
@@ -112,11 +122,12 @@ def enter(node, state, code):
 
 
 def test_boots_pre_operational_with_heartbeat(node, pytestconfig):
-    beats = after(node, HEARTBEAT, node.reset_at, 4)
-    assert beats[0][1] == bytes([BOOTUP])
-    assert [data for _, data in beats[1:]] == [bytes([PRE_OPERATIONAL])] * 3
+    # A heartbeat already on its way when the reset went out can arrive after
+    # it, so the count starts at the boot-up.
+    beats = after(node, HEARTBEAT, node.booted_at, 3)
+    assert [data for _, data in beats] == [bytes([PRE_OPERATIONAL])] * 3
 
-    gaps = [b[0] - a[0] for a, b in zip(beats[1:], beats[2:])]
+    gaps = [b[0] - a[0] for a, b in zip(beats, beats[1:])]
     if pytestconfig.getoption("channel").startswith("vcan"):
         # Virtual time only ever runs slow against the host's clock.
         assert all(g > 0.95 * HEARTBEAT_S for g in gaps), gaps
@@ -125,8 +136,9 @@ def test_boots_pre_operational_with_heartbeat(node, pytestconfig):
 
 
 def test_nmt_start_stop(node):
+    t0 = time.time()
     enter(node, "OPERATIONAL", OPERATIONAL)
-    until(lambda: node.frames[TPDO1], "TPDO1 once operational")
+    until(lambda: [f for f in node.frames[TPDO1] if f[0] > t0], "TPDO1 once operational")
 
     enter(node, "STOPPED", STOPPED)
     t0 = time.time()
@@ -219,3 +231,17 @@ def test_overcurrent_trips_with_emcy_and_recovers(node):
         node.sdo[0x6200][1].raw = 0b0000_0001
         code, register, _, _ = until(lambda: emcys_after(node, t0), "EMCY reset")[0]
         assert (code, register) == (0x0000, 0)
+
+    # A communication reset clears the node's error state but not the short:
+    # the channel trips again, and says so again.
+    enter(node, "OPERATIONAL", OPERATIONAL)
+    t0 = time.time()
+    command(node, shorted)
+    until(lambda: emcys_after(node, t0), "EMCY")
+    t0 = time.time()
+    node.nmt.state = "RESET COMMUNICATION"
+    trips = until(lambda: [e for e in emcys_after(node, t0) if e[0] == EMC_CURRENT_OUTPUT], "EMCY after the reset")
+    _, register, error_bit, info = trips[0]
+    assert (error_bit, info) == (0x30 + SHORTED - 1, SHORTED)
+    assert register != 0
+    node.sdo[0x6200][1].raw = 0

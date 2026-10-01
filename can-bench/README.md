@@ -330,6 +330,7 @@ ID `0x001` arrived on the host as `0x000`.
 | `build/ is older than the sources` | Firmware predates a source change | `just firmware`, then `just flash good` |
 | `Unhandled write to offset 0x1C` | Zephyr writes CAN bit-timing bits Renode's model does not implement | Expected and harmless |
 | A test fails on `is transmitting` | A node stopped | `just down && just up`. If it repeats, open an issue with `docker compose logs renode` |
+| `docker volume ls` lists `cbws` | An earlier version of this bench kept its Zephyr workspace there | `docker volume rm cbws`, which frees about 2 GB |
 
 ## Licence
 

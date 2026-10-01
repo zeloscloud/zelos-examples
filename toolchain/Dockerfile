@@ -6,7 +6,8 @@
 # Zephyr 4.4 requires Python 3.12 or newer.
 FROM ubuntu:24.04
 
-ARG ZEPHYR_VERSION=v4.4.2
+# The tag west.yml pins, passed in by `just`.
+ARG ZEPHYR_VERSION
 ARG ZSDK_VERSION=1.0.1
 
 # The SDK installer calls wget, so curl alone is not enough.

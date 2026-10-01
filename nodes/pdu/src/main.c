@@ -37,8 +37,6 @@ static uint8_t *const current_od[CHANNELS] = {
 	&OD_channelCurrent.channel7, &OD_channelCurrent.channel8,
 };
 
-static uint8_t tripped;
-
 /*
  * Runs with the object dictionary locked. TPDOs go out when what they carry
  * changes, which the stack detects itself (TPDODetectCos in the EDS).
@@ -50,18 +48,21 @@ static void tick(void)
 
 	for (int ch = 0; ch < CHANNELS; ch++) {
 		const uint8_t bit = BIT(ch);
-		/* One error status bit per channel, so trips clear independently. */
+		/*
+		 * One error status bit per channel, so trips clear independently.
+		 * The bit is the trip: reset-communication clears it, and a channel
+		 * still commanded on trips again.
+		 */
 		const uint8_t error_bit = CO_EM_MANUFACTURER_START + ch;
+		const bool tripped = CO_isError(CO->em, error_bit);
 
 		if ((commanded & bit) == 0U) {
-			if ((tripped & bit) != 0U) {
-				tripped &= ~bit;
+			if (tripped) {
 				CO_errorReset(CO->em, error_bit, ch + 1);
 				LOG_INF("channel %d trip cleared", ch + 1);
 			}
-		} else if ((tripped & bit) == 0U) {
+		} else if (!tripped) {
 			if (load_da[ch] > TRIP_DA) {
-				tripped |= bit;
 				CO_errorReport(CO->em, error_bit, CO_EMC_CURRENT_OUTPUT, ch + 1);
 				LOG_WRN("channel %d tripped at %d.%d A", ch + 1, load_da[ch] / 10,
 					load_da[ch] % 10);

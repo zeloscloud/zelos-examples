@@ -7,7 +7,10 @@ set shell := ["bash", "--noprofile", "--norc", "-euo", "pipefail", "-c"]
 
 CANTOOLS := "41.3.1"
 CANOPEN_EDITOR := "v4.2.3"
-TOOLCHAIN := "zelos-examples-toolchain:v4.4.2"
+DOTNET_SDK := "mcr.microsoft.com/dotnet/sdk:8.0@sha256:78235e09001f52b6592c458ac010775ebac6725422e80cd0c1650590f67b2743"
+# The Zephyr tag west.yml pins, so the toolchain is built for the same one.
+ZEPHYR := `sed -n '/- name: zephyr$/,/revision:/s/^ *revision: *//p' west.yml`
+TOOLCHAIN := "zelos-examples-toolchain:" + ZEPHYR
 BOARD := "nucleo_h753zi"
 # The part on that board, for probe-rs.
 CHIP := "STM32H753ZITx"
@@ -55,14 +58,15 @@ dbc:
 canopen-od NODE:
     # The exporter no longer emits the TIME types the v1.3 stack's CO_TIME.h
     # expects from CO_OD.h; the stack's own sample adds them by hand.
-    docker run --rm -v "$PWD/nodes/{{ NODE }}/od:/od" mcr.microsoft.com/dotnet/sdk:8.0 bash -euc \
-        'git clone --quiet --branch {{ CANOPEN_EDITOR }} https://github.com/CANopenNode/CANopenEditor /src 2>/dev/null \
-         && dotnet publish --verbosity quiet -c Release -f net8.0 -o /edssharp /src/EDSSharp/EDSSharp.csproj > /dev/null \
-         && dotnet /edssharp/EDSSharp.dll --infile /od/{{ NODE }}.eds --outfile /od/CO_OD.c --type CanOpenNode > /dev/null \
+    docker run --rm -v "$PWD/nodes/{{ NODE }}/od:/od" {{ DOTNET_SDK }} bash -euc \
+        'git clone --quiet --branch {{ CANOPEN_EDITOR }} https://github.com/CANopenNode/CANopenEditor /src \
+         && dotnet publish --verbosity quiet -clp:ErrorsOnly -c Release -f net8.0 -o /edssharp /src/EDSSharp/EDSSharp.csproj \
+         && dotnet /edssharp/EDSSharp.dll --infile /od/{{ NODE }}.eds --outfile /od/CO_OD.c --type CanOpenNode \
          && sed -i "/typedef domain_t *DOMAIN;/a\\
            typedef union { unsigned long long ullValue; struct { unsigned long ms:28; unsigned reserved:4; unsigned days:16; unsigned reserved2:16; }; } timeOfDay_t;\\n\
            typedef timeOfDay_t  TIME_OF_DAY;\\n\
            typedef timeOfDay_t  TIME_DIFFERENCE;" /od/CO_OD.h \
+         && grep -q "TIME_OF_DAY;" /od/CO_OD.h \
          && chown --reference=/od/{{ NODE }}.eds /od/CO_OD.c /od/CO_OD.h'
     @echo "nodes/{{ NODE }}/od/ regenerated from {{ NODE }}.eds"
 
@@ -104,15 +108,19 @@ test-bench SUITE +ELFS:
         [[ $elf = /* ]] || elf="{{ invocation_directory() }}/$elf"
         cp "$elf" "$elfs/$name"
         names+=("$name")
+        # An XCP build's A2L sits beside its ELF; suites that need it read ZELOS_A2L.
+        if [ -f "${elf%.elf}.a2l" ]; then
+            cp "${elf%.elf}.a2l" "$elfs/"
+            export BENCH_A2L="/elf/${name%.elf}.a2l"
+        fi
     done
     export BENCH_ELF_DIR=$elfs BENCH_ELFS="${names[*]}"
-    "${compose[@]}" up -d --wait || { "${compose[@]}" logs renode | tail -40; exit 1; }
+    "${compose[@]}" up -d --wait renode || { "${compose[@]}" logs renode | tail -40; exit 1; }
     # --no-deps: recreating the bus would strand the nodes in the old namespace.
     "${compose[@]}" run --rm --no-deps tester "suites/{{ SUITE }}"
 
-# ELF is relative to where just was run.
-
 # Flash a node with probe-rs, then run testing/ suites on a physical channel.
+# ELF is relative to where just was run.
 hil ELF CHANNEL +SUITES:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -131,7 +139,7 @@ clean-workspace:
 
 # Build the firmware toolchain image. Cached by Docker after the first run.
 _toolchain:
-    docker build -q -f toolchain/Dockerfile -t {{ TOOLCHAIN }} toolchain/ > /dev/null
+    docker build -q --build-arg ZEPHYR_VERSION={{ ZEPHYR }} -f toolchain/Dockerfile -t {{ TOOLCHAIN }} toolchain/ > /dev/null
 
 # Create the pinned west workspace, and bring it up to date when west.yml
 # changes. Cached in a Docker volume.

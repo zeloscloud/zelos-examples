@@ -16,6 +16,6 @@ config ZELOS_CANOPEN_NODE_ID
 	range 1 127
 	default 32
 	help
-	  0x20 puts the node's COB-IDs (EMCY 0x0A0, PDOs 0x1A0-0x320, SDO
-	  0x5A0/0x620, heartbeat 0x720) clear of the bench and XCP
-	  identifiers.
+	  0x20 puts the node's COB-IDs clear of the bench and XCP
+	  identifiers: NMT 0x000, SYNC 0x080, EMCY 0x0A0, TPDO1 0x1A0,
+	  RPDO1 0x220, TPDO2 0x2A0, SDO 0x5A0/0x620, heartbeat 0x720.

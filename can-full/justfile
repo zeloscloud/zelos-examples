@@ -16,7 +16,7 @@ default:
     @just --list --unsorted
 
 # Bring the bench up. Idempotent.
-up: _elf
+up: (_elf NODES)
     docker compose up -d --wait
     @echo
     @echo "Bench is up. Connect the Zelos app to localhost:${BENCH_PORT:-2300}"
@@ -30,10 +30,8 @@ down:
 bus:
     docker compose exec renode candump -td vcan0
 
-# --no-deps, because recreating the bus would strand the nodes in the old
-# network namespace.
-
-# Run the protocol suites against the running bench.
+# Run the protocol suites against the running bench. --no-deps, because
+# recreating the bus would strand the nodes in the old network namespace.
 test:
     docker compose run --rm --no-deps tester {{ SUITES }}
 
@@ -54,7 +52,7 @@ firmware:
     fi
 
 # Flash a node and run its suites on a channel, e.g. `just hil genset can0`.
-hil NODE CHANNEL: _elf
+hil NODE CHANNEL: (_elf NODE)
     #!/usr/bin/env bash
     set -euo pipefail
     case "{{ NODE }}" in
@@ -70,22 +68,24 @@ hil NODE CHANNEL: _elf
 clean-workspace:
     {{ FIRMWARE }} clean-workspace
 
-# Firmware must exist and must not be older than its sources.
-_elf:
+# These nodes' firmware must exist and must not be older than its sources.
+_elf ELFS:
     #!/usr/bin/env bash
     set -euo pipefail
     missing=()
-    for node in {{ NODES }}; do
-        [ -f "build/$node.elf" ] || missing+=("$node")
+    for node in {{ ELFS }}; do
+        [ -f "build/$node.elf" ] || missing+=("$node.elf")
     done
-    [ -f build/dcdc-xcp.a2l ] || missing+=("dcdc-xcp.a2l")
+    [[ " {{ ELFS }} " != *" dcdc-xcp "* ]] || [ -f build/dcdc-xcp.a2l ] || missing+=("dcdc-xcp.a2l")
     if [ ${#missing[@]} -gt 0 ]; then
         echo "No firmware in build/ (missing: ${missing[*]}). Build it:" >&2
         echo "    just firmware" >&2
         exit 1
     fi
     # A stale binary is worse than a missing one.
-    stale=$(find ../nodes ../lib ../include ../dbc ../snippets -type f -newer build/vcu.elf 2>/dev/null | head -3)
+    sources=(../nodes ../lib ../include ../snippets ../tools ../dbc/bench.dbc
+             ../west.yml ../CMakeLists.txt ../Kconfig ../zephyr)
+    stale=$(for node in {{ ELFS }}; do find "${sources[@]}" -type f -newer "build/$node.elf"; done | sort -u | head -3)
     if [ -n "${stale}" ]; then
         echo "build/ is older than the sources it came from:" >&2
         echo "${stale}" | sed 's/^/    /' >&2
