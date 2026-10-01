@@ -39,5 +39,14 @@ runs:
         path: |
           ${{ runner.temp }}/zxws
           !${{ runner.temp }}/zxws/build
+          !${{ runner.temp }}/zxws/.ccache
         key: west-${{ hashFiles('west.yml') }}
         restore-keys: west-
+
+    # The compiler cache changes with every build, so it is saved every run under
+    # a new key and restored from the newest for this job.
+    - uses: actions/cache@v6
+      with:
+        path: ${{ runner.temp }}/zxws/.ccache
+        key: ccache-${{ github.workflow }}-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: ccache-${{ github.workflow }}-${{ github.job }}-
