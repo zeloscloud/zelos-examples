@@ -20,6 +20,7 @@ on:
       - "CMakeLists.txt"
       - "Kconfig"
       - "justfile"
+      - ".github/actions/**"
       - ".github/workflows/can-bench.yml"
   pull_request:
     paths: *paths
@@ -37,7 +38,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq just
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
 
       - run: just dbc
       - name: lib/codec_bench/ is up to date with the DBC
@@ -47,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq just
+      - uses: ./.github/actions/firmware-toolchain
 
       - run: just firmware
 
@@ -62,7 +65,9 @@ jobs:
     needs: firmware
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq just
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
 
       - name: Load the kernel's virtual CAN driver
         # SocketCAN is a kernel feature and a hosted runner does not ship it.
