@@ -1,0 +1,3 @@
+name: xcp
+append:
+  EXTRA_CONF_FILE: xcp.conf

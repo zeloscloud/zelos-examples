@@ -1,0 +1,94 @@
+name: zelos-bench
+
+# Any set of nodes on one virtual CAN bus, and a tester on the same bus.
+#
+# `bus` owns the network namespace vcan0 lives in; `renode` and `tester` join
+# it. No container names and no published ports, so `docker compose -p <name>`
+# runs several benches side by side on one host.
+#
+# BENCH_ELF_DIR is mounted as /elf; BENCH_ELFS names the ELFs in it to run, one
+# node each. An XCP node's A2L sits beside its ELF there, where the tester's
+# suites find it. `just test-bench` at the repository root sets both; a bench that extends these services sets its
+# own. Not required here, because compose interpolates this whole file even for
+# a bench that overrides them; an empty BENCH_ELFS stops renode-run.sh instead.
+
+x-sim: &sim
+  build:
+    context: .
+    dockerfile: renode.Dockerfile
+  image: zelos-bench-sim:1.16.1
+  pull_policy: build
+
+services:
+  bus:
+    <<: *sim
+    cap_add:
+      - NET_ADMIN
+    command:
+      - bash
+      - -c
+      - ip link add dev vcan0 type vcan && ip link set up vcan0 && exec sleep infinity
+    healthcheck:
+      test: ["CMD", "ip", "link", "show", "vcan0"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  renode:
+    <<: *sim
+    depends_on:
+      bus:
+        condition: service_healthy
+    network_mode: "service:bus"
+    volumes:
+      - ./renode-run.sh:/bench/renode-run.sh:ro
+      - ${BENCH_ELF_DIR:-.}:/elf:ro
+    environment:
+      BENCH_ELFS: ${BENCH_ELFS:-}
+    command: ["bash", "/bench/renode-run.sh"]
+    # Healthy once any node is on the bus.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "timeout 5 candump -n 1 vcan0 > /dev/null"]
+      interval: 3s
+      timeout: 6s
+      retries: 20
+      start_period: 20s
+
+  # The Zelos agent with the CAN extension, for a bench that extends it: that
+  # bench mounts its configuration at /bench/can.json and publishes the port on
+  # `bus`. `just test-bench` has no configuration for it, so starts only renode.
+  agent:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    # Untagged: the versions it installs are the Dockerfile's, and compose
+    # rebuilds it from the layer cache on every `up`.
+    image: zelos-bench-agent
+    pull_policy: build
+    depends_on:
+      renode:
+        condition: service_healthy
+    network_mode: "service:bus"
+    volumes:
+      - ../dbc:/dbc:ro
+    healthcheck:
+      test: ["CMD", "zelos", "status"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # Started by `docker compose run tester <pytest args>`, not by `up`.
+  tester:
+    build:
+      context: ../testing
+      dockerfile: ../bench/tester.Dockerfile
+    image: zelos-bench-tester
+    pull_policy: build
+    profiles: ["tester"]
+    network_mode: "service:bus"
+    volumes:
+      - ../dbc:/dbc:ro
+      # Node descriptions the suites read, such as a CANopen node's EDS.
+      - ../nodes:/nodes:ro
+      - ${BENCH_ELF_DIR:-.}:/elf:ro

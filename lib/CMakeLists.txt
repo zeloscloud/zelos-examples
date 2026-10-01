@@ -1,0 +1,6 @@
+add_subdirectory_ifdef(CONFIG_ZELOS_CAN can)
+add_subdirectory_ifdef(CONFIG_ZELOS_CODEC_BENCH codec_bench)
+add_subdirectory_ifdef(CONFIG_ZELOS_CODEC_GENSET codec_genset)
+add_subdirectory_ifdef(CONFIG_ZELOS_XCP_CORE xcp)
+add_subdirectory_ifdef(CONFIG_ZELOS_J1939 j1939)
+add_subdirectory_ifdef(CONFIG_ZELOS_CANOPEN canopen)

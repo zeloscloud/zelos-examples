@@ -1,0 +1,7 @@
+config ZELOS_CAN
+	bool "CAN helper for the nodes"
+	depends on CAN
+	help
+	  Brings up the board's chosen CAN controller at ZELOS_CAN_BITRATE,
+	  sends classic frames and routes received frames into queues.
+	  See include/zelos/can.h.

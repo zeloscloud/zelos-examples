@@ -1,0 +1,4 @@
+# Local state, never part of the tester image.
+.venv
+**/__pycache__
+**/.pytest_cache

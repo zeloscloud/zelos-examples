@@ -1,0 +1,43 @@
+name: can-full
+
+# Five nodes on one virtual CAN bus, an agent decoding it, and the suites'
+# tester.
+#
+# Built on the repository's shared bench (../bench): this file picks the nodes
+# and configures the agent. `bus` owns the network namespace vcan0 lives in;
+# every other service joins it.
+
+services:
+  bus:
+    extends:
+      file: ../bench/compose.yaml
+      service: bus
+    # As in can-bench: 2300 is the app's default; set BENCH_PORT to move it.
+    ports:
+      - "${BENCH_PORT:-2300}:2300"
+
+  renode:
+    extends:
+      file: ../bench/compose.yaml
+      service: renode
+    volumes:
+      - ./build:/elf:ro
+    environment:
+      BENCH_ELFS: vcu.elf bms.elf dcdc-xcp.elf genset.elf pdu.elf
+
+  # The shared agent, decoding with bench/can.json.
+  agent:
+    extends:
+      file: ../bench/compose.yaml
+      service: agent
+    volumes:
+      - ./bench:/bench:ro
+
+  # Started by `just test`, not by `up`. The xcp suite reads the DC-DC's A2L,
+  # generated beside its ELF, from /elf.
+  tester:
+    extends:
+      file: ../bench/compose.yaml
+      service: tester
+    volumes:
+      - ./build:/elf:ro

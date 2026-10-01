@@ -1,0 +1,16 @@
+config ZELOS_CAN_BITRATE
+	int "Bitrate of every node, bit/s"
+	depends on CAN
+	default 500000
+	help
+	  One value for every node on any board, whichever library drives
+	  the controller. Zephyr's default when the devicetree is silent is
+	  125 kbit/s, and Renode models no arbitration, so nodes at
+	  different bitrates would work in simulation and fail on hardware.
+
+rsource "can/Kconfig"
+rsource "codec_bench/Kconfig"
+rsource "codec_genset/Kconfig"
+rsource "xcp/Kconfig"
+rsource "j1939/Kconfig"
+rsource "canopen/Kconfig"

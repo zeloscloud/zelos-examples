@@ -1,0 +1,86 @@
+# The full CAN bench. Run `just` for the list of recipes.
+#
+# CI runs these same recipes, so it cannot diverge from the guide.
+
+set shell := ["bash", "--noprofile", "--norc", "-euo", "pipefail", "-c"]
+
+NODES := "vcu bms dcdc-xcp genset pdu"
+# Each node with a suite, as node:suite. `just test` runs every suite on the
+# bench; `just hil` runs one node's.
+SUITES := "dcdc-xcp:xcp genset:j1939 pdu:canopen"
+
+# The firmware is built by the repository's shared recipes, one level up.
+FIRMWARE := quote(just_executable()) + " --justfile " + quote(justfile_directory() / ".." / "justfile")
+
+# Show the available recipes.
+default:
+    @just --list --unsorted
+
+# Bring the bench up. Idempotent.
+up: (_elf NODES)
+    docker compose up -d --wait
+    @echo
+    @echo "Bench is up. Connect the Zelos app to localhost:${BENCH_PORT:-2300}"
+    @echo "Watch the raw bus with:  just bus"
+
+# Stop the bench and remove its containers, network and virtual interface.
+down:
+    docker compose down --remove-orphans --volumes
+
+# Tail the raw bus.
+bus:
+    docker compose exec renode candump -td vcan0
+
+# Run the protocol suites against the running bench. --no-deps, because
+# recreating the bus would strand the nodes in the old network namespace.
+test:
+    docker compose run --rm --no-deps tester {{ replace_regex(SUITES, '\S+:', 'suites/') }}
+
+# Rebuild every node; the DC-DC with XCP, and its A2L beside it.
+firmware:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ FIRMWARE }} build vcu build/vcu.elf
+    {{ FIRMWARE }} build bms build/bms.elf
+    {{ FIRMWARE }} build dcdc build/dcdc-xcp.elf -S xcp
+    {{ FIRMWARE }} build genset build/genset.elf
+    {{ FIRMWARE }} build pdu build/pdu.elf
+    ls -la build/
+    # `just up` will not reload a running simulator.
+    if docker compose ps --status running --services 2>/dev/null | grep -qx renode; then
+        echo
+        echo "The bench is running the previous firmware: just down && just up"
+    fi
+
+# Flash a node and run its suites on a channel, e.g. `just hil genset can0`.
+hil NODE CHANNEL: (_elf NODE)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    suites=$(for pair in {{ SUITES }}; do [ "${pair%%:*}" != "{{ NODE }}" ] || echo "${pair#*:}"; done)
+    [ -n "$suites" ] || { echo "usage: just hil NODE CHANNEL, NODE one of: {{ replace_regex(SUITES, ':\S+', '') }}" >&2; exit 2; }
+    # The DC-DC's own behaviour must survive adding XCP. can_raw plays the BMS,
+    # so `just test`, whose bench has one, cannot run it.
+    [ "{{ NODE }}" != dcdc-xcp ] || suites+=" can_raw"
+    {{ FIRMWARE }} hil "build/{{ NODE }}.elf" {{ CHANNEL }} $suites
+
+# Remove the cached Zephyr workspace. Frees about 2 GB.
+clean-workspace:
+    {{ FIRMWARE }} clean-workspace
+
+# These nodes' firmware must exist and must not be older than its sources.
+_elf ELFS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    missing=()
+    for node in {{ ELFS }}; do
+        [ -f "build/$node.elf" ] || missing+=("$node.elf")
+    done
+    [[ " {{ ELFS }} " != *" dcdc-xcp "* ]] || [ -f build/dcdc-xcp.a2l ] || missing+=("dcdc-xcp.a2l")
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "No firmware in build/ (missing: ${missing[*]}). Build it:" >&2
+        echo "    just firmware" >&2
+        exit 1
+    fi
+    {{ FIRMWARE }} _fresh "$(printf 'build/%s.elf ' {{ ELFS }})" \
+        ../nodes ../lib ../include ../snippets ../tools ../dbc/bench.dbc \
+        ../west.yml ../CMakeLists.txt ../Kconfig ../zephyr

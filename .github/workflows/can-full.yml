@@ -1,26 +1,29 @@
-name: can-bench
+name: can-full
 
 # Every job here runs a recipe from the justfile, so CI cannot diverge from what
 # the guide tells a reader to run.
 #
-# The bench's firmware is built from the shared directories at the root, so a
+# The bench's firmware, Renode bench and suites are shared at the root, so a
 # change there runs this workflow too.
 on:
   push:
     paths: &paths
-      - "can-bench/**"
+      - "can-full/**"
       - "bench/**"
+      - "testing/**"
       - "nodes/**"
       - "lib/**"
       - "include/**"
+      - "snippets/**"
       - "dbc/**"
+      - "tools/**"
       - "toolchain/**"
       - "zephyr/**"
       - "west.yml"
       - "CMakeLists.txt"
       - "Kconfig"
       - "justfile"
-      - ".github/workflows/can-bench.yml"
+      - ".github/workflows/can-full.yml"
   pull_request:
     paths: *paths
 
@@ -30,19 +33,9 @@ concurrency:
 
 defaults:
   run:
-    working-directory: can-bench
+    working-directory: can-full
 
 jobs:
-  sources:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq just
-
-      - run: just dbc
-      - name: lib/codec_bench/ is up to date with the DBC
-        run: git diff --exit-code -- ../lib/codec_bench
-
   firmware:
     runs-on: ubuntu-latest
     steps:
@@ -54,7 +47,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: can-bench/build/*.elf
+          path: |
+            can-full/build/*.elf
+            can-full/build/*.a2l
           if-no-files-found: error
 
   bench:
@@ -62,33 +57,29 @@ jobs:
     needs: firmware
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq just
 
-      - name: Load the kernel's virtual CAN driver
+      - name: Install just, and load the kernel's virtual CAN driver
         # SocketCAN is a kernel feature and a hosted runner does not ship it.
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq "linux-modules-extra-$(uname -r)"
+          sudo apt-get install -y -qq just "linux-modules-extra-$(uname -r)"
           sudo modprobe vcan
 
       - uses: actions/download-artifact@v4
         with:
           name: firmware
-          path: can-bench/build
+          path: can-full/build
 
       - run: just up
       - run: just test
-
-      # Each notebook renders to a self-contained page. Kept on failure too,
-      # which is when they are worth reading.
-      - if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: can-bench/notebooks/*.html
-          if-no-files-found: warn
-
       - if: failure()
         run: docker compose logs
       - if: always()
         run: just down
+
+      # The raw-CAN DC-DC suite plays the BMS, so it cannot run on the bench
+      # above, which has one. It gets a bench of its own, the DC-DC alone, and
+      # runs whether or not the full bench passed.
+      - if: "!cancelled()"
+        run: just test-bench can_raw can-full/build/dcdc-xcp.elf
+        working-directory: .

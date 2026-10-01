@@ -1,0 +1,26 @@
+# Host-side tests for the nodes, run against any SocketCAN channel: vcan0 on a
+# Renode bench, or a physical adapter on a hardware bench.
+#
+#   uv run pytest suites/can_raw --channel can0
+
+[project]
+name = "zelos-testing"
+version = "0.1.0"
+description = "Shared pytest fixtures and suites for the CAN nodes"
+requires-python = ">=3.12"
+dependencies = [
+    "can-j1939==2.0.12",
+    "canopen==2.4.1",
+    "cantools==41.3.1",
+    "pytest==9.1.1",
+    "python-can==4.6.1",
+    "pyxcp==0.29.19",
+]
+
+# Loaded by pytest wherever this package is installed: no conftest.py needed.
+[project.entry-points.pytest11]
+zelos_testing = "zelos_testing.plugin"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
