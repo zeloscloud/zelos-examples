@@ -50,3 +50,8 @@ RUN curl -fsSL \
 
 ENV ZEPHYR_TOOLCHAIN_VARIANT=zephyr
 ENV ZEPHYR_SDK_INSTALL_DIR="/opt/zephyr-sdk-${ZSDK_VERSION}"
+
+# The workspace is mounted in and may belong to another user, as it does when CI
+# restores it from a cache. Git would refuse it as "dubious ownership", and west
+# would then not see Zephyr's commands. The image only ever builds that tree.
+RUN git config --system --add safe.directory '*'
