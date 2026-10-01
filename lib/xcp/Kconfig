@@ -1,0 +1,51 @@
+config ZELOS_XCP
+	bool "XCP on CAN slave"
+	depends on ZELOS_CAN
+	select ZELOS_XCP_CORE
+	select POLL
+	help
+	  Answers an XCP master on the node's CAN bus: reads and calibration
+	  writes restricted to the regions the application registers, and
+	  dynamic DAQ sampled on the application's event channels.
+	  See include/zelos/xcp.h.
+
+config ZELOS_XCP_CORE
+	bool "XCP protocol core"
+	help
+	  The protocol logic without a transport. ZELOS_XCP selects it; on
+	  its own it is only useful to unit tests.
+
+if ZELOS_XCP
+
+config ZELOS_XCP_CRO_ID
+	hex "CAN identifier of master-to-slave frames (CRO)"
+	default 0x6f0
+
+config ZELOS_XCP_DTO_ID
+	hex "CAN identifier of slave-to-master frames (DTO)"
+	default 0x6f1
+
+endif # ZELOS_XCP
+
+if ZELOS_XCP_CORE
+
+# Static pools, shared by every DAQ list. Sized for a handful of variables.
+
+config ZELOS_XCP_DAQ_LISTS
+	int "DAQ lists"
+	range 1 16
+	default 2
+
+config ZELOS_XCP_ODTS
+	int "ODTs across all DAQ lists"
+	range 1 64
+	default 8
+	help
+	  Each ODT is one CAN frame per sample, carrying up to 7 bytes.
+
+config ZELOS_XCP_ODT_ENTRIES
+	int "ODT entries across all ODTs"
+	range 1 255
+	default 32
+
+endif # ZELOS_XCP_CORE

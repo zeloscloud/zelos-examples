@@ -1,0 +1,15 @@
+sample:
+  name: DC-DC node
+common:
+  platform_allow: nucleo_h753zi
+  integration_platforms:
+    - nucleo_h753zi
+tests:
+  zelos.nodes.dcdc: {}
+  # The same source with its pack-allowance defect present. See Kconfig.
+  zelos.nodes.dcdc.defect:
+    extra_args: EXTRA_CONF_FILE=defect.conf
+  # Measurement and calibration over XCP; see dcdc.a2l.
+  zelos.nodes.dcdc.xcp:
+    required_snippets:
+      - xcp

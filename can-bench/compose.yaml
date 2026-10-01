@@ -2,76 +2,49 @@ name: can-bench
 
 # Three services and one virtual CAN bus.
 #
-# `bus` owns the network namespace the bus lives in; `renode` and `agent` join
-# it. All three see the same vcan0 with no routing, and the interface lives and
-# dies with the containers rather than existing on the host.
-
-x-sim: &sim
-  build:
-    context: .
-    dockerfile: bench/renode.Dockerfile
-  image: can-bench-sim:1.16.1
-  pull_policy: build
+# Built on the repository's shared bench (../bench): this file picks the nodes
+# and configures the agent. `bus` owns the network namespace the
+# bus lives in; `renode` and `agent` join it. All three see the same vcan0 with
+# no routing, and the interface lives and dies with the containers rather than
+# existing on the host.
 
 services:
   bus:
-    <<: *sim
-    container_name: can-bench-bus
-    cap_add:
-      - NET_ADMIN
-    command:
-      - bash
-      - -c
-      - ip link add dev vcan0 type vcan && ip link set up vcan0 && exec sleep infinity
+    extends:
+      file: ../bench/compose.yaml
+      service: bus
     # 2300 is what the app assumes for a bare hostname. On a machine where the
     # app is installed its own agent already holds that port; set BENCH_PORT to
     # publish elsewhere.
     ports:
       - "${BENCH_PORT:-2300}:2300"
-    healthcheck:
-      test: ["CMD", "ip", "link", "show", "vcan0"]
-      interval: 2s
-      timeout: 2s
-      retries: 15
 
   renode:
-    <<: *sim
-    container_name: can-bench-renode
-    depends_on:
-      bus:
-        condition: service_healthy
-    network_mode: "service:bus"
+    extends:
+      file: ../bench/compose.yaml
+      service: renode
     volumes:
-      - ./bench:/bench:ro
       - ./build:/elf:ro
     environment:
       # Which build of the DC-DC node to run. `just flash` sets this.
-      DCDC_ELF: ${DCDC_ELF:-/elf/dcdc.elf}
-    command: ["bash", "/bench/renode-run.sh"]
-    healthcheck:
-      test: ["CMD", "bash", "-c", "timeout 5 candump -n 1 vcan0 > /dev/null"]
-      interval: 3s
-      timeout: 6s
-      retries: 20
-      start_period: 20s
+      BENCH_ELFS: vcu.elf bms.elf ${DCDC_ELF:-dcdc.elf}
 
+  # The shared agent image, decoding with this bench's bench/can.json.
   agent:
     build:
-      context: ./bench
+      context: ../bench
       dockerfile: agent.Dockerfile
-    image: can-bench-agent:26.0.8
+    image: zelos-bench-agent:26.0.8
     pull_policy: build
-    container_name: can-bench-agent
     depends_on:
       renode:
         condition: service_healthy
     network_mode: "service:bus"
-    # Mounted rather than copied into the image, so editing it takes effect on
-    # the next `just up`.
-    command: ["bash", "/bench/entrypoint.sh"]
     volumes:
+      # Mounted rather than copied into the image, so editing it takes effect
+      # on the next `just up`.
       - ./bench:/bench:ro
-      - ./dbc:/dbc:ro
+      - ../dbc:/dbc:ro
       # Recorded runs the tests check against, and where `just record` writes.
       - ./traces:/traces
       # Writable: the notebook runner assigns cell ids and stages a

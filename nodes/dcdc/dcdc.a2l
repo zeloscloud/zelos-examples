@@ -1,0 +1,121 @@
+/*
+ * The DC-DC node over XCP on CAN, built with `-S xcp`.
+ *
+ * Addresses here are placeholders: the build writes the real ones next to
+ * the ELF (build/<name>.a2l), looked up by each object's SYMBOL_LINK.
+ */
+ASAP2_VERSION 1 71
+
+/begin PROJECT dcdc "DC-DC converter node"
+
+  /begin MODULE dcdc "DC-DC converter, pack side to 12 V rail"
+
+    /begin MOD_COMMON ""
+      BYTE_ORDER MSB_LAST
+      ALIGNMENT_FLOAT32_IEEE 4
+    /end MOD_COMMON
+
+    /begin IF_DATA XCP
+      /begin PROTOCOL_LAYER
+        0x0100
+        1000 1000 0 0 0 0 0
+        8 8
+        BYTE_ORDER_MSB_LAST
+        ADDRESS_GRANULARITY_BYTE
+        OPTIONAL_CMD GET_COMM_MODE_INFO
+        OPTIONAL_CMD GET_ID
+        OPTIONAL_CMD SET_MTA
+        OPTIONAL_CMD UPLOAD
+        OPTIONAL_CMD SHORT_UPLOAD
+        OPTIONAL_CMD DOWNLOAD
+        OPTIONAL_CMD SHORT_DOWNLOAD
+        OPTIONAL_CMD SET_DAQ_PTR
+        OPTIONAL_CMD WRITE_DAQ
+        OPTIONAL_CMD SET_DAQ_LIST_MODE
+        OPTIONAL_CMD START_STOP_DAQ_LIST
+        OPTIONAL_CMD START_STOP_SYNCH
+        OPTIONAL_CMD GET_DAQ_PROCESSOR_INFO
+        OPTIONAL_CMD GET_DAQ_RESOLUTION_INFO
+        OPTIONAL_CMD GET_DAQ_EVENT_INFO
+        OPTIONAL_CMD FREE_DAQ
+        OPTIONAL_CMD ALLOC_DAQ
+        OPTIONAL_CMD ALLOC_ODT
+        OPTIONAL_CMD ALLOC_ODT_ENTRY
+      /end PROTOCOL_LAYER
+
+      /begin DAQ
+        DYNAMIC 2 1 0
+        OPTIMISATION_TYPE_DEFAULT
+        ADDRESS_EXTENSION_FREE
+        IDENTIFICATION_FIELD_TYPE_ABSOLUTE
+        GRANULARITY_ODT_ENTRY_SIZE_DAQ_BYTE
+        7
+        NO_OVERLOAD_INDICATION
+        PRESCALER_SUPPORTED
+        /begin EVENT
+          "cycle_50ms" "cyc50ms" 0 DAQ 2 50 6 0
+        /end EVENT
+      /end DAQ
+
+      /begin XCP_ON_CAN
+        0x0100
+        CAN_ID_MASTER 0x6F0
+        CAN_ID_SLAVE 0x6F1
+        BAUDRATE 500000
+      /end XCP_ON_CAN
+    /end IF_DATA
+
+    /begin RECORD_LAYOUT Scalar_FLOAT32_IEEE
+      FNC_VALUES 1 FLOAT32_IEEE COLUMN_DIR DIRECT
+    /end RECORD_LAYOUT
+
+    /begin MEASUREMENT setpoint_a "Pack-side current the converter is heading for"
+      FLOAT32_IEEE NO_COMPU_METHOD 0 0 0 100
+      ECU_ADDRESS 0x0
+      SYMBOL_LINK "dcdc_setpoint_a" 0
+      PHYS_UNIT "A"
+    /end MEASUREMENT
+
+    /begin MEASUREMENT input_current_a "Pack-side current drawn"
+      FLOAT32_IEEE NO_COMPU_METHOD 0 0 0 100
+      ECU_ADDRESS 0x0
+      SYMBOL_LINK "dcdc_input_current_a" 0
+      PHYS_UNIT "A"
+    /end MEASUREMENT
+
+    /begin MEASUREMENT slew_step_a "Largest change in input current per cycle"
+      FLOAT32_IEEE NO_COMPU_METHOD 0 0 0 100
+      ECU_ADDRESS 0x0
+      SYMBOL_LINK "dcdc_slew_step_a" 0
+      PHYS_UNIT "A"
+    /end MEASUREMENT
+
+    /begin MEASUREMENT temperature_c "Modelled converter temperature"
+      FLOAT32_IEEE NO_COMPU_METHOD 0 0 -40 215
+      ECU_ADDRESS 0x0
+      SYMBOL_LINK "dcdc_temperature_c" 0
+      PHYS_UNIT "degC"
+    /end MEASUREMENT
+
+    /begin MEASUREMENT aux_limit_a "Latest BMS_Limits.AuxCurrentLimit"
+      FLOAT32_IEEE NO_COMPU_METHOD 0 0 0 655.35
+      ECU_ADDRESS 0x0
+      SYMBOL_LINK "dcdc_aux_limit_a" 0
+      PHYS_UNIT "A"
+    /end MEASUREMENT
+
+    /begin CHARACTERISTIC DEMAND_A "What the 12 V loads ask of the converter, pack side"
+      VALUE 0x0 Scalar_FLOAT32_IEEE 0 NO_COMPU_METHOD 0 20
+      SYMBOL_LINK "dcdc_demand_a" 0
+      PHYS_UNIT "A"
+    /end CHARACTERISTIC
+
+    /begin CHARACTERISTIC SLEW_A_PER_S "Rate cap on the pack-side current"
+      VALUE 0x0 Scalar_FLOAT32_IEEE 0 NO_COMPU_METHOD 0.1 100
+      SYMBOL_LINK "dcdc_slew_a_per_s" 0
+      PHYS_UNIT "A/s"
+    /end CHARACTERISTIC
+
+  /end MODULE
+
+/end PROJECT

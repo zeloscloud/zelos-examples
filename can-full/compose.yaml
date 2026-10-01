@@ -1,0 +1,58 @@
+name: can-full
+
+# Five nodes on one virtual CAN bus, an agent decoding it, and the suites'
+# tester.
+#
+# Built on the repository's shared bench (../bench): this file picks the nodes
+# and configures the agent. `bus` owns the network namespace vcan0 lives in;
+# every other service joins it.
+
+services:
+  bus:
+    extends:
+      file: ../bench/compose.yaml
+      service: bus
+    # As in can-bench: 2300 is the app's default; set BENCH_PORT to move it.
+    ports:
+      - "${BENCH_PORT:-2300}:2300"
+
+  renode:
+    extends:
+      file: ../bench/compose.yaml
+      service: renode
+    volumes:
+      - ./build:/elf:ro
+    environment:
+      BENCH_ELFS: vcu.elf bms.elf dcdc-xcp.elf genset.elf pdu.elf
+
+  # The shared agent image, decoding with bench/can.json.
+  agent:
+    build:
+      context: ../bench
+      dockerfile: agent.Dockerfile
+    image: zelos-bench-agent:26.0.8
+    pull_policy: build
+    depends_on:
+      renode:
+        condition: service_healthy
+    network_mode: "service:bus"
+    volumes:
+      - ./bench:/bench:ro
+      - ../dbc:/dbc:ro
+    healthcheck:
+      test: ["CMD", "zelos", "status"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # Started by `just test`, not by `up`.
+  tester:
+    extends:
+      file: ../bench/compose.yaml
+      service: tester
+    volumes:
+      # The DC-DC's A2L, generated beside its ELF with that build's addresses.
+      - ./build:/build:ro
+    environment:
+      ZELOS_A2L: /build/dcdc-xcp.a2l

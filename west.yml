@@ -1,0 +1,30 @@
+# Zephyr workspace for every node in this repository, pinned to a tag.
+#
+# The allowlist keeps the workspace to what an STM32 CAN application needs.
+# cmsis_6 is the Cortex-M module; cmsis is Cortex-A/R and fails obscurely here.
+manifest:
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v4.4.2
+      import:
+        name-allowlist:
+          - cmsis_6
+          - hal_stm32
+
+    # The CANopen stack, used by lib/canopen. Zephyr is moving it out of its own
+    # manifest into this repository, which has no tags yet, so it is pinned by
+    # commit. It builds only into nodes that enable CONFIG_ZELOS_CANOPEN.
+    - name: canopennodezephyr
+      remote: zephyrproject-rtos
+      repo-path: CANopenNodeZephyr
+      revision: bd924b4951556c26fa89d326649d585a8e54b6de
+      path: modules/lib/canopennodezephyr
+      submodules: true
+
+  self:
+    path: zelos-examples

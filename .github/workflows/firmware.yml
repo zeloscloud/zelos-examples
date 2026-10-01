@@ -1,0 +1,58 @@
+name: firmware
+
+# Every node build each node's sample.yaml declares, and every unit test under
+# tests/, through twister. The job runs a recipe from the root justfile, so CI
+# cannot diverge from what a developer runs.
+on:
+  push:
+    paths: &paths
+      - "nodes/**"
+      - "lib/**"
+      - "include/**"
+      - "snippets/**"
+      - "tests/**"
+      - "dbc/**"
+      - "toolchain/**"
+      - "zephyr/**"
+      - "west.yml"
+      - "CMakeLists.txt"
+      - "Kconfig"
+      - "justfile"
+      - ".github/workflows/firmware.yml"
+  pull_request:
+    paths: *paths
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  twister:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq just
+
+      - run: just twister
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: twister-out
+          path: |
+            twister-out/twister.json
+            twister-out/twister.xml
+            twister-out/twister.log
+            twister-out/**/build.log
+            twister-out/**/handler.log
+          if-no-files-found: warn
+
+  sources:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq just
+
+      - run: just canopen-od pdu
+      - name: nodes/pdu/od/ is up to date with its EDS
+        run: git diff --exit-code -- nodes/pdu/od

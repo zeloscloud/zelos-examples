@@ -1,0 +1,8 @@
+sample:
+  name: Range-extender genset ECU (J1939)
+common:
+  platform_allow: nucleo_h753zi
+  integration_platforms:
+    - nucleo_h753zi
+tests:
+  zelos.nodes.genset: {}

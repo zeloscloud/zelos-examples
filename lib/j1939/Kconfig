@@ -1,0 +1,15 @@
+config ZELOS_J1939
+	bool "SAE J1939 address claim, requests and broadcast transport"
+	depends on ZELOS_CAN
+	help
+	  Claims a source address by NAME, answers requests, sends a node's
+	  messages on their periods and anything longer than 8 bytes by
+	  TP.BAM. See include/zelos/j1939.h.
+
+config ZELOS_J1939_TICK_MS
+	int "How often the J1939 thread runs, ms"
+	depends on ZELOS_J1939
+	default 10
+	help
+	  Bounds reply latency and the jitter on periodic messages and
+	  BAM packet spacing.

@@ -6,9 +6,27 @@ and is checked in CI.
 | Bench | What it is |
 |---|---|
 | [`can-bench`](can-bench/) | Three emulated microcontrollers running Zephyr firmware, talking CAN on a virtual bus, decoded live. Ships two builds of one node so a fault can be found in the data and then fixed. |
+| [`can-full`](can-full/) | can-bench's nodes plus a J1939 genset and a CANopen PDU, with XCP on the DC-DC, each protocol checked by an independent implementation of it, in Renode and on a board. |
 
-Each directory is self-contained. Nothing is shared between them until a second
-bench needs it.
+Using a bench is always `cd <bench> && just up`. The nodes, the Renode bench
+and the test suites are shared at the root, so benches compose the same pieces
+rather than copying them.
+
+## Layout
+
+| Path | What it is |
+|---|---|
+| `west.yml` | The Zephyr workspace every node builds in, pinned to one tag |
+| `zephyr/`, `CMakeLists.txt`, `Kconfig` | This repository as a Zephyr module, contributing `lib/` |
+| `nodes/` | Zephyr applications, one per node, each reusable by any bench: `vcu`, `bms`, `dcdc`, `genset`, `pdu` |
+| `lib/`, `include/zelos/` | Code the nodes share, each piece off until a node's `prj.conf` enables it |
+| `snippets/` | Protocols any node can build with, e.g. `-S j1939` |
+| `dbc/` | Wire formats of the shared nodes; `lib/codec_bench/` is generated from `bench.dbc` |
+| `toolchain/` | The firmware build image |
+| `testing/` | Host-side pytest suites and fixtures, run against any SocketCAN channel |
+| `bench/` | A Renode bench for any set of nodes, and the agent image; each bench builds on it, and `just test-bench` runs a suite on it |
+| `tools/` | Host scripts the build runs, e.g. filling a node's A2L with one build's addresses |
+| `justfile` | Shared recipes: building nodes, `twister`, `test-bench`, and `hil` for a flashed board |
 
 ## Licence
 

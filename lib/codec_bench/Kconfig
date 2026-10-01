@@ -1,0 +1,5 @@
+config ZELOS_CODEC_BENCH
+	bool "Pack and unpack code for dbc/bench.dbc"
+	help
+	  The cantools codec for the bench's wire format, with the periods
+	  from the DBC as BENCH_*_CYCLE_TIME_MS.

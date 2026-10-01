@@ -1,0 +1,21 @@
+config ZELOS_CANOPEN
+	bool "CANopen node runtime"
+	depends on CAN
+	select CANOPENNODE
+	select REBOOT
+	help
+	  Runs the CANopenNode stack (the canopennodezephyr module) for a
+	  node that builds its own object dictionary, od/CO_OD.c and
+	  od/CO_OD.h. The stack drives the CAN controller through its own
+	  glue on Zephyr's CAN API, not through lib/can, at
+	  ZELOS_CAN_BITRATE. See include/zelos/canopen.h.
+
+config ZELOS_CANOPEN_NODE_ID
+	int "CANopen node-id"
+	depends on ZELOS_CANOPEN
+	range 1 127
+	default 32
+	help
+	  0x20 puts the node's COB-IDs (EMCY 0x0A0, PDOs 0x1A0-0x320, SDO
+	  0x5A0/0x620, heartbeat 0x720) clear of the bench and XCP
+	  identifiers.

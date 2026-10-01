@@ -1,0 +1,6 @@
+name: zelos
+build:
+  cmake: .
+  kconfig: Kconfig
+  settings:
+    snippet_root: .
