@@ -41,7 +41,7 @@ same default, so run one bench at a time or move one.
 
 | Node | Built from | Protocol | Identifiers |
 |---|---|---|---|
-| VCU | `../nodes/vcu` | | `0x100` |
+| VCU | `../nodes/vcu` | | `0x101` |
 | BMS | `../nodes/bms` | | `0x200`-`0x202` |
 | DC-DC | `../nodes/dcdc`, `-S xcp` | XCP on CAN | `0x300`; CRO `0x6F0`, DTO `0x6F1` |
 | genset | `../nodes/genset` | J1939 | 29-bit, source address `0x80` |

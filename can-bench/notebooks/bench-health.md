@@ -20,7 +20,7 @@ from zelos_sdk import CheckResults, connect
 agent = connect()
 bus = agent.query(
     [
-        "*0100_VCU_Command.RequestedMode",
+        "*_VCU_Command.RequestedMode",
         "*0200_BMS_Status.PackCurrent",
         "*0200_BMS_Status.StateOfCharge",
         "*0300_DCDC_Status.OutputVoltage",
