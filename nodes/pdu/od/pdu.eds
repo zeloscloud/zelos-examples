@@ -32,8 +32,8 @@ Granularity=8
 DynamicChannelsSupported=0
 CompactPDO=0
 GroupMessaging=0
-NrOfRXPDO=1
-NrOfTXPDO=2
+NrOfRXPDO=2
+NrOfTXPDO=3
 LSS_Supported=0
 
 [DummyUsage]
@@ -41,17 +41,25 @@ Dummy0001=0
 Dummy0002=0
 Dummy0003=0
 Dummy0004=0
-Dummy0005=0
+Dummy0005=1
 Dummy0006=0
 Dummy0007=0
 
 [Comments]
-Lines=5
+Lines=13
 Line1=0x2000, 0x6000 and 0x6200 are records rather than arrays: CANopenEditor's
 Line2=CANopenNode v1.3 exporter drops an array's element access and PDO mapping
 Line3=when it reads them from an EDS. Masters address them identically.
 Line4=0x1029 is 0 throughout, the CiA 301 default: any error, a tripped channel
-Line5=included, takes an operational node to pre-operational.
+Line5=included, takes an operational node to pre-operational. The exporter also
+Line6=drops an array's element access when its sub-objects are listed one by one,
+Line7=so 0x1029 stays compact. 0x2001 and 0x2002 carry SDO transfers longer than
+Line8=one frame. 0x2003 counts milliseconds of node uptime, wrapping at 65536;
+Line9=TPDO3 sends it with the inputs on every SYNC. 0x2004 holds the last TIME
+Line10=message received. RPDO2 maps a dummy byte (0x0005) ahead of the outputs, so
+Line11=its first byte is ignored. 0x1012 is read only: the stack reads it once at
+Line12=start-up, and reset-communication restores it, so a written value could
+Line13=never apply.
 
 [MandatoryObjects]
 SupportedObjects=3
@@ -129,7 +137,7 @@ DefaultValue=0x00000000
 PDOMapping=0
 
 [OptionalObjects]
-SupportedObjects=23
+SupportedObjects=30
 1=0x1003
 2=0x1005
 3=0x1006
@@ -137,22 +145,29 @@ SupportedObjects=23
 5=0x1008
 6=0x1009
 7=0x100A
-8=0x1014
-9=0x1015
-10=0x1016
-11=0x1017
-12=0x1019
-13=0x1029
-14=0x1200
-15=0x1400
-16=0x1600
-17=0x1800
-18=0x1801
-19=0x1A00
-20=0x1A01
-21=0x1F80
-22=0x6000
-23=0x6200
+8=0x1012
+9=0x1014
+10=0x1015
+11=0x1016
+12=0x1017
+13=0x1019
+14=0x1029
+15=0x1200
+16=0x1400
+17=0x1401
+18=0x1600
+19=0x1601
+20=0x1800
+21=0x1801
+22=0x1802
+23=0x1A00
+24=0x1A01
+25=0x1A02
+26=0x1F80
+27=0x6000
+28=0x6200
+29=0x6206
+30=0x6207
 
 [1003]
 ParameterName=Pre-defined error field
@@ -206,7 +221,7 @@ ObjectType=0x7
 ;StorageLocation=ROM
 DataType=0x0009
 AccessType=const
-DefaultValue=1.0
+DefaultValue=NUCLEO-H753ZI
 PDOMapping=0
 
 [100A]
@@ -216,6 +231,15 @@ ObjectType=0x7
 DataType=0x0009
 AccessType=const
 DefaultValue=1.0
+PDOMapping=0
+
+[1012]
+ParameterName=COB-ID TIME
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x80000100
 PDOMapping=0
 
 [1014]
@@ -337,7 +361,40 @@ ObjectType=0x7
 ;StorageLocation=ROM
 DataType=0x0005
 AccessType=rw
-DefaultValue=254
+DefaultValue=255
+PDOMapping=0
+
+[1401]
+ParameterName=RPDO communication parameter
+ObjectType=0x9
+;StorageLocation=ROM
+SubNumber=0x3
+
+[1401sub0]
+ParameterName=max sub-index
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0005
+AccessType=ro
+DefaultValue=2
+PDOMapping=0
+
+[1401sub1]
+ParameterName=COB-ID used by RPDO
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=$NODEID+0x300
+PDOMapping=0
+
+[1401sub2]
+ParameterName=transmission type
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0005
+AccessType=rw
+DefaultValue=255
 PDOMapping=0
 
 [1600]
@@ -427,6 +484,93 @@ AccessType=rw
 DefaultValue=0x00000000
 PDOMapping=0
 
+[1601]
+ParameterName=RPDO mapping parameter
+ObjectType=0x9
+;StorageLocation=ROM
+SubNumber=0x9
+
+[1601sub0]
+ParameterName=Number of mapped objects
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0005
+AccessType=rw
+DefaultValue=2
+PDOMapping=0
+
+[1601sub1]
+ParameterName=mapped object 1
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00050008
+PDOMapping=0
+
+[1601sub2]
+ParameterName=mapped object 2
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x62000108
+PDOMapping=0
+
+[1601sub3]
+ParameterName=mapped object 3
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
+[1601sub4]
+ParameterName=mapped object 4
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
+[1601sub5]
+ParameterName=mapped object 5
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
+[1601sub6]
+ParameterName=mapped object 6
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
+[1601sub7]
+ParameterName=mapped object 7
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
+[1601sub8]
+ParameterName=mapped object 8
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
 [1800]
 ParameterName=TPDO communication parameter
 ObjectType=0x9
@@ -457,7 +601,7 @@ ObjectType=0x7
 ;StorageLocation=ROM
 DataType=0x0005
 AccessType=rw
-DefaultValue=254
+DefaultValue=255
 PDOMapping=0
 
 [1800sub3]
@@ -526,7 +670,7 @@ ObjectType=0x7
 ;StorageLocation=ROM
 DataType=0x0005
 AccessType=rw
-DefaultValue=254
+DefaultValue=255
 PDOMapping=0
 
 [1801sub3]
@@ -557,6 +701,75 @@ DefaultValue=1000
 PDOMapping=0
 
 [1801sub6]
+ParameterName=SYNC start value
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[1802]
+ParameterName=TPDO communication parameter
+ObjectType=0x9
+;StorageLocation=ROM
+SubNumber=0x7
+
+[1802sub0]
+ParameterName=max sub-index
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0005
+AccessType=ro
+DefaultValue=6
+PDOMapping=0
+
+[1802sub1]
+ParameterName=COB-ID used by TPDO
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=$NODEID+0x380
+PDOMapping=0
+
+[1802sub2]
+ParameterName=transmission type
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=0
+
+[1802sub3]
+ParameterName=inhibit time
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0006
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[1802sub4]
+ParameterName=compatibility entry
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[1802sub5]
+ParameterName=event timer
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0006
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[1802sub6]
 ParameterName=SYNC start value
 ObjectType=0x7
 ;StorageLocation=ROM
@@ -739,6 +952,93 @@ AccessType=rw
 DefaultValue=0x20000808
 PDOMapping=0
 
+[1A02]
+ParameterName=TPDO mapping parameter
+ObjectType=0x9
+;StorageLocation=ROM
+SubNumber=0x9
+
+[1A02sub0]
+ParameterName=Number of mapped objects
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0005
+AccessType=rw
+DefaultValue=2
+PDOMapping=0
+
+[1A02sub1]
+ParameterName=mapped object 1
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x20030010
+PDOMapping=0
+
+[1A02sub2]
+ParameterName=mapped object 2
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x60000108
+PDOMapping=0
+
+[1A02sub3]
+ParameterName=mapped object 3
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
+[1A02sub4]
+ParameterName=mapped object 4
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
+[1A02sub5]
+ParameterName=mapped object 5
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
+[1A02sub6]
+ParameterName=mapped object 6
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
+[1A02sub7]
+ParameterName=mapped object 7
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
+[1A02sub8]
+ParameterName=mapped object 8
+ObjectType=0x7
+;StorageLocation=ROM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x00000000
+PDOMapping=0
+
 [1F80]
 ParameterName=NMT startup
 ObjectType=0x7
@@ -797,10 +1097,62 @@ AccessType=rw
 DefaultValue=0x00
 PDOMapping=1
 
+[6206]
+ParameterName=Error mode output 8-bit
+ObjectType=0x9
+;StorageLocation=RAM
+SubNumber=0x2
+
+[6206sub0]
+ParameterName=Highest sub-index supported
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[6206sub1]
+ParameterName=Error mode 1 to 8
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0xFF
+PDOMapping=0
+
+[6207]
+ParameterName=Error value output 8-bit
+ObjectType=0x9
+;StorageLocation=RAM
+SubNumber=0x2
+
+[6207sub0]
+ParameterName=Highest sub-index supported
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[6207sub1]
+ParameterName=Error value 1 to 8
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0x00
+PDOMapping=0
+
 [ManufacturerObjects]
-SupportedObjects=2
+SupportedObjects=6
 1=0x2000
-2=0x2100
+2=0x2001
+3=0x2002
+4=0x2003
+5=0x2004
+6=0x2100
 
 [2000]
 ParameterName=Channel current
@@ -896,6 +1248,66 @@ DataType=0x0005
 AccessType=ro
 DefaultValue=0
 PDOMapping=1
+
+[2001]
+ParameterName=Build info
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x000A
+AccessType=ro
+DefaultValue=00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+PDOMapping=0
+
+[2002]
+ParameterName=Scratch
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x000A
+AccessType=rw
+DefaultValue=00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+PDOMapping=0
+
+[2003]
+ParameterName=Millisecond counter
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0006
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+
+[2004]
+ParameterName=Last TIME received
+ObjectType=0x9
+;StorageLocation=RAM
+SubNumber=0x3
+
+[2004sub0]
+ParameterName=Highest sub-index supported
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=2
+PDOMapping=0
+
+[2004sub1]
+ParameterName=Milliseconds after midnight
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[2004sub2]
+ParameterName=Days since 1984-01-01
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0006
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
 
 [2100]
 ParameterName=Error status bits
