@@ -216,7 +216,7 @@ def test_overcurrent_trips_with_emcy_and_recovers(node):
         command(node, 0b0000_0001 | shorted)
         code, register, error_bit, info = wait_for(lambda: emcys_after(node, t0), "EMCY")[0]
         assert (code, error_bit, info) == (EMC_CURRENT_OUTPUT, 0x30 + SHORTED - 1, SHORTED)
-        assert register != 0
+        assert register == 0x82  # manufacturer (the stack's) and current (ours)
 
         # 0x1029 is the CiA default: the error takes the node to
         # pre-operational, where PDOs stop and SDO still works.
@@ -240,5 +240,5 @@ def test_overcurrent_trips_with_emcy_and_recovers(node):
     trips = wait_for(lambda: [e for e in emcys_after(node, t0) if e[0] == EMC_CURRENT_OUTPUT], "EMCY after the reset")
     _, register, error_bit, info = trips[0]
     assert (error_bit, info) == (0x30 + SHORTED - 1, SHORTED)
-    assert register != 0
+    assert register == 0x82
     node.sdo[0x6200][1].raw = 0

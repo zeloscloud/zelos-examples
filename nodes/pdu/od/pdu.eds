@@ -46,12 +46,15 @@ Dummy0006=0
 Dummy0007=0
 
 [Comments]
-Lines=5
+Lines=8
 Line1=0x2000, 0x6000 and 0x6200 are records rather than arrays: CANopenEditor's
 Line2=CANopenNode v1.3 exporter drops an array's element access and PDO mapping
 Line3=when it reads them from an EDS. Masters address them identically.
 Line4=0x1029 is 0 throughout, the CiA 301 default: any error, a tripped channel
-Line5=included, takes an operational node to pre-operational.
+Line5=included, takes an operational node to pre-operational. The exporter also
+Line6=drops an array's element access when its sub-objects are listed one by one,
+Line7=so 0x1029 stays compact. 0x2001 and 0x2002 carry SDO transfers longer than
+Line8=one frame.
 
 [MandatoryObjects]
 SupportedObjects=3
@@ -129,7 +132,7 @@ DefaultValue=0x00000000
 PDOMapping=0
 
 [OptionalObjects]
-SupportedObjects=23
+SupportedObjects=25
 1=0x1003
 2=0x1005
 3=0x1006
@@ -153,6 +156,8 @@ SupportedObjects=23
 21=0x1F80
 22=0x6000
 23=0x6200
+24=0x6206
+25=0x6207
 
 [1003]
 ParameterName=Pre-defined error field
@@ -337,7 +342,7 @@ ObjectType=0x7
 ;StorageLocation=ROM
 DataType=0x0005
 AccessType=rw
-DefaultValue=254
+DefaultValue=255
 PDOMapping=0
 
 [1600]
@@ -457,7 +462,7 @@ ObjectType=0x7
 ;StorageLocation=ROM
 DataType=0x0005
 AccessType=rw
-DefaultValue=254
+DefaultValue=255
 PDOMapping=0
 
 [1800sub3]
@@ -526,7 +531,7 @@ ObjectType=0x7
 ;StorageLocation=ROM
 DataType=0x0005
 AccessType=rw
-DefaultValue=254
+DefaultValue=255
 PDOMapping=0
 
 [1801sub3]
@@ -797,10 +802,60 @@ AccessType=rw
 DefaultValue=0x00
 PDOMapping=1
 
+[6206]
+ParameterName=Error mode output 8-bit
+ObjectType=0x9
+;StorageLocation=RAM
+SubNumber=0x2
+
+[6206sub0]
+ParameterName=Highest sub-index supported
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[6206sub1]
+ParameterName=Error mode 1 to 8
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0xFF
+PDOMapping=0
+
+[6207]
+ParameterName=Error value output 8-bit
+ObjectType=0x9
+;StorageLocation=RAM
+SubNumber=0x2
+
+[6207sub0]
+ParameterName=Highest sub-index supported
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[6207sub1]
+ParameterName=Error value 1 to 8
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0x00
+PDOMapping=0
+
 [ManufacturerObjects]
-SupportedObjects=2
+SupportedObjects=4
 1=0x2000
-2=0x2100
+2=0x2001
+3=0x2002
+4=0x2100
 
 [2000]
 ParameterName=Channel current
@@ -896,6 +951,24 @@ DataType=0x0005
 AccessType=ro
 DefaultValue=0
 PDOMapping=1
+
+[2001]
+ParameterName=Build info
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x000A
+AccessType=ro
+DefaultValue=00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+PDOMapping=0
+
+[2002]
+ParameterName=Scratch
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x000A
+AccessType=rw
+DefaultValue=00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+PDOMapping=0
 
 [2100]
 ParameterName=Error status bits
