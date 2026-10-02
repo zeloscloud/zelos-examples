@@ -15,8 +15,8 @@ dependencies = [
     "pytest==9.1.1",
     "python-can==4.6.1",
     "pyxcp==0.29.19",
-    "zelos-can==0.0.10",
-    "zelos-sdk==0.0.12a2",
+    "zelos-can==0.0.11a1",
+    "zelos-sdk==0.0.12a3",
 ]
 
 # Loaded by pytest wherever this package is installed: no conftest.py needed.
