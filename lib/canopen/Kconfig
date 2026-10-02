@@ -18,4 +18,6 @@ config ZELOS_CANOPEN_NODE_ID
 	help
 	  0x20 puts the node's COB-IDs clear of the bench and XCP
 	  identifiers: NMT 0x000, SYNC 0x080, EMCY 0x0A0, TPDO1 0x1A0,
-	  RPDO1 0x220, TPDO2 0x2A0, SDO 0x5A0/0x620, heartbeat 0x720.
+	  RPDO1 0x220, TPDO2 0x2A0, RPDO2 0x320, TPDO3 0x3A0,
+	  SDO 0x5A0/0x620, heartbeat 0x720. TIME is fixed at 0x100, where
+	  the bench's VCU also transmits.
