@@ -2,7 +2,8 @@
 
 What is tested, one visible behaviour per test: boot-up and heartbeat, NMT
 state changes, SDO reads and writes, PDO commands and replies, an overcurrent
-trip reported by EMCY, and a PDO sent on SYNC.
+trip reported by EMCY, outputs on a communication error, and a PDO sent on
+SYNC.
 
 The master reads nodes/pdu/od/pdu.eds, the file the node's object dictionary is
 generated from. Every test starts by resetting the node over NMT, so none
@@ -179,6 +180,27 @@ def test_overcurrent_trips_with_emcy_and_recovers(node):
     wait_until(lambda: node.emcy.log[-1].code == 0, "EMCY error reset")
     assert not node.emcy.active
     set_state(node, "OPERATIONAL", OPERATIONAL)
+
+
+def test_communication_error_takes_error_values_and_keeps_trip(node):
+    # Channel 1 on; channel 8, commanded on, trips.
+    node.emcy.reset()
+    node.sdo[0x6200][1].raw = 0b1000_0001
+    wait_until(lambda: node.emcy.active, "trip EMCY")
+
+    # On a communication error, every output (0x6206 defaults to all) takes its
+    # error value (0x6207): here channel 2 on, the rest off.
+    node.sdo[0x6207][1].raw = 0b0000_0010
+    # SYNC must be empty (0x1019 is 0). One byte is a communication error,
+    # EMCY 0x8240, held until reset-communication.
+    node.network.send_message(0x080, b"\x00")
+    wait_until(lambda: any(e.code == 0x8240 for e in node.emcy.active), "SYNC length EMCY")
+    wait_for(lambda: node.sdo[0x6000][1].raw, 0b0000_0010, "error values")
+
+    # Channel 8's error value is off, yet its trip holds: no error reset, and
+    # the register still has current (0x02) with communication (0x10).
+    assert all(e.code != 0 for e in node.emcy.log)
+    assert node.sdo[0x1001].raw == 0x92
 
 
 def test_sync_produces_tpdo3(node):

@@ -23,6 +23,10 @@ each draws, and trips channel 8, which is shorted, with an EMCY.
 | SDO | `0x5A0` / `0x620` | server response / request |
 | Heartbeat | `0x720` | NMT state, every 1 s |
 
+On the can-full bench the VCU also sends on `0x100`, so the node takes its
+frames as TIME: `0x2004` holds VCU data there, and one arriving while the node
+is stopped raises EMCY `0x8260` once it leaves stopped.
+
 ## Running it
 
 ```bash
