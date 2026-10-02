@@ -4,7 +4,6 @@
 
 set shell := ["bash", "--noprofile", "--norc", "-euo", "pipefail", "-c"]
 
-REPO := "zeloscloud/zelos-examples"
 APPS := "vcu bms dcdc"
 
 # The firmware is built by the repository's shared recipes, one level up.
@@ -62,7 +61,7 @@ flash VARIANT: _elf
         *)      echo "usage: just flash good|defect" >&2; exit 2 ;;
     esac
     if [ ! -f "build/$elf" ]; then
-        echo "build/$elf is missing. Run 'just firmware', or fetch a release that has it." >&2
+        echo "build/$elf is missing. Run 'just build'." >&2
         exit 1
     fi
     # A full cycle rather than recreating one service: the agent shares the bus
@@ -88,15 +87,20 @@ record NAME:
 dbc:
     {{ FIRMWARE }} dbc
 
-# Rebuild every node, including both builds of the DC-DC.
-firmware:
+# Build the nodes into build/: all of them, or the ones you name, e.g. `just build dcdc`.
+build *NODES:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{ FIRMWARE }} build vcu build/vcu.elf
-    {{ FIRMWARE }} build bms build/bms.elf
-    {{ FIRMWARE }} build dcdc build/dcdc.elf
-    # The same source with its one Kconfig option turned off.
-    {{ FIRMWARE }} build dcdc build/dcdc-defect.elf -- -DEXTRA_CONF_FILE=defect.conf
+    nodes=({{ NODES }})
+    [ ${#nodes[@]} -gt 0 ] || nodes=(vcu bms dcdc dcdc-defect)
+    for node in "${nodes[@]}"; do
+        case "$node" in
+            vcu | bms | dcdc) {{ FIRMWARE }} build "$node" "build/$node.elf" ;;
+            # The same source with its one Kconfig option turned off.
+            dcdc-defect) {{ FIRMWARE }} build dcdc build/dcdc-defect.elf -- -DEXTRA_CONF_FILE=defect.conf ;;
+            *) echo "no node '$node'; one of: vcu bms dcdc dcdc-defect" >&2; exit 2 ;;
+        esac
+    done
     ls -la build/*.elf
     # `just up` will not reload a running simulator, so a rebuild alone leaves
     # the previous firmware on the bus.
@@ -120,13 +124,8 @@ _elf:
         [ -f "build/$app.elf" ] || missing+=("$app")
     done
     if [ ${#missing[@]} -gt 0 ]; then
-        echo "No firmware in build/ (missing: ${missing[*]})."
-        echo
-        echo "Fetch the prebuilt nodes, which is what most people want:"
-        echo "    mkdir -p build && curl -fL --output-dir build -O 'https://github.com/{{ REPO }}/releases/latest/download/{vcu,bms,dcdc,dcdc-defect}.elf'"
-        echo
-        echo "Or build them from source:"
-        echo "    just firmware"
+        echo "No firmware in build/ (missing: ${missing[*]}). Build it:"
+        echo "    just build"
         exit 1
     fi
 

@@ -146,7 +146,7 @@ _fresh ELFS +SOURCES:
         echo "$stale" | sed 's/^/    /' >&2
         echo >&2
         echo "Rebuild before running, or the bench will serve the previous firmware:" >&2
-        echo "    just firmware" >&2
+        echo "    just build" >&2
         exit 1
     fi
 

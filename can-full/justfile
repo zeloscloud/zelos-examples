@@ -36,15 +36,20 @@ bus:
 test:
     docker compose run --rm --no-deps tester {{ replace_regex(SUITES, '\S+:', 'suites/') }}
 
-# Rebuild every node; the DC-DC with XCP, and its A2L beside it.
-firmware:
+# Build the nodes into build/: all of them, or the ones you name, e.g. `just build genset`.
+# The DC-DC builds with XCP, and its A2L lands beside it.
+build *NODES:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{ FIRMWARE }} build vcu build/vcu.elf
-    {{ FIRMWARE }} build bms build/bms.elf
-    {{ FIRMWARE }} build dcdc build/dcdc-xcp.elf -S xcp
-    {{ FIRMWARE }} build genset build/genset.elf
-    {{ FIRMWARE }} build pdu build/pdu.elf
+    nodes=({{ NODES }})
+    [ ${#nodes[@]} -gt 0 ] || nodes=(vcu bms dcdc-xcp genset pdu)
+    for node in "${nodes[@]}"; do
+        case "$node" in
+            vcu | bms | genset | pdu) {{ FIRMWARE }} build "$node" "build/$node.elf" ;;
+            dcdc-xcp) {{ FIRMWARE }} build dcdc build/dcdc-xcp.elf -S xcp ;;
+            *) echo "no node '$node'; one of: vcu bms dcdc-xcp genset pdu" >&2; exit 2 ;;
+        esac
+    done
     ls -la build/
     # `just up` will not reload a running simulator.
     if docker compose ps --status running --services 2>/dev/null | grep -qx renode; then
@@ -78,7 +83,7 @@ _elf ELFS:
     [[ " {{ ELFS }} " != *" dcdc-xcp "* ]] || [ -f build/dcdc-xcp.a2l ] || missing+=("dcdc-xcp.a2l")
     if [ ${#missing[@]} -gt 0 ]; then
         echo "No firmware in build/ (missing: ${missing[*]}). Build it:" >&2
-        echo "    just firmware" >&2
+        echo "    just build" >&2
         exit 1
     fi
     {{ FIRMWARE }} _fresh "$(printf 'build/%s.elf ' {{ ELFS }})" \
