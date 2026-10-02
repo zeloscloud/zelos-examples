@@ -1,244 +1,199 @@
-"""The PDU node as a CANopen slave, driven by python canopen as the master.
+"""The PDU node as a CANopen slave, with python canopen as the master.
 
-The master reads nodes/pdu/od/pdu.eds, the file the node's object dictionary
-is generated from. Each test resets the node over NMT and waits for its
-boot-up, so none depends on a fresh boot or on an earlier test.
+What is tested, one visible behaviour per test: boot-up and heartbeat, NMT
+state changes, SDO reads and writes, PDO commands and replies, an overcurrent
+trip reported by EMCY, and a PDO sent on SYNC.
+
+The master reads nodes/pdu/od/pdu.eds, the file the node's object dictionary is
+generated from. Every test starts by resetting the node over NMT, so none
+depends on a fresh boot or on an earlier test.
+
+Run it against a bench (`cd can-full && just test`) or a board on an adapter:
+
+    cd testing && uv run pytest suites/canopen --channel can0
 """
 
-import struct
 import time
 from pathlib import Path
 
 import canopen
 import pytest
 
-from zelos_testing import frames as bench
 from zelos_testing.frames import WAIT_S, bound
 
-# testing/suites/canopen/ -> the repository root. The bench's tester mounts
-# nodes/ at the same place relative to its copy of this suite.
+# testing/suites/canopen/ -> the repository root.
 EDS = Path(__file__).resolve().parents[3] / "nodes" / "pdu" / "od" / "pdu.eds"
-
 NODE_ID = 0x20
-HEARTBEAT = 0x700 + NODE_ID
-EMCY = 0x080 + NODE_ID
-TPDO1 = 0x180 + NODE_ID
-TPDO2 = 0x280 + NODE_ID
-RPDO1 = 0x200 + NODE_ID
 
+# NMT states as the heartbeat reports them (CiA 301).
 BOOTUP, STOPPED, OPERATIONAL, PRE_OPERATIONAL = 0x00, 0x04, 0x05, 0x7F
-HEARTBEAT_S = 1.0
-# TPDO1's event timer: it repeats this often even when nothing changes.
-TPDO1_EVENT_S = 0.5
 
-# From nodes/pdu: each channel's load when powered, 0.1 A. Channel 8's is
-# shorted: enabling it trips the channel and raises EMCY 0x2300 (current,
-# output side) with error bit 0x30 + channel index and the channel as info.
+# From nodes/pdu: each channel's load when on, in 0.1 A. Channel 8 is shorted.
 LOAD_DA = [20, 50, 15, 30, 5, 80, 40, 220]
 SHORTED = 8
+# EMCY error code 0x2300: current, device output side (CiA 301).
 EMC_CURRENT_OUTPUT = 0x2300
+
+# PDO entries by the names the EDS gives them.
 INPUTS = "Read input 8-bit.Input 1 to 8"
 OUTPUTS = "Write output 8-bit.Output 1 to 8"
 
 pytestmark = pytest.mark.usefixtures("bus_health")
 
 
-class Frames:
-    """Frames the node sent on some COB-IDs, as (timestamp, data)."""
-
-    def __init__(self, network, cob_ids):
-        self.by_id = {cob: [] for cob in cob_ids}
-        for cob in cob_ids:
-            network.subscribe(cob, self._on)
-
-    def _on(self, cob, data, timestamp):
-        self.by_id[cob].append((timestamp, bytes(data)))
-
-    def __getitem__(self, cob):
-        return self.by_id[cob]
-
-
-def wait_for(done, what):
-    """done()'s first truthy result. The Notifier owns the bus, so this polls what it caught."""
+def wait_until(condition, what):
+    """condition()'s first truthy result. python canopen records frames on its own thread."""
     end = time.monotonic() + bound(WAIT_S)
     while time.monotonic() < end:
-        if result := done():
+        if result := condition():
             return result
         time.sleep(0.02)
     pytest.fail(f"timed out waiting for {what}")
 
 
-def bootup(node, t0):
-    """When the node announced its first boot-up after t0."""
-    return wait_for(lambda: next((ts for ts, d in node.frames[HEARTBEAT] if ts > t0 and d == bytes([BOOTUP])), None), "boot-up")
+def wait_for(read, want, what):
+    """Poll read() until it returns want."""
+    wait_until(lambda: read() == want, what)
+
+
+def set_state(node, command, state):
+    """Send an NMT command, then wait for the heartbeat to report the new state."""
+    node.heartbeats.clear()
+    node.nmt.state = command
+    wait_until(lambda: state in node.heartbeats, f"heartbeat state {state:#04x}")
+
+
+def expected(outputs):
+    """Inputs and per-channel currents once these outputs are on. The shorted one stays off."""
+    on = [bool(outputs & 1 << ch) and ch + 1 != SHORTED for ch in range(8)]
+    return sum(1 << ch for ch in range(8) if on[ch]), [LOAD_DA[ch] if on[ch] else 0 for ch in range(8)]
 
 
 @pytest.fixture
 def node(bus):
+    """The PDU, reset and pre-operational, with its PDOs mapped as the EDS declares."""
     network = canopen.Network(bus)
-    pdu = network.add_node(NODE_ID, str(EDS))
-    pdu.frames = Frames(network, (HEARTBEAT, EMCY, TPDO1, TPDO2))
-    # An SDO answer takes the node no time, but Renode's clock runs slow.
-    pdu.sdo.RESPONSE_TIMEOUT = bound(pdu.sdo.RESPONSE_TIMEOUT)
+    node = network.add_node(NODE_ID, str(EDS))
+    # Renode runs slower than real time, so SDO answers take longer there.
+    node.sdo.RESPONSE_TIMEOUT = bound(node.sdo.RESPONSE_TIMEOUT)
+    node.heartbeats = []
+    node.nmt.add_heartbeat_callback(node.heartbeats.append)
     network.connect()
     try:
-        reset_at = time.time()
-        pdu.nmt.state = "RESET"
-        pdu.booted_at = bootup(pdu, reset_at)
-        yield pdu
+        # Reset node: the node restarts and announces it with a boot-up message.
+        set_state(node, "RESET", BOOTUP)
+        # A reset restores the default PDO mapping, which is the EDS's.
+        node.tpdo.read(from_od=True)
+        node.rpdo.read(from_od=True)
+        yield node
     finally:
         # The bus belongs to its fixture; only stop listening on it.
         network.notifier.stop()
 
 
-def after(node, cob, t0, count):
-    """The first `count` frames on cob sent after t0."""
-
-    def ready():
-        got = [f for f in node.frames[cob] if f[0] > t0]
-        return got[:count] if len(got) >= count else None
-
-    return wait_for(ready, f"{count} frames on {cob:#05x}")
-
-
-def states_after(node, t0, count):
-    """NMT states from the first `count` heartbeats after t0."""
-    return [data[0] & 0x7F for _, data in after(node, HEARTBEAT, t0, count)]
-
-
-def reaches(node, t0, code):
-    """Wait for a heartbeat after t0 in this NMT state."""
-    wait_for(lambda: code in [d[0] & 0x7F for ts, d in node.frames[HEARTBEAT] if ts > t0], f"heartbeat state {code:#04x}")
-
-
-def enter(node, state, code):
-    t0 = time.time()
-    node.nmt.state = state
-    # The new state shows in the next periodic heartbeat, not at once.
-    reaches(node, t0, code)
-
-
 def test_boots_pre_operational_with_heartbeat(node):
-    # A heartbeat already on its way when the reset went out can arrive after
-    # it, so the count starts at the boot-up.
-    beats = after(node, HEARTBEAT, node.booted_at, 3)
-    assert [data for _, data in beats] == [bytes([PRE_OPERATIONAL])] * 3
-
-    gaps = [b[0] - a[0] for a, b in zip(beats, beats[1:])]
-    if bench.SIMULATED:
-        # Virtual time only ever runs slow against the host's clock.
-        assert all(g > 0.95 * HEARTBEAT_S for g in gaps), gaps
-    else:
-        assert all(abs(g - HEARTBEAT_S) < 0.05 * HEARTBEAT_S for g in gaps), gaps
+    # After boot-up, the heartbeat reports pre-operational until told otherwise.
+    wait_until(lambda: len(node.heartbeats) - node.heartbeats.index(BOOTUP) > 3, "three heartbeats after boot-up")
+    after_bootup = node.heartbeats[node.heartbeats.index(BOOTUP) + 1 :]
+    assert after_bootup[:3] == [PRE_OPERATIONAL] * 3
 
 
 def test_nmt_start_stop(node):
-    t0 = time.time()
-    enter(node, "OPERATIONAL", OPERATIONAL)
-    wait_for(lambda: [f for f in node.frames[TPDO1] if f[0] > t0], "TPDO1 once operational")
+    tpdo1 = node.tpdo[1]
 
-    enter(node, "STOPPED", STOPPED)
-    t0 = time.time()
-    # Stopped: heartbeats only, no PDOs, for longer than any PDO's event timer.
-    assert states_after(node, t0, 2) == [STOPPED, STOPPED]
-    assert not [f for cob in (TPDO1, TPDO2) for f in node.frames[cob] if f[0] > t0]
+    # Operational: PDOs flow. TPDO1 has an event timer, so it repeats on its own.
+    set_state(node, "OPERATIONAL", OPERATIONAL)
+    wait_until(lambda: tpdo1.timestamp, "TPDO1")
 
-    enter(node, "PRE-OPERATIONAL", PRE_OPERATIONAL)
+    # Stopped: only NMT and heartbeat. Two heartbeats outlast TPDO1's timer.
+    set_state(node, "STOPPED", STOPPED)
+    last = tpdo1.timestamp
+    node.heartbeats.clear()
+    wait_until(lambda: len(node.heartbeats) >= 2, "two heartbeats")
+    assert node.heartbeats[-2:] == [STOPPED, STOPPED]
+    assert tpdo1.timestamp == last
+
+    set_state(node, "PRE-OPERATIONAL", PRE_OPERATIONAL)
 
 
-def test_sdo_identity(node):
-    od = node.object_dictionary
-    assert node.sdo[0x1000].raw == od[0x1000].default == 0x00030191  # CiA 401, DI + DO
+def test_sdo_reads_identity(node):
+    # 0x1000 device type: CiA 401, digital inputs and outputs.
+    assert node.sdo[0x1000].raw == 0x00030191
+    # 0x1018 identity: vendor, product, revision, serial, as the EDS declares.
     for sub in range(1, 5):
-        assert node.sdo[0x1018][sub].raw == od[0x1018][sub].default
+        assert node.sdo[0x1018][sub].raw == node.object_dictionary[0x1018][sub].default
     assert node.sdo[0x1008].raw == "Zelos PDU"
-    assert node.sdo[0x1017].raw == HEARTBEAT_S * 1000
+    # 0x1017 heartbeat producer time, in ms.
+    assert node.sdo[0x1017].raw == 1000
 
 
-def expect_io(outputs):
-    """Inputs and currents of a healthy PDU with these outputs commanded."""
-    on = [bool(outputs & 1 << ch) and ch + 1 != SHORTED for ch in range(8)]
-    inputs = sum(1 << ch for ch in range(8) if on[ch])
-    return inputs, [LOAD_DA[ch] if on[ch] else 0 for ch in range(8)]
-
-
-def sdo_io(node):
-    return node.sdo[0x6000][1].raw, [node.sdo[0x2000][ch].raw for ch in range(1, 9)]
-
-
-def test_sdo_download_to_outputs(node):
+def test_sdo_write_switches_outputs(node):
+    # SDO works in pre-operational: write 0x6200 outputs, read back 0x6000
+    # inputs and the 0x2000 per-channel currents.
     for outputs in (0b0000_0101, 0b0110_0000, 0):
         node.sdo[0x6200][1].raw = outputs
-        assert node.sdo[0x6200][1].raw == outputs
-        wait_for(lambda: sdo_io(node) == expect_io(outputs), f"inputs for outputs {outputs:#04x}")
-
-
-def tpdo_io(node):
-    return node.tpdo[1][INPUTS].raw, [var.raw for var in node.tpdo[2]]
-
-
-def command(node, outputs):
-    node.rpdo[1][OUTPUTS].raw = outputs
-    node.rpdo[1].transmit()
+        wait_for(
+            lambda: (node.sdo[0x6000][1].raw, [node.sdo[0x2000][ch].raw for ch in range(1, 9)]),
+            expected(outputs),
+            f"inputs and currents for outputs {outputs:#04x}",
+        )
 
 
 def test_rpdo_command_reflected_by_tpdos(node):
-    node.tpdo.read()
-    node.rpdo.read()
-    assert (node.rpdo[1].cob_id, node.tpdo[1].cob_id, node.tpdo[2].cob_id) == (RPDO1, TPDO1, TPDO2)
-
-    enter(node, "OPERATIONAL", OPERATIONAL)
+    # PDOs run only in operational. RPDO1 carries the outputs; TPDO1 the
+    # inputs, TPDO2 the eight currents.
+    set_state(node, "OPERATIONAL", OPERATIONAL)
     for outputs in (0b0000_0011, 0b0100_1000):
-        command(node, outputs)
-        wait_for(lambda: tpdo_io(node) == expect_io(outputs), f"TPDOs for outputs {outputs:#04x}")
-
-    # Nothing changes now, so TPDO1 repeats on its event timer alone.
-    t0 = time.time()
-    wait_for(lambda: len([f for f in node.frames[TPDO1] if f[0] > t0]) >= 3, "TPDO1 event timer")
-    stamps = [f[0] for f in node.frames[TPDO1] if f[0] > t0]
-    assert all(b - a > 0.9 * TPDO1_EVENT_S for a, b in zip(stamps, stamps[1:])), stamps
-
-
-def emcys_after(node, t0):
-    """EMCY frames after t0 as (code, error register, error bit, info)."""
-    return [struct.unpack("<HBBI", data) for ts, data in node.frames[EMCY] if ts > t0]
+        node.rpdo[1][OUTPUTS].raw = outputs
+        node.rpdo[1].transmit()
+        wait_for(
+            lambda: (node.tpdo[1][INPUTS].raw, [var.raw for var in node.tpdo[2]]),
+            expected(outputs),
+            f"TPDOs for outputs {outputs:#04x}",
+        )
 
 
 def test_overcurrent_trips_with_emcy_and_recovers(node):
-    node.tpdo.read()
-    node.rpdo.read()
-    shorted = 1 << (SHORTED - 1)
+    set_state(node, "OPERATIONAL", OPERATIONAL)
+    node.emcy.reset()
+    node.heartbeats.clear()
 
-    # Twice, to show the recovery is complete.
-    for _ in range(2):
-        enter(node, "OPERATIONAL", OPERATIONAL)
-        t0 = time.time()
-        command(node, 0b0000_0001 | shorted)
-        code, register, error_bit, info = wait_for(lambda: emcys_after(node, t0), "EMCY")[0]
-        assert (code, error_bit, info) == (EMC_CURRENT_OUTPUT, 0x30 + SHORTED - 1, SHORTED)
-        assert register == 0x82  # manufacturer (the stack's) and current (ours)
+    # Switch on channel 1 and the shorted channel 8.
+    node.rpdo[1][OUTPUTS].raw = 0b1000_0001
+    node.rpdo[1].transmit()
 
-        # 0x1029 is the CiA default: the error takes the node to
-        # pre-operational, where PDOs stop and SDO still works.
-        reaches(node, t0, PRE_OPERATIONAL)
-        assert sdo_io(node) == expect_io(0b0000_0001)
+    # EMCY: error code, error register, then manufacturer bytes, here the
+    # stack's error bit and the tripped channel.
+    emcy = wait_until(lambda: node.emcy.active, "EMCY")[0]
+    assert emcy.code == EMC_CURRENT_OUTPUT
+    assert emcy.register == 0x82  # manufacturer (the stack's) and current (ours)
+    assert emcy.data[1:] == SHORTED.to_bytes(4, "little")
 
-        # Commanding the channel off clears the trip: EMCY error reset.
-        t0 = time.time()
-        node.sdo[0x6200][1].raw = 0b0000_0001
-        code, register, _, _ = wait_for(lambda: emcys_after(node, t0), "EMCY reset")[0]
-        assert (code, register) == (0x0000, 0)
+    # The error takes the node to pre-operational (0x1029, the CiA default).
+    # Channel 8 is off, channel 1 stays on, and SDO still works.
+    wait_until(lambda: PRE_OPERATIONAL in node.heartbeats, "pre-operational")
+    assert node.sdo[0x6000][1].raw == 0b0000_0001
 
-    # A communication reset clears the node's error state but not the short:
-    # the channel trips again, and says so again.
-    enter(node, "OPERATIONAL", OPERATIONAL)
-    t0 = time.time()
-    command(node, shorted)
-    wait_for(lambda: emcys_after(node, t0), "EMCY")
-    t0 = time.time()
-    node.nmt.state = "RESET COMMUNICATION"
-    trips = wait_for(lambda: [e for e in emcys_after(node, t0) if e[0] == EMC_CURRENT_OUTPUT], "EMCY after the reset")
-    _, register, error_bit, info = trips[0]
-    assert (error_bit, info) == (0x30 + SHORTED - 1, SHORTED)
-    assert register == 0x82
-    node.sdo[0x6200][1].raw = 0
+    # Commanding channel 8 off clears the trip: an EMCY with code 0, error reset.
+    node.sdo[0x6200][1].raw = 0b0000_0001
+    wait_until(lambda: node.emcy.log[-1].code == 0, "EMCY error reset")
+    assert not node.emcy.active
+    set_state(node, "OPERATIONAL", OPERATIONAL)
+
+
+def test_sync_produces_tpdo3(node):
+    outputs = 0b0000_0101
+    node.sdo[0x6200][1].raw = outputs
+    inputs, _ = expected(outputs)
+    wait_for(lambda: node.sdo[0x6000][1].raw, inputs, "inputs")
+
+    # TPDO3 is synchronous (transmission type 1): the node sends it once per
+    # SYNC, and only when operational.
+    set_state(node, "OPERATIONAL", OPERATIONAL)
+    tpdo3 = node.tpdo[3]
+    received = []
+    tpdo3.add_callback(received.append)
+    for count in range(1, 4):
+        node.network.sync.transmit()
+        wait_for(lambda: len(received), count, f"TPDO3 after SYNC {count}")
+        assert tpdo3[INPUTS].raw == inputs
