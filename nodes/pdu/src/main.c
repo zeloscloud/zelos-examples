@@ -9,6 +9,10 @@
  * and reported by EMCY, which also takes an operational node to
  * pre-operational (0x1029). It stays off while commanded on; commanding it
  * off clears the trip, after which a master can start the node again.
+ *
+ * While the node has a communication error (its master's heartbeat lost,
+ * bus-off), channels with error mode set (0x6206) take their error value
+ * (0x6207) instead of what was commanded, as CiA 401 has it.
  */
 
 #include <zelos/canopen.h>
@@ -20,6 +24,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
+
+#include <stdio.h>
 
 LOG_MODULE_REGISTER(pdu, LOG_LEVEL_INF);
 
@@ -43,8 +49,15 @@ static uint8_t *const current_od[CHANNELS] = {
  */
 static void tick(void)
 {
-	const uint8_t commanded = OD_writeOutput8Bit.output1To8;
+	uint8_t commanded = OD_writeOutput8Bit.output1To8;
 	uint8_t powered = 0U;
+	uint8_t tripped = 0U;
+
+	if ((OD_errorRegister & CO_ERR_REG_COMM_ERR) != 0U) {
+		const uint8_t mode = OD_errorModeOutput8Bit.errorMode1To8;
+
+		commanded = (commanded & ~mode) | (OD_errorValueOutput8Bit.errorValue1To8 & mode);
+	}
 
 	for (int ch = 0; ch < CHANNELS; ch++) {
 		const uint8_t bit = BIT(ch);
@@ -54,24 +67,34 @@ static void tick(void)
 		 * still commanded on trips again.
 		 */
 		const uint8_t error_bit = CO_EM_MANUFACTURER_START + ch;
-		const bool tripped = CO_isError(CO->em, error_bit);
+		bool is_tripped = CO_isError(CO->em, error_bit);
 
 		if ((commanded & bit) == 0U) {
-			if (tripped) {
+			if (is_tripped) {
 				CO_errorReset(CO->em, error_bit, ch + 1);
 				LOG_INF("channel %d trip cleared", ch + 1);
+				is_tripped = false;
 			}
-		} else if (!tripped) {
+		} else if (!is_tripped) {
 			if (load_da[ch] > TRIP_DA) {
 				CO_errorReport(CO->em, error_bit, CO_EMC_CURRENT_OUTPUT, ch + 1);
 				LOG_WRN("channel %d tripped at %d.%d A", ch + 1, load_da[ch] / 10,
 					load_da[ch] % 10);
+				is_tripped = true;
 			} else {
 				powered |= bit;
 			}
 		}
 
+		tripped |= is_tripped ? bit : 0U;
 		*current_od[ch] = (powered & bit) != 0U ? load_da[ch] : 0U;
+	}
+
+	/* The stack derives the other error register bits; the current bit is ours. */
+	if (tripped != 0U) {
+		OD_errorRegister |= CO_ERR_REG_CURRENT;
+	} else {
+		OD_errorRegister &= (uint8_t)~CO_ERR_REG_CURRENT;
 	}
 
 	OD_readInput8Bit.input1To8 = powered;
@@ -80,6 +103,9 @@ static void tick(void)
 int main(void)
 {
 	LOG_INF("PDU up, %d channels, trip at %d.%d A", CHANNELS, TRIP_DA / 10, TRIP_DA % 10);
+	/* Longer than one SDO frame, so masters read it segmented or by block. */
+	snprintf((char *)OD_buildInfo, sizeof(OD_buildInfo), "zelos pdu %s %s %s", CONFIG_BOARD,
+		 __DATE__, __TIME__);
 
 	return zelos_canopen_run(tick);
 }

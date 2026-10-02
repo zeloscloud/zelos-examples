@@ -78,7 +78,7 @@
 /*******************************************************************************
    OBJECT DICTIONARY
 *******************************************************************************/
-   #define CO_OD_NoOfElements             28
+   #define CO_OD_NoOfElements             32
 
 
 /*******************************************************************************
@@ -151,6 +151,14 @@
                UNSIGNED8      highestSubIndexSupported;
                UNSIGNED8      output1To8;
                }              OD_writeOutput8Bit_t;
+/*6206      */ typedef struct {
+               UNSIGNED8      highestSubIndexSupported;
+               UNSIGNED8      errorMode1To8;
+               }              OD_errorModeOutput8Bit_t;
+/*6207      */ typedef struct {
+               UNSIGNED8      highestSubIndexSupported;
+               UNSIGNED8      errorValue1To8;
+               }              OD_errorValueOutput8Bit_t;
 
 /*******************************************************************************
    TYPE DEFINITIONS FOR OBJECT DICTIONARY INDEXES
@@ -320,6 +328,12 @@
         #define OD_2000_7_channelCurrent_channel7                   7
         #define OD_2000_8_channelCurrent_channel8                   8
 
+/*2001 */
+        #define OD_2001_buildInfo                                   0x2001
+
+/*2002 */
+        #define OD_2002_scratch                                     0x2002
+
 /*2100 */
         #define OD_2100_errorStatusBits                             0x2100
 
@@ -335,6 +349,18 @@
         #define OD_6200_0_writeOutput8Bit_maxSubIndex               0
         #define OD_6200_1_writeOutput8Bit_output1To8                1
 
+/*6206 */
+        #define OD_6206_errorModeOutput8Bit                         0x6206
+
+        #define OD_6206_0_errorModeOutput8Bit_maxSubIndex           0
+        #define OD_6206_1_errorModeOutput8Bit_errorMode1To8         1
+
+/*6207 */
+        #define OD_6207_errorValueOutput8Bit                        0x6207
+
+        #define OD_6207_0_errorValueOutput8Bit_maxSubIndex          0
+        #define OD_6207_1_errorValueOutput8Bit_errorValue1To8       1
+
 /*******************************************************************************
    STRUCTURES FOR VARIABLES IN DIFFERENT MEMORY LOCATIONS
 *******************************************************************************/
@@ -347,9 +373,13 @@ struct sCO_OD_RAM{
 /*1001      */ UNSIGNED8      errorRegister;
 /*1003      */ UNSIGNED32      preDefinedErrorField[4];
 /*2000      */ OD_channelCurrent_t channelCurrent;
+/*2001      */ OCTET_STRING   buildInfo[256];
+/*2002      */ OCTET_STRING   scratch[64];
 /*2100      */ OCTET_STRING   errorStatusBits[10];
 /*6000      */ OD_readInput8Bit_t readInput8Bit;
 /*6200      */ OD_writeOutput8Bit_t writeOutput8Bit;
+/*6206      */ OD_errorModeOutput8Bit_t errorModeOutput8Bit;
+/*6207      */ OD_errorValueOutput8Bit_t errorValueOutput8Bit;
 
                UNSIGNED32     LastWord;
 };
@@ -509,6 +539,16 @@ extern struct sCO_OD_EEPROM CO_OD_EEPROM;
         #define OD_channelCurrent_idx                               0x2000
         #define OD_channelCurrent                                   CO_OD_RAM.channelCurrent
 
+/*2001, Data Type: OCTET_STRING */
+        #define OD_buildInfo_idx                                    0x2001
+        #define OD_buildInfo                                        CO_OD_RAM.buildInfo
+        #define ODL_buildInfo_stringLength                          256
+
+/*2002, Data Type: OCTET_STRING */
+        #define OD_scratch_idx                                      0x2002
+        #define OD_scratch                                          CO_OD_RAM.scratch
+        #define ODL_scratch_stringLength                            64
+
 /*2100, Data Type: OCTET_STRING */
         #define OD_errorStatusBits_idx                              0x2100
         #define OD_errorStatusBits                                  CO_OD_RAM.errorStatusBits
@@ -521,6 +561,14 @@ extern struct sCO_OD_EEPROM CO_OD_EEPROM;
 /*6200, Data Type: writeOutput8Bit_t */
         #define OD_writeOutput8Bit_idx                              0x6200
         #define OD_writeOutput8Bit                                  CO_OD_RAM.writeOutput8Bit
+
+/*6206, Data Type: errorModeOutput8Bit_t */
+        #define OD_errorModeOutput8Bit_idx                          0x6206
+        #define OD_errorModeOutput8Bit                              CO_OD_RAM.errorModeOutput8Bit
+
+/*6207, Data Type: errorValueOutput8Bit_t */
+        #define OD_errorValueOutput8Bit_idx                         0x6207
+        #define OD_errorValueOutput8Bit                             CO_OD_RAM.errorValueOutput8Bit
 
 #endif
 // clang-format on
