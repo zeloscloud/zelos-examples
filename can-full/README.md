@@ -52,6 +52,9 @@ XCP: its demand and slew rate become calibration parameters, its setpoint,
 current, temperature and allowance become measurements, all described by
 `build/dcdc-xcp.a2l`, which the build fills with that ELF's addresses.
 
+The VCU's command sits at `0x101`, not CANopen's TIME id `0x100`: CiA 301 keeps
+CANopen devices out of `0x101`-`0x180`, so no CANopen node can collide with it.
+
 The genset follows the VCU's mode: it runs hard while driving, idles in standby
 and stops while charging. Under load its coolant runs hot, and it raises two
 DTCs in DM1, sent by BAM. The PDU switches eight outputs on command, reports
