@@ -9,12 +9,21 @@
  *
  * A channel whose load draws more than the trip limit is switched off at once
  * and reported by EMCY, which also takes an operational node to
- * pre-operational (0x1029). It stays off while commanded on; commanding it
- * off clears the trip, after which a master can start the node again.
+ * pre-operational (0x1029). The trip latches: the channel stays off until a
+ * master commands it off in 0x6200, or resets communication. Then it can be
+ * commanded on again and the node started.
  *
- * While the node has a communication error (its master's heartbeat lost,
- * bus-off), channels with error mode set (0x6206) take their error value
- * (0x6207) instead of what was commanded, as CiA 401 has it.
+ * While the error register's communication bit (0x1001 bit 4) is set,
+ * channels with error mode set (0x6206) take their error value (0x6207)
+ * instead of what was commanded, as CiA 401 has it. A communication error
+ * never clears a trip. The stack sets that bit for:
+ * - CAN bus-off, or a transmit overflow, until the bus recovers;
+ * - a heartbeat consumed in 0x1016 lost, or its node rebooting, until that
+ *   heartbeat returns;
+ * - a SYNC of the wrong length, a SYNC timeout (only with 0x1006 set), a TPDO
+ *   dropped outside the SYNC window, or a PDO mapping error, all held until
+ *   reset-communication.
+ * Bus warning, bus passive and a wrong-length RPDO do not set it.
  */
 
 #include <zelos/canopen.h>
@@ -24,6 +33,7 @@
 #include <CO_OD.h>
 
 #include <zephyr/kernel.h>
+#include <zephyr/version.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
@@ -51,14 +61,15 @@ static uint8_t *const current_od[CHANNELS] = {
  */
 static void tick(void)
 {
-	uint8_t commanded = OD_writeOutput8Bit.output1To8;
+	const uint8_t commanded = OD_writeOutput8Bit.output1To8;
+	uint8_t outputs = commanded;
 	uint8_t powered = 0U;
 	uint8_t tripped = 0U;
 
 	if ((OD_errorRegister & CO_ERR_REG_COMM_ERR) != 0U) {
 		const uint8_t mode = OD_errorModeOutput8Bit.errorMode1To8;
 
-		commanded = (commanded & ~mode) | (OD_errorValueOutput8Bit.errorValue1To8 & mode);
+		outputs = (commanded & ~mode) | (OD_errorValueOutput8Bit.errorValue1To8 & mode);
 	}
 
 	for (int ch = 0; ch < CHANNELS; ch++) {
@@ -71,13 +82,14 @@ static void tick(void)
 		const uint8_t error_bit = CO_EM_MANUFACTURER_START + ch;
 		bool is_tripped = CO_isError(CO->em, error_bit);
 
-		if ((commanded & bit) == 0U) {
-			if (is_tripped) {
-				CO_errorReset(CO->em, error_bit, ch + 1);
-				LOG_INF("channel %d trip cleared", ch + 1);
-				is_tripped = false;
-			}
-		} else if (!is_tripped) {
+		/* Only the master clears a trip, and not while an error value holds the channel on. */
+		if (is_tripped && ((commanded | outputs) & bit) == 0U) {
+			CO_errorReset(CO->em, error_bit, ch + 1);
+			LOG_INF("channel %d trip cleared", ch + 1);
+			is_tripped = false;
+		}
+
+		if ((outputs & bit) != 0U && !is_tripped) {
 			if (load_da[ch] > TRIP_DA) {
 				CO_errorReport(CO->em, error_bit, CO_EMC_CURRENT_OUTPUT, ch + 1);
 				LOG_WRN("channel %d tripped at %d.%d A", ch + 1, load_da[ch] / 10,
@@ -117,8 +129,8 @@ int main(void)
 {
 	LOG_INF("PDU up, %d channels, trip at %d.%d A", CHANNELS, TRIP_DA / 10, TRIP_DA % 10);
 	/* Longer than one SDO frame, so masters read it segmented or by block. */
-	snprintf((char *)OD_buildInfo, sizeof(OD_buildInfo), "zelos pdu %s %s %s", CONFIG_BOARD,
-		 __DATE__, __TIME__);
+	snprintf((char *)OD_buildInfo, sizeof(OD_buildInfo), "zelos pdu %s zephyr %s", CONFIG_BOARD,
+		 KERNEL_VERSION_STRING);
 
 	return zelos_canopen_run(tick);
 }
