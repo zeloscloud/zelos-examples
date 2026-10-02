@@ -21,13 +21,13 @@ the CANopen master. A bug shared by the node and the tool cannot hide that way.
 ## What you need
 
 The same as [can-bench](../can-bench/#what-you-need): Linux with Docker, and
-[just](https://just.systems). There are no prebuilt nodes for this bench, so
-the first `just firmware` also pulls the toolchain and the Zephyr workspace.
+[just](https://just.systems). The first `just build` also pulls the
+toolchain and the Zephyr workspace.
 
 ## Running it
 
 ```bash
-just firmware   # build the five nodes, and the DC-DC's A2L, into build/
+just build      # build the five nodes, and the DC-DC's A2L, into build/
 just up         # bus, Renode, agent
 just test       # the protocol suites against the running bench
 just down

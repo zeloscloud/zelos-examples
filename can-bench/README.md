@@ -47,8 +47,8 @@ reveals, which is what the second half of this guide is about.
   curl -fsSL https://just.systems/install.sh | bash -s -- --to ~/.local/bin
   ```
 
-- **2 GB of disk** for the simulator and agent images, and another 1.4 GB if you
-  rebuild the firmware.
+- **About 5 GB of disk**: 1.9 GB for the simulator and agent images, 1.4 GB for
+  the firmware toolchain image, and 2 GB for the Zephyr workspace.
 - A **Zelos account**, for the part that decodes and plots the bus. Everything
   up to that point needs no account.
 
@@ -58,13 +58,17 @@ namespace and removes it when it stops.
 
 ## Start it
 
-The nodes ship prebuilt, so watching the bus needs no cross-compiler:
+Build the nodes, then start the bench:
 
 ```bash
-mkdir -p build
-curl -fL --output-dir build -O "https://github.com/zeloscloud/zelos-examples/releases/latest/download/{vcu,bms,dcdc,dcdc-defect}.elf"
+just build
 just up
 ```
+
+`just build` compiles all four firmware images inside Docker, so there is no
+toolchain to install. The first run pulls the toolchain and the Zephyr
+workspace and takes a few minutes; later builds take seconds. `just build dcdc`
+builds one node.
 
 Three containers come up: one owns the bus, one runs Renode with the three
 nodes, and one runs a Zelos agent that decodes the traffic. It takes about 15
@@ -139,7 +143,7 @@ Edit `../dbc/bench.dbc`, then:
 
 ```bash
 just dbc        # regenerate lib/codec_bench/ from the DBC
-just firmware   # rebuild the nodes
+just build      # rebuild the nodes
 just flash good # load what you built
 ```
 
@@ -152,7 +156,7 @@ Periods come from the DBC too: `GenMsgCycleTime` becomes
 
 ### Rebuilding the firmware
 
-`just firmware` builds in a toolchain image defined in `../toolchain/Dockerfile`
+`just build` builds in a toolchain image defined in `../toolchain/Dockerfile`
 — Zephyr for Arm and nothing else, 1.4 GB rather than the 23 GB of Zephyr's own
 CI image. The first run builds it; later runs reuse it.
 
@@ -306,7 +310,7 @@ ID `0x001` arrived on the host as `0x000`.
 | `just up` fails creating `vcan0` | The kernel has no `vcan` module | Install your distribution's extra kernel modules. On a minimal or immutable kernel, use a VM |
 | `RTNETLINK answers: File exists` | A `vcan0` already exists on the host | Harmless: the bench uses its own network namespace |
 | `just bus` shows nothing | Renode is still booting three machines | Wait 20 seconds. `docker compose logs renode` shows progress |
-| `build/ is older than the sources` | Firmware predates a source change | `just firmware`, then `just flash good` |
+| `build/ is older than the sources` | Firmware predates a source change | `just build`, then `just flash good` |
 | `Unhandled write to offset 0x1C` | Zephyr writes CAN bit-timing bits Renode's model does not implement | Expected and harmless |
 | A test fails on `is transmitting` | A node stopped | `just down && just up`. If it repeats, open an issue with `docker compose logs renode` |
 | `docker volume ls` lists `cbws` | An earlier version of this bench kept its Zephyr workspace there | `docker volume rm cbws`, which frees about 2 GB |
