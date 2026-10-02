@@ -1,9 +1,11 @@
 /*
  * Low-voltage power distribution unit, a CANopen CiA 401-style IO node.
  *
- * Switches eight 12 V load channels as a CANopen master commands them (RPDO1
- * or SDO to 0x6200), and reports which channels are powered (0x6000, TPDO1)
- * and what each draws (0x2000, 0.1 A units, TPDO2).
+ * Switches eight 12 V load channels as a CANopen master commands them (RPDO1,
+ * RPDO2 or SDO to 0x6200), and reports which channels are powered (0x6000,
+ * TPDO1) and what each draws (0x2000, 0.1 A units, TPDO2). On every SYNC,
+ * TPDO3 sends the inputs with a millisecond counter (0x2003). The last TIME
+ * message received is kept in 0x2004.
  *
  * A channel whose load draws more than the trip limit is switched off at once
  * and reported by EMCY, which also takes an operational node to
@@ -98,6 +100,17 @@ static void tick(void)
 	}
 
 	OD_readInput8Bit.input1To8 = powered;
+
+	/* Free-running, so TPDO3 shows when the node sampled each SYNC. */
+	OD_millisecondCounter = (uint16_t)k_uptime_get_32();
+
+	/* The stack writes the last TIME message from the CAN receive interrupt. */
+	const unsigned int key = irq_lock();
+	const uint64_t time_of_day = CO->TIME->Time.ullValue;
+
+	irq_unlock(key);
+	OD_lastTIMEReceived.millisecondsAfterMidnight = (uint32_t)time_of_day & 0x0FFFFFFFU;
+	OD_lastTIMEReceived.daysSince19840101 = (uint16_t)(time_of_day >> 32);
 }
 
 int main(void)
