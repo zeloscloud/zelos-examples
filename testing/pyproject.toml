@@ -15,7 +15,7 @@ dependencies = [
     "pytest==9.1.1",
     "python-can==4.6.1",
     "pyxcp==0.29.19",
-    "zelos-can==0.0.11a3",
+    "zelos-can==0.0.11a5",
     "zelos-sdk==0.0.12a3",
 ]
 
