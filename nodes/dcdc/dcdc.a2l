@@ -1,14 +1,20 @@
 /*
  * The DC-DC node over XCP on CAN, built with `-S xcp`.
  *
- * Addresses here are placeholders: the build writes the real ones next to
- * the ELF (build/<name>.a2l), looked up by each object's SYMBOL_LINK.
+ * Addresses and the EPK here are placeholders: the build writes the real ones
+ * next to the ELF (build/<name>.a2l), looked up by each object's SYMBOL_LINK
+ * and, for the EPK, the firmware's zelos_xcp_epk.
  */
 ASAP2_VERSION 1 71
 
 /begin PROJECT dcdc "DC-DC converter node"
 
   /begin MODULE dcdc "DC-DC converter, pack side to 12 V rail"
+
+    /begin MOD_PAR ""
+      EPK "placeholder"
+      ADDR_EPK 0x0
+    /end MOD_PAR
 
     /begin MOD_COMMON ""
       BYTE_ORDER MSB_LAST
@@ -31,8 +37,10 @@ ASAP2_VERSION 1 71
         OPTIONAL_CMD SET_DAQ_PTR
         OPTIONAL_CMD WRITE_DAQ
         OPTIONAL_CMD SET_DAQ_LIST_MODE
+        OPTIONAL_CMD GET_DAQ_LIST_MODE
         OPTIONAL_CMD START_STOP_DAQ_LIST
         OPTIONAL_CMD START_STOP_SYNCH
+        OPTIONAL_CMD GET_DAQ_CLOCK
         OPTIONAL_CMD GET_DAQ_PROCESSOR_INFO
         OPTIONAL_CMD GET_DAQ_RESOLUTION_INFO
         OPTIONAL_CMD GET_DAQ_EVENT_INFO
@@ -50,10 +58,14 @@ ASAP2_VERSION 1 71
         IDENTIFICATION_FIELD_TYPE_ABSOLUTE
         GRANULARITY_ODT_ENTRY_SIZE_DAQ_BYTE
         7
-        NO_OVERLOAD_INDICATION
+        OVERLOAD_INDICATION_EVENT
         PRESCALER_SUPPORTED
+        /begin TIMESTAMP_SUPPORTED
+          1 SIZE_DWORD UNIT_1US
+        /end TIMESTAMP_SUPPORTED
         /begin EVENT
           "cycle_50ms" "cyc50ms" 0 DAQ 2 50 6 0
+          CONSISTENCY EVENT
         /end EVENT
       /end DAQ
 
@@ -73,6 +85,13 @@ ASAP2_VERSION 1 71
       FLOAT32_IEEE NO_COMPU_METHOD 0 0 0 100
       ECU_ADDRESS 0x0
       SYMBOL_LINK "dcdc_setpoint_a" 0
+      /begin IF_DATA XCP
+        /begin DAQ_EVENT VARIABLE
+          /begin DEFAULT_EVENT_LIST
+            EVENT 0x0
+          /end DEFAULT_EVENT_LIST
+        /end DAQ_EVENT
+      /end IF_DATA
       PHYS_UNIT "A"
     /end MEASUREMENT
 
@@ -80,6 +99,13 @@ ASAP2_VERSION 1 71
       FLOAT32_IEEE NO_COMPU_METHOD 0 0 0 100
       ECU_ADDRESS 0x0
       SYMBOL_LINK "dcdc_input_current_a" 0
+      /begin IF_DATA XCP
+        /begin DAQ_EVENT VARIABLE
+          /begin DEFAULT_EVENT_LIST
+            EVENT 0x0
+          /end DEFAULT_EVENT_LIST
+        /end DAQ_EVENT
+      /end IF_DATA
       PHYS_UNIT "A"
     /end MEASUREMENT
 
@@ -87,6 +113,13 @@ ASAP2_VERSION 1 71
       FLOAT32_IEEE NO_COMPU_METHOD 0 0 0 100
       ECU_ADDRESS 0x0
       SYMBOL_LINK "dcdc_slew_step_a" 0
+      /begin IF_DATA XCP
+        /begin DAQ_EVENT VARIABLE
+          /begin DEFAULT_EVENT_LIST
+            EVENT 0x0
+          /end DEFAULT_EVENT_LIST
+        /end DAQ_EVENT
+      /end IF_DATA
       PHYS_UNIT "A"
     /end MEASUREMENT
 
@@ -94,6 +127,13 @@ ASAP2_VERSION 1 71
       FLOAT32_IEEE NO_COMPU_METHOD 0 0 -40 215
       ECU_ADDRESS 0x0
       SYMBOL_LINK "dcdc_temperature_c" 0
+      /begin IF_DATA XCP
+        /begin DAQ_EVENT VARIABLE
+          /begin DEFAULT_EVENT_LIST
+            EVENT 0x0
+          /end DEFAULT_EVENT_LIST
+        /end DAQ_EVENT
+      /end IF_DATA
       PHYS_UNIT "degC"
     /end MEASUREMENT
 
@@ -101,6 +141,13 @@ ASAP2_VERSION 1 71
       FLOAT32_IEEE NO_COMPU_METHOD 0 0 0 655.35
       ECU_ADDRESS 0x0
       SYMBOL_LINK "dcdc_aux_limit_a" 0
+      /begin IF_DATA XCP
+        /begin DAQ_EVENT VARIABLE
+          /begin DEFAULT_EVENT_LIST
+            EVENT 0x0
+          /end DEFAULT_EVENT_LIST
+        /end DAQ_EVENT
+      /end IF_DATA
       PHYS_UNIT "A"
     /end MEASUREMENT
 
