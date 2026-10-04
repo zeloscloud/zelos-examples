@@ -45,7 +45,7 @@ extern "C" {
 #endif
 
 /* Frame ids. */
-#define BENCH_VCU_COMMAND_FRAME_ID (0x100u)
+#define BENCH_VCU_COMMAND_FRAME_ID (0x101u)
 #define BENCH_BMS_STATUS_FRAME_ID (0x200u)
 #define BENCH_BMS_LIMITS_FRAME_ID (0x201u)
 #define BENCH_BMS_CELL_VOLTAGES_FRAME_ID (0x202u)

@@ -41,7 +41,7 @@ same default, so run one bench at a time or move one.
 
 | Node | Built from | Protocol | Identifiers |
 |---|---|---|---|
-| VCU | `../nodes/vcu` | | `0x100` |
+| VCU | `../nodes/vcu` | | `0x101` |
 | BMS | `../nodes/bms` | | `0x200`-`0x202` |
 | DC-DC | `../nodes/dcdc`, `-S xcp` | XCP on CAN | `0x300`; CRO `0x6F0`, DTO `0x6F1` |
 | genset | `../nodes/genset` | J1939 | 29-bit, source address `0x80` |
@@ -51,6 +51,9 @@ The first three are can-bench's, unchanged except that the DC-DC is built with
 XCP: its demand and slew rate become calibration parameters, its setpoint,
 current, temperature and allowance become measurements, all described by
 `build/dcdc-xcp.a2l`, which the build fills with that ELF's addresses.
+
+The VCU's command sits at `0x101`, not CANopen's TIME id `0x100`: CiA 301 keeps
+CANopen devices out of `0x101`-`0x180`, so no CANopen node can collide with it.
 
 The genset follows the VCU's mode: it runs hard while driving, idles in standby
 and stops while charging. Under load its coolant runs hot, and it raises two

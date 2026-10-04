@@ -83,7 +83,7 @@ just bus
 ```
  (000.000000)  vcan0  300   [8]  3C 05 6E 04 C2 01 54 7A
  (000.251239)  vcan0  200   [7]  95 0E 41 03 9B 02 DF
- (000.003411)  vcan0  100   [4]  01 2C 03 DF
+ (000.003411)  vcan0  101   [4]  01 2C 03 DF
  (000.004805)  vcan0  201   [7]  50 46 00 00 58 02 DF
  (000.005541)  vcan0  300   [8]  3C 05 6E 04 C2 01 54 7C
  (000.234282)  vcan0  300   [8]  3C 05 6E 04 C2 01 54 7E
@@ -106,7 +106,7 @@ agent decodes against the same file.
 
 | ID | Message | From | Period | Carries |
 |---|---|---|---|---|
-| `0x100` | `VCU_Command` | VCU | 100 ms | Requested mode, torque request, heartbeat |
+| `0x101` | `VCU_Command` | VCU | 100 ms | Requested mode, torque request, heartbeat |
 | `0x200` | `BMS_Status` | BMS | 100 ms | Pack voltage and current, state of charge, contactor |
 | `0x201` | `BMS_Limits` | BMS | 100 ms | Discharge, charge and auxiliary current limits |
 | `0x202` | `BMS_CellVoltages` | BMS | 500 ms | Four cell voltages |
