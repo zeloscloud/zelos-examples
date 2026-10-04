@@ -10,8 +10,9 @@
  * cannot read or overwrite anything else. No seed/key, no flash programming.
  *
  * Fixed for classic CAN: MAX_CTO = MAX_DTO = 8, Intel byte order, byte
- * addressing, address extension 0, dynamic DAQ with absolute ODT numbers and
- * no timestamps.
+ * addressing, address extension 0, dynamic DAQ with absolute ODT numbers.
+ * A DAQ list may carry a 4-byte, 1 us timestamp in its first ODT; an overload
+ * drops whole samples and is reported with EV_DAQ_OVERLOAD.
  */
 
 #ifndef ZELOS_XCP_H_
@@ -43,9 +44,14 @@ struct zelos_xcp_config {
 	size_t event_count;
 	/* GET_ID answer: the A2L file name without path or extension. */
 	const char *id;
+	/* The build's EPK: readable by the master, ADDR_EPK in the A2L. NULL: none. */
+	const char *epk;
 };
 
 #if defined(CONFIG_ZELOS_XCP)
+
+/* This build's EPK; the A2L generated beside the ELF quotes it. */
+extern const char zelos_xcp_epk[];
 
 /**
  * Start answering the master on the configured CRO/DTO identifiers.
@@ -72,7 +78,7 @@ void zelos_xcp_event(uint8_t channel);
 /*
  * The protocol core, free of I/O and Zephyr calls: frames in, frames out.
  * Every frame the slave sends goes on the DTO identifier, so a frame here is
- * only its payload.
+ * only its payload. `now` is the DAQ clock: 1 us per tick, wrapping at 32 bits.
  */
 
 #define ZELOS_XCP_MAX_CTO 8
@@ -89,6 +95,7 @@ struct zelos_xcp_daq_list {
 	uint8_t channel;
 	uint8_t prescaler;
 	uint8_t countdown;
+	bool timestamp;
 	bool selected;
 	bool running;
 };
@@ -127,15 +134,18 @@ struct zelos_xcp_core {
 	struct zelos_xcp_frame tx[ZELOS_XCP_TX_QUEUE];
 	uint8_t tx_head;
 	uint8_t tx_len;
+	/* A sample was dropped; EV_DAQ_OVERLOAD goes out once the queue drains. */
+	bool overload;
 };
 
 void zelos_xcp_core_init(struct zelos_xcp_core *xcp, const struct zelos_xcp_config *config);
 
 /* Handle one CRO. Its response, if any, is queued for zelos_xcp_core_poll(). */
-void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *data, uint8_t len);
+void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *data, uint8_t len,
+			     uint32_t now);
 
 /* Queue one DTO per ODT of every running DAQ list on this channel that is due. */
-void zelos_xcp_core_event(struct zelos_xcp_core *xcp, uint8_t channel);
+void zelos_xcp_core_event(struct zelos_xcp_core *xcp, uint8_t channel, uint32_t now);
 
 /* Take the next frame to send. Returns false when there is none. */
 bool zelos_xcp_core_poll(struct zelos_xcp_core *xcp, struct zelos_xcp_frame *out);

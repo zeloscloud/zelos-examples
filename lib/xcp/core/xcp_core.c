@@ -23,8 +23,10 @@ enum {
 	CMD_SET_DAQ_PTR = 0xE2,
 	CMD_WRITE_DAQ = 0xE1,
 	CMD_SET_DAQ_LIST_MODE = 0xE0,
+	CMD_GET_DAQ_LIST_MODE = 0xDF,
 	CMD_START_STOP_DAQ_LIST = 0xDE,
 	CMD_START_STOP_SYNCH = 0xDD,
+	CMD_GET_DAQ_CLOCK = 0xDC,
 	CMD_GET_DAQ_PROCESSOR_INFO = 0xDA,
 	CMD_GET_DAQ_RESOLUTION_INFO = 0xD9,
 	CMD_GET_DAQ_EVENT_INFO = 0xD7,
@@ -37,10 +39,14 @@ enum {
 enum {
 	PID_RES = 0xFF,
 	PID_ERR = 0xFE,
+	PID_EV = 0xFD,
 };
+
+#define EV_DAQ_OVERLOAD 0x06
 
 enum {
 	ERR_CMD_SYNCH = 0x00,
+	ERR_DAQ_ACTIVE = 0x11,
 	ERR_CMD_UNKNOWN = 0x20,
 	ERR_CMD_SYNTAX = 0x21,
 	ERR_OUT_OF_RANGE = 0x22,
@@ -62,13 +68,23 @@ enum {
 /* Intel byte order, byte granularity, GET_COMM_MODE_INFO available. */
 #define COMM_MODE_BASIC 0x80
 #define SESSION_DAQ_RUNNING 0x40
-/* Dynamic configuration with prescaler; absolute ODT numbers as the PID. */
-#define DAQ_PROPERTIES 0x03
+/*
+ * Dynamic configuration, prescaler, timestamps, overload reported by event;
+ * absolute ODT numbers as the PID.
+ */
+#define DAQ_PROPERTIES 0x93
 #define DAQ_KEY_BYTE 0x00
-#define EVENT_PROPERTY_DAQ 0x04
+/* DAQ only; all lists on one event are copied in one critical section. */
+#define EVENT_PROPERTIES 0x84
 #define TIME_UNIT_1MS 6
-/* DAQ list mode bits a master may set: none (no STIM, timestamps, PID_OFF). */
-#define DAQ_MODE_UNSUPPORTED 0x3B
+/* 4-byte timestamp, 1 us per tick, selected per DAQ list. */
+#define TIMESTAMP_SIZE 4
+#define TIMESTAMP_MODE 0x34
+/* DAQ list mode bits: TIMESTAMP may be set; STIM, alternating, DTO_CTR, PID_OFF not. */
+#define DAQ_MODE_TIMESTAMP 0x10
+#define DAQ_MODE_UNSUPPORTED 0x2B
+#define DAQ_MODE_SELECTED 0x01
+#define DAQ_MODE_RUNNING 0x40
 
 /* One PID byte per DTO; the rest is data. */
 #define ODT_PAYLOAD (ZELOS_XCP_MAX_DTO - 1)
@@ -88,14 +104,25 @@ static bool within(const void *base, uint32_t size, uint32_t addr, uint32_t len)
 	return addr >= start && len <= size && addr - start <= size - len;
 }
 
+/* The string's bytes at [addr, addr + len), or NULL. */
+static const uint8_t *in_string(const char *s, uint32_t addr, uint32_t len)
+{
+	if (s == NULL || !within(s, strlen(s), addr, len)) {
+		return NULL;
+	}
+
+	return (const uint8_t *)s + (addr - xcp_addr(s));
+}
+
 /*
  * The only way from an XCP address to a pointer. Reads may also reach the
- * strings the core itself hands out through the MTA (GET_ID, event names).
+ * strings the core itself hands out through the MTA (GET_ID, EPK, event names).
  */
 static const uint8_t *resolve(const struct zelos_xcp_core *xcp, uint32_t addr, uint32_t len,
 			      bool write)
 {
 	const struct zelos_xcp_config *cfg = xcp->config;
+	const uint8_t *p;
 
 	for (size_t i = 0; i < cfg->region_count; i++) {
 		const struct zelos_xcp_region *r = &cfg->regions[i];
@@ -109,19 +136,15 @@ static const uint8_t *resolve(const struct zelos_xcp_core *xcp, uint32_t addr, u
 		return NULL;
 	}
 
-	if (within(cfg->id, strlen(cfg->id), addr, len)) {
-		return (const uint8_t *)cfg->id + (addr - xcp_addr(cfg->id));
+	p = in_string(cfg->id, addr, len);
+	if (p == NULL) {
+		p = in_string(cfg->epk, addr, len);
+	}
+	for (size_t i = 0; p == NULL && i < cfg->event_count; i++) {
+		p = in_string(cfg->events[i].name, addr, len);
 	}
 
-	for (size_t i = 0; i < cfg->event_count; i++) {
-		const char *name = cfg->events[i].name;
-
-		if (within(name, strlen(name), addr, len)) {
-			return (const uint8_t *)name + (addr - xcp_addr(name));
-		}
-	}
-
-	return NULL;
+	return p;
 }
 
 static struct zelos_xcp_frame *tx_push(struct zelos_xcp_core *xcp)
@@ -171,6 +194,7 @@ static void daq_stop_all(struct zelos_xcp_core *xcp)
 		xcp->daq[i].running = false;
 		xcp->daq[i].selected = false;
 	}
+	xcp->overload = false;
 }
 
 static bool daq_running(const struct zelos_xcp_core *xcp)
@@ -207,14 +231,16 @@ static void connect(struct zelos_xcp_core *xcp)
 static void get_id(struct zelos_xcp_core *xcp, uint8_t type)
 {
 	/* Types 0 (ASCII) and 1 (A2L name, no path or extension) share the answer. */
-	uint32_t len = type <= 1 ? strlen(xcp->config->id) : 0;
+	const char *text = type <= 1 ? xcp->config->id : (type == 5 ? xcp->config->epk : NULL);
 	uint8_t *r = res(xcp, 8);
 
 	if (r != NULL) {
-		/* Mode 0: the master uploads the text from the MTA. */
-		sys_put_le32(len, &r[4]);
+		/* Mode 0: the master uploads the text from the MTA. Length 0: not available. */
+		sys_put_le32(text != NULL ? strlen(text) : 0, &r[4]);
 	}
-	xcp->mta = xcp_addr(xcp->config->id);
+	if (text != NULL) {
+		xcp->mta = xcp_addr(text);
+	}
 }
 
 static void upload(struct zelos_xcp_core *xcp, uint8_t n)
@@ -380,6 +406,23 @@ static void set_daq_ptr(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 	(void)res(xcp, 1);
 }
 
+/* Data bytes ODT `odt` of the list can carry: the first one also holds any timestamp. */
+static uint32_t odt_room(uint8_t odt, bool timestamp)
+{
+	return ODT_PAYLOAD - (odt == 0 && timestamp ? TIMESTAMP_SIZE : 0);
+}
+
+static uint32_t odt_used(const struct zelos_xcp_core *xcp, const struct zelos_xcp_odt *o)
+{
+	uint32_t used = 0;
+
+	for (uint8_t i = 0; i < o->entry_count; i++) {
+		used += xcp->entry[o->first_entry + i].size;
+	}
+
+	return used;
+}
+
 static void write_daq(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 {
 	uint8_t size = cmd[2];
@@ -423,7 +466,7 @@ static void write_daq(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 
 		used += other == e ? size : other->size;
 	}
-	if (used > ODT_PAYLOAD) {
+	if (used > odt_room(xcp->ptr_odt, d->timestamp)) {
 		err(xcp, ERR_DAQ_CONFIG);
 		return;
 	}
@@ -438,6 +481,7 @@ static void set_daq_list_mode(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 {
 	struct zelos_xcp_daq_list *d = daq_at(xcp, &cmd[2]);
 	uint16_t channel = sys_get_le16(&cmd[4]);
+	bool timestamp;
 
 	if (d == NULL || channel >= xcp->config->event_count || cmd[6] == 0) {
 		err(xcp, ERR_OUT_OF_RANGE);
@@ -447,11 +491,37 @@ static void set_daq_list_mode(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 		err(xcp, ERR_MODE_NOT_VALID);
 		return;
 	}
+	/* Entries usually come first: a timestamp must still fit beside ODT 0's. */
+	timestamp = (cmd[1] & DAQ_MODE_TIMESTAMP) != 0;
+	if (d->odt_count != 0 && odt_used(xcp, &xcp->odt[d->first_odt]) > odt_room(0, timestamp)) {
+		err(xcp, ERR_DAQ_CONFIG);
+		return;
+	}
 
 	d->channel = (uint8_t)channel;
 	d->prescaler = cmd[6];
 	d->countdown = cmd[6];
+	d->timestamp = timestamp;
 	(void)res(xcp, 1);
+}
+
+static void get_daq_list_mode(struct zelos_xcp_core *xcp, const uint8_t *cmd)
+{
+	const struct zelos_xcp_daq_list *d = daq_at(xcp, &cmd[2]);
+	uint8_t *r;
+
+	if (d == NULL) {
+		err(xcp, ERR_OUT_OF_RANGE);
+		return;
+	}
+
+	r = res(xcp, 8);
+	if (r != NULL) {
+		r[1] = (d->selected ? DAQ_MODE_SELECTED : 0) | (d->timestamp ? DAQ_MODE_TIMESTAMP : 0) |
+		       (d->running ? DAQ_MODE_RUNNING : 0);
+		sys_put_le16(d->channel, &r[4]);
+		r[6] = d->prescaler;
+	}
 }
 
 static void start_stop_daq_list(struct zelos_xcp_core *xcp, const uint8_t *cmd)
@@ -459,8 +529,12 @@ static void start_stop_daq_list(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 	struct zelos_xcp_daq_list *d = daq_at(xcp, &cmd[2]);
 	uint8_t *r;
 
-	if (d == NULL || cmd[1] > 2) {
+	if (d == NULL) {
 		err(xcp, ERR_OUT_OF_RANGE);
+		return;
+	}
+	if (cmd[1] > 2) {
+		err(xcp, ERR_MODE_NOT_VALID);
 		return;
 	}
 	if (cmd[1] != 0 && d->odt_count == 0) {
@@ -490,7 +564,7 @@ static void start_stop_daq_list(struct zelos_xcp_core *xcp, const uint8_t *cmd)
 static void start_stop_synch(struct zelos_xcp_core *xcp, uint8_t mode)
 {
 	if (mode > 2) {
-		err(xcp, ERR_OUT_OF_RANGE);
+		err(xcp, ERR_MODE_NOT_VALID);
 		return;
 	}
 
@@ -522,7 +596,7 @@ static void get_daq_event_info(struct zelos_xcp_core *xcp, uint16_t channel)
 	ev = &xcp->config->events[channel];
 	r = res(xcp, 7);
 	if (r != NULL) {
-		r[1] = EVENT_PROPERTY_DAQ;
+		r[1] = EVENT_PROPERTIES;
 		r[2] = CONFIG_ZELOS_XCP_DAQ_LISTS;
 		r[3] = (uint8_t)strlen(ev->name);
 		r[4] = ev->period_ms;
@@ -551,6 +625,7 @@ static uint8_t min_len(uint8_t cmd)
 	case CMD_START_STOP_DAQ_LIST:
 	case CMD_ALLOC_DAQ:
 	case CMD_GET_DAQ_EVENT_INFO:
+	case CMD_GET_DAQ_LIST_MODE:
 		return 4;
 	case CMD_GET_ID:
 	case CMD_UPLOAD:
@@ -562,13 +637,29 @@ static uint8_t min_len(uint8_t cmd)
 	}
 }
 
+/* Commands that change the DAQ configuration, refused while any list runs. */
+static bool changes_daq(uint8_t cmd)
+{
+	switch (cmd) {
+	case CMD_ALLOC_DAQ:
+	case CMD_ALLOC_ODT:
+	case CMD_ALLOC_ODT_ENTRY:
+	case CMD_WRITE_DAQ:
+	case CMD_SET_DAQ_LIST_MODE:
+		return true;
+	default:
+		return false;
+	}
+}
+
 void zelos_xcp_core_init(struct zelos_xcp_core *xcp, const struct zelos_xcp_config *config)
 {
 	memset(xcp, 0, sizeof(*xcp));
 	xcp->config = config;
 }
 
-void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *cmd, uint8_t len)
+void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *cmd, uint8_t len,
+			     uint32_t now)
 {
 	uint8_t *r;
 
@@ -583,6 +674,11 @@ void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *cmd, uin
 
 	if (len < min_len(cmd[0])) {
 		err(xcp, ERR_CMD_SYNTAX);
+		return;
+	}
+
+	if (changes_daq(cmd[0]) && daq_running(xcp)) {
+		err(xcp, ERR_DAQ_ACTIVE);
 		return;
 	}
 
@@ -667,6 +763,16 @@ void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *cmd, uin
 	case CMD_START_STOP_SYNCH:
 		start_stop_synch(xcp, cmd[1]);
 		break;
+	case CMD_GET_DAQ_LIST_MODE:
+		get_daq_list_mode(xcp, cmd);
+		break;
+	case CMD_GET_DAQ_CLOCK:
+		/* Legacy format: the DAQ timestamp clock, now. */
+		r = res(xcp, 8);
+		if (r != NULL) {
+			sys_put_le32(now, &r[4]);
+		}
+		break;
 	case CMD_GET_DAQ_PROCESSOR_INFO:
 		r = res(xcp, 8);
 		if (r != NULL) {
@@ -682,6 +788,8 @@ void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *cmd, uin
 			r[1] = 1; /* granularity */
 			r[2] = ODT_PAYLOAD;
 			r[3] = 1;
+			r[5] = TIMESTAMP_MODE;
+			sys_put_le16(1, &r[6]); /* ticks per timestamp step */
 		}
 		break;
 	case CMD_GET_DAQ_EVENT_INFO:
@@ -693,7 +801,7 @@ void zelos_xcp_core_on_frame(struct zelos_xcp_core *xcp, const uint8_t *cmd, uin
 	}
 }
 
-void zelos_xcp_core_event(struct zelos_xcp_core *xcp, uint8_t channel)
+void zelos_xcp_core_event(struct zelos_xcp_core *xcp, uint8_t channel, uint32_t now)
 {
 	for (uint8_t i = 0; i < xcp->daq_count; i++) {
 		struct zelos_xcp_daq_list *d = &xcp->daq[i];
@@ -705,10 +813,11 @@ void zelos_xcp_core_event(struct zelos_xcp_core *xcp, uint8_t channel)
 
 		/*
 		 * A sample is all of a list's ODTs or none, so overload drops whole
-		 * samples, silently: no overload indication (a known limitation).
-		 * One slot stays free for a command response.
+		 * samples; EV_DAQ_OVERLOAD reports it. One slot stays free for a
+		 * command response.
 		 */
 		if (ZELOS_XCP_TX_QUEUE - xcp->tx_len - 1 < d->odt_count) {
+			xcp->overload = true;
 			continue;
 		}
 
@@ -718,6 +827,10 @@ void zelos_xcp_core_event(struct zelos_xcp_core *xcp, uint8_t channel)
 
 			f->data[0] = d->first_odt + o;
 			f->len = 1;
+			if (o == 0 && d->timestamp) {
+				sys_put_le32(now, &f->data[1]);
+				f->len += TIMESTAMP_SIZE;
+			}
 			for (uint8_t e = 0; e < odt->entry_count; e++) {
 				const struct zelos_xcp_odt_entry *entry =
 					&xcp->entry[odt->first_entry + e];
@@ -735,7 +848,13 @@ void zelos_xcp_core_event(struct zelos_xcp_core *xcp, uint8_t channel)
 bool zelos_xcp_core_poll(struct zelos_xcp_core *xcp, struct zelos_xcp_frame *out)
 {
 	if (xcp->tx_len == 0) {
-		return false;
+		/* After the samples already queued, so it never displaces a response. */
+		if (!xcp->overload) {
+			return false;
+		}
+		xcp->overload = false;
+		*out = (struct zelos_xcp_frame){.len = 2, .data = {PID_EV, EV_DAQ_OVERLOAD}};
+		return true;
 	}
 
 	*out = xcp->tx[xcp->tx_head];
