@@ -2,7 +2,7 @@
 description: The DC-DC converter stays under the current the BMS allows it.
 requires-python: '>=3.10'
 dependencies:
-- zelos-sdk[notebook]>=0.0.12a2
+- zelos-sdk[notebook]==0.0.12
 - tzdata
 params:
   window: -5m

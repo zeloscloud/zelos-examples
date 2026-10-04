@@ -41,10 +41,6 @@ test:
             zelos notebook run "/notebooks/${name}" -o "/notebooks/${name%.md}.html" \
             || failed+=("${name}")
     done
-    # The agent writes its rendered pages 0600 and owned by root, so the user
-    # who asked for them cannot open them. Fixed from inside the container,
-    # because only root there can.
-    docker compose exec -T agent sh -c 'chmod a+r /notebooks/*.html' || true
     if [ ${#failed[@]} -gt 0 ]; then
         echo
         echo "failed: ${failed[*]}" >&2
@@ -71,17 +67,6 @@ flash VARIANT: _elf
     DCDC_ELF="$elf" docker compose up -d --wait
     echo
     echo "DC-DC is now the {{ VARIANT }} build. Give it ~2 min for a drive cycle, then: just test"
-
-# Record the running bench to traces/, for a test to check against later.
-#
-# trz2 rather than the default: the legacy format is a DuckDB database with a
-# 2.8 MB floor regardless of window, where this is about 100 KB.
-record NAME:
-    docker compose exec -T agent zelos live export \
-        --output "/traces/{{ NAME }}.trz" --last 5m --format trz2 --force
-    # As with the rendered pages: written 0600 and root-owned. See `test`.
-    docker compose exec -T agent sh -c 'chmod a+r /traces/{{ NAME }}.trz'
-    @echo "wrote traces/{{ NAME }}.trz"
 
 # Regenerate the CAN codec from the DBC. Deterministic: no timestamps.
 dbc:

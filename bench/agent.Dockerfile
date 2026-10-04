@@ -4,17 +4,19 @@
 # download, the Python interpreter and its dependencies in an image layer.
 FROM ubuntu:22.04
 
-ARG AGENT_VERSION=26.0.8
-ARG CLI_VERSION=0.1.9
-# The marketplace identifier is the repository path, and the version is the git
-# tag, including its leading "v".
+ARG AGENT_VERSION=26.0.9
+ARG CLI_VERSION=0.1.10
+# The marketplace identifier is the extension's repository.
 ARG CAN_EXTENSION=zeloscloud/zelos-extension-can
 ARG CAN_EXTENSION_VERSION=v0.1.17
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl procps \
- && echo "deb [trusted=yes] https://release.zeloscloud.io/app/ubuntu jammy main" \
-      > /etc/apt/sources.list.d/zelos.list \
+ && curl -fsSLo /usr/share/keyrings/zelos-archive-keyring.gpg \
+      https://release.zeloscloud.io/app/zelos-archive-keyring.gpg \
+ && printf '%s\n' 'Types: deb' 'URIs: https://release.zeloscloud.io/app/ubuntu' 'Suites: jammy' \
+      'Components: main' 'Signed-By: /usr/share/keyrings/zelos-archive-keyring.gpg' \
+      > /etc/apt/sources.list.d/zelos.sources \
  && apt-get update \
  && apt-get install -y --no-install-recommends "zelos-agent=${AGENT_VERSION}" \
  && rm -rf /var/lib/apt/lists/*

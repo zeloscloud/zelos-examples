@@ -6,11 +6,6 @@
 # disables extension installs while more than one agent is connected.
 set -euo pipefail
 
-# The agent runs as root, and its default umask leaves everything it writes
-# into a mounted volume unreadable to the user who owns the checkout. Rendered
-# notebooks and recorded traces are meant to be opened.
-umask 022
-
 CONFIG=${BENCH_CAN_CONFIG:-/bench/can.json}
 EXTENSION=${BENCH_CAN_EXTENSION:-zeloscloud.zelos-extension-can}
 
@@ -23,8 +18,7 @@ echo "config:    ${CONFIG}"
 # every sample, so queries return nothing.
 zelos-agent \
     --store-type memory \
-    --store-retain-duration "${BENCH_RETAIN:-15m}" \
-    --listen-address '[::]:2300' &
+    --store-retain-duration "${BENCH_RETAIN:-15m}" &
 agent_pid=$!
 
 trap 'kill "${agent_pid}" 2>/dev/null || true' TERM INT
