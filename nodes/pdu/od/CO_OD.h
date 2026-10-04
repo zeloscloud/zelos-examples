@@ -60,7 +60,7 @@
 *******************************************************************************/
   #define CO_NO_SYNC                     1   //Associated objects: 1005-1007
   #define CO_NO_EMERGENCY                1   //Associated objects: 1014, 1015
-  #define CO_NO_TIME                     0   //Associated objects: 1012, 1013
+  #define CO_NO_TIME                     1   //Associated objects: 1012, 1013
   #define CO_NO_SDO_SERVER               1   //Associated objects: 1200-127F
   #define CO_NO_SDO_CLIENT               0   //Associated objects: 1280-12FF
   #define CO_NO_GFC                      0   //Associated objects: 1300
@@ -69,8 +69,8 @@
   #define CO_NO_LSS_CLIENT               0   //LSS Master
   #define CO_NODE_GUARDING_SLAVE         0   //NG Slave
   #define CO_NODE_GUARDING_MASTER        0   //NG Master
-  #define CO_NO_RPDO                     1   //Associated objects: 14xx, 16xx
-  #define CO_NO_TPDO                     2   //Associated objects: 18xx, 1Axx
+  #define CO_NO_RPDO                     2   //Associated objects: 14xx, 16xx
+  #define CO_NO_TPDO                     3   //Associated objects: 18xx, 1Axx
   #define CO_NO_NMT_MASTER               0
   #define CO_NO_TRACE                    0
 
@@ -78,7 +78,7 @@
 /*******************************************************************************
    OBJECT DICTIONARY
 *******************************************************************************/
-   #define CO_OD_NoOfElements             28
+   #define CO_OD_NoOfElements             39
 
 
 /*******************************************************************************
@@ -143,6 +143,11 @@
                UNSIGNED8      channel7;
                UNSIGNED8      channel8;
                }              OD_channelCurrent_t;
+/*2004      */ typedef struct {
+               UNSIGNED8      highestSubIndexSupported;
+               UNSIGNED32     millisecondsAfterMidnight;
+               UNSIGNED16     daysSince19840101;
+               }              OD_lastTIMEReceived_t;
 /*6000      */ typedef struct {
                UNSIGNED8      highestSubIndexSupported;
                UNSIGNED8      input1To8;
@@ -151,6 +156,14 @@
                UNSIGNED8      highestSubIndexSupported;
                UNSIGNED8      output1To8;
                }              OD_writeOutput8Bit_t;
+/*6206      */ typedef struct {
+               UNSIGNED8      highestSubIndexSupported;
+               UNSIGNED8      errorMode1To8;
+               }              OD_errorModeOutput8Bit_t;
+/*6207      */ typedef struct {
+               UNSIGNED8      highestSubIndexSupported;
+               UNSIGNED8      errorValue1To8;
+               }              OD_errorValueOutput8Bit_t;
 
 /*******************************************************************************
    TYPE DEFINITIONS FOR OBJECT DICTIONARY INDEXES
@@ -190,6 +203,9 @@
 
 /*100A */
         #define OD_100A_manufacturerSoftwareVersion                 0x100A
+
+/*1012 */
+        #define OD_1012_COB_ID_TIME                                 0x1012
 
 /*1014 */
         #define OD_1014_COB_ID_EMCY                                 0x1014
@@ -243,6 +259,13 @@
         #define OD_1400_1_RPDOCommunicationParameter_COB_IDUsedByRPDO 1
         #define OD_1400_2_RPDOCommunicationParameter_transmissionType 2
 
+/*1401 */
+        #define OD_1401_RPDOCommunicationParameter                  0x1401
+
+        #define OD_1401_0_RPDOCommunicationParameter_maxSubIndex    0
+        #define OD_1401_1_RPDOCommunicationParameter_COB_IDUsedByRPDO 1
+        #define OD_1401_2_RPDOCommunicationParameter_transmissionType 2
+
 /*1600 */
         #define OD_1600_RPDOMappingParameter                        0x1600
 
@@ -255,6 +278,19 @@
         #define OD_1600_6_RPDOMappingParameter_mappedObject6        6
         #define OD_1600_7_RPDOMappingParameter_mappedObject7        7
         #define OD_1600_8_RPDOMappingParameter_mappedObject8        8
+
+/*1601 */
+        #define OD_1601_RPDOMappingParameter                        0x1601
+
+        #define OD_1601_0_RPDOMappingParameter_maxSubIndex          0
+        #define OD_1601_1_RPDOMappingParameter_mappedObject1        1
+        #define OD_1601_2_RPDOMappingParameter_mappedObject2        2
+        #define OD_1601_3_RPDOMappingParameter_mappedObject3        3
+        #define OD_1601_4_RPDOMappingParameter_mappedObject4        4
+        #define OD_1601_5_RPDOMappingParameter_mappedObject5        5
+        #define OD_1601_6_RPDOMappingParameter_mappedObject6        6
+        #define OD_1601_7_RPDOMappingParameter_mappedObject7        7
+        #define OD_1601_8_RPDOMappingParameter_mappedObject8        8
 
 /*1800 */
         #define OD_1800_TPDOCommunicationParameter                  0x1800
@@ -277,6 +313,17 @@
         #define OD_1801_4_TPDOCommunicationParameter_compatibilityEntry 4
         #define OD_1801_5_TPDOCommunicationParameter_eventTimer     5
         #define OD_1801_6_TPDOCommunicationParameter_SYNCStartValue 6
+
+/*1802 */
+        #define OD_1802_TPDOCommunicationParameter                  0x1802
+
+        #define OD_1802_0_TPDOCommunicationParameter_maxSubIndex    0
+        #define OD_1802_1_TPDOCommunicationParameter_COB_IDUsedByTPDO 1
+        #define OD_1802_2_TPDOCommunicationParameter_transmissionType 2
+        #define OD_1802_3_TPDOCommunicationParameter_inhibitTime    3
+        #define OD_1802_4_TPDOCommunicationParameter_compatibilityEntry 4
+        #define OD_1802_5_TPDOCommunicationParameter_eventTimer     5
+        #define OD_1802_6_TPDOCommunicationParameter_SYNCStartValue 6
 
 /*1A00 */
         #define OD_1A00_TPDOMappingParameter                        0x1A00
@@ -304,6 +351,19 @@
         #define OD_1A01_7_TPDOMappingParameter_mappedObject7        7
         #define OD_1A01_8_TPDOMappingParameter_mappedObject8        8
 
+/*1A02 */
+        #define OD_1A02_TPDOMappingParameter                        0x1A02
+
+        #define OD_1A02_0_TPDOMappingParameter_maxSubIndex          0
+        #define OD_1A02_1_TPDOMappingParameter_mappedObject1        1
+        #define OD_1A02_2_TPDOMappingParameter_mappedObject2        2
+        #define OD_1A02_3_TPDOMappingParameter_mappedObject3        3
+        #define OD_1A02_4_TPDOMappingParameter_mappedObject4        4
+        #define OD_1A02_5_TPDOMappingParameter_mappedObject5        5
+        #define OD_1A02_6_TPDOMappingParameter_mappedObject6        6
+        #define OD_1A02_7_TPDOMappingParameter_mappedObject7        7
+        #define OD_1A02_8_TPDOMappingParameter_mappedObject8        8
+
 /*1F80 */
         #define OD_1F80_NMTStartup                                  0x1F80
 
@@ -320,6 +380,22 @@
         #define OD_2000_7_channelCurrent_channel7                   7
         #define OD_2000_8_channelCurrent_channel8                   8
 
+/*2001 */
+        #define OD_2001_buildInfo                                   0x2001
+
+/*2002 */
+        #define OD_2002_scratch                                     0x2002
+
+/*2003 */
+        #define OD_2003_millisecondCounter                          0x2003
+
+/*2004 */
+        #define OD_2004_lastTIMEReceived                            0x2004
+
+        #define OD_2004_0_lastTIMEReceived_maxSubIndex              0
+        #define OD_2004_1_lastTIMEReceived_millisecondsAfterMidnight 1
+        #define OD_2004_2_lastTIMEReceived_daysSince19840101        2
+
 /*2100 */
         #define OD_2100_errorStatusBits                             0x2100
 
@@ -335,6 +411,18 @@
         #define OD_6200_0_writeOutput8Bit_maxSubIndex               0
         #define OD_6200_1_writeOutput8Bit_output1To8                1
 
+/*6206 */
+        #define OD_6206_errorModeOutput8Bit                         0x6206
+
+        #define OD_6206_0_errorModeOutput8Bit_maxSubIndex           0
+        #define OD_6206_1_errorModeOutput8Bit_errorMode1To8         1
+
+/*6207 */
+        #define OD_6207_errorValueOutput8Bit                        0x6207
+
+        #define OD_6207_0_errorValueOutput8Bit_maxSubIndex          0
+        #define OD_6207_1_errorValueOutput8Bit_errorValue1To8       1
+
 /*******************************************************************************
    STRUCTURES FOR VARIABLES IN DIFFERENT MEMORY LOCATIONS
 *******************************************************************************/
@@ -347,9 +435,15 @@ struct sCO_OD_RAM{
 /*1001      */ UNSIGNED8      errorRegister;
 /*1003      */ UNSIGNED32      preDefinedErrorField[4];
 /*2000      */ OD_channelCurrent_t channelCurrent;
+/*2001      */ OCTET_STRING   buildInfo[256];
+/*2002      */ OCTET_STRING   scratch[64];
+/*2003      */ UNSIGNED16     millisecondCounter;
+/*2004      */ OD_lastTIMEReceived_t lastTIMEReceived;
 /*2100      */ OCTET_STRING   errorStatusBits[10];
 /*6000      */ OD_readInput8Bit_t readInput8Bit;
 /*6200      */ OD_writeOutput8Bit_t writeOutput8Bit;
+/*6206      */ OD_errorModeOutput8Bit_t errorModeOutput8Bit;
+/*6207      */ OD_errorValueOutput8Bit_t errorValueOutput8Bit;
 
                UNSIGNED32     LastWord;
 };
@@ -363,8 +457,9 @@ struct sCO_OD_ROM{
 /*1006      */ UNSIGNED32     communicationCyclePeriod;
 /*1007      */ UNSIGNED32     synchronousWindowLength;
 /*1008      */ VISIBLE_STRING manufacturerDeviceName[9];
-/*1009      */ VISIBLE_STRING manufacturerHardwareVersion[3];
+/*1009      */ VISIBLE_STRING manufacturerHardwareVersion[13];
 /*100A      */ VISIBLE_STRING manufacturerSoftwareVersion[3];
+/*1012      */ UNSIGNED32     COB_ID_TIME;
 /*1014      */ UNSIGNED32     COB_ID_EMCY;
 /*1015      */ UNSIGNED16     inhibitTimeEMCY;
 /*1016      */ UNSIGNED32      consumerHeartbeatTime[1];
@@ -373,10 +468,10 @@ struct sCO_OD_ROM{
 /*1019      */ UNSIGNED8      synchronousCounterOverflowValue;
 /*1029      */ UNSIGNED8       errorBehavior[6];
 /*1200      */ OD_SDOServerParameter_t SDOServerParameter[1];
-/*1400      */ OD_RPDOCommunicationParameter_t RPDOCommunicationParameter[1];
-/*1600      */ OD_RPDOMappingParameter_t RPDOMappingParameter[1];
-/*1800      */ OD_TPDOCommunicationParameter_t TPDOCommunicationParameter[2];
-/*1A00      */ OD_TPDOMappingParameter_t TPDOMappingParameter[2];
+/*1400      */ OD_RPDOCommunicationParameter_t RPDOCommunicationParameter[2];
+/*1600      */ OD_RPDOMappingParameter_t RPDOMappingParameter[2];
+/*1800      */ OD_TPDOCommunicationParameter_t TPDOCommunicationParameter[3];
+/*1A00      */ OD_TPDOMappingParameter_t TPDOMappingParameter[3];
 /*1F80      */ UNSIGNED32     NMTStartup;
 
                UNSIGNED32     LastWord;
@@ -437,12 +532,16 @@ extern struct sCO_OD_EEPROM CO_OD_EEPROM;
 /*1009, Data Type: VISIBLE_STRING */
         #define OD_manufacturerHardwareVersion_idx                  0x1009
         #define OD_manufacturerHardwareVersion                      CO_OD_ROM.manufacturerHardwareVersion
-        #define ODL_manufacturerHardwareVersion_stringLength        3
+        #define ODL_manufacturerHardwareVersion_stringLength        13
 
 /*100A, Data Type: VISIBLE_STRING */
         #define OD_manufacturerSoftwareVersion_idx                  0x100A
         #define OD_manufacturerSoftwareVersion                      CO_OD_ROM.manufacturerSoftwareVersion
         #define ODL_manufacturerSoftwareVersion_stringLength        3
+
+/*1012, Data Type: UNSIGNED32 */
+        #define OD_COB_ID_TIME_idx                                  0x1012
+        #define OD_COB_ID_TIME                                      CO_OD_ROM.COB_ID_TIME
 
 /*1014, Data Type: UNSIGNED32 */
         #define OD_COB_ID_EMCY_idx                                  0x1014
@@ -509,6 +608,24 @@ extern struct sCO_OD_EEPROM CO_OD_EEPROM;
         #define OD_channelCurrent_idx                               0x2000
         #define OD_channelCurrent                                   CO_OD_RAM.channelCurrent
 
+/*2001, Data Type: OCTET_STRING */
+        #define OD_buildInfo_idx                                    0x2001
+        #define OD_buildInfo                                        CO_OD_RAM.buildInfo
+        #define ODL_buildInfo_stringLength                          256
+
+/*2002, Data Type: OCTET_STRING */
+        #define OD_scratch_idx                                      0x2002
+        #define OD_scratch                                          CO_OD_RAM.scratch
+        #define ODL_scratch_stringLength                            64
+
+/*2003, Data Type: UNSIGNED16 */
+        #define OD_millisecondCounter_idx                           0x2003
+        #define OD_millisecondCounter                               CO_OD_RAM.millisecondCounter
+
+/*2004, Data Type: lastTIMEReceived_t */
+        #define OD_lastTIMEReceived_idx                             0x2004
+        #define OD_lastTIMEReceived                                 CO_OD_RAM.lastTIMEReceived
+
 /*2100, Data Type: OCTET_STRING */
         #define OD_errorStatusBits_idx                              0x2100
         #define OD_errorStatusBits                                  CO_OD_RAM.errorStatusBits
@@ -521,6 +638,14 @@ extern struct sCO_OD_EEPROM CO_OD_EEPROM;
 /*6200, Data Type: writeOutput8Bit_t */
         #define OD_writeOutput8Bit_idx                              0x6200
         #define OD_writeOutput8Bit                                  CO_OD_RAM.writeOutput8Bit
+
+/*6206, Data Type: errorModeOutput8Bit_t */
+        #define OD_errorModeOutput8Bit_idx                          0x6206
+        #define OD_errorModeOutput8Bit                              CO_OD_RAM.errorModeOutput8Bit
+
+/*6207, Data Type: errorValueOutput8Bit_t */
+        #define OD_errorValueOutput8Bit_idx                         0x6207
+        #define OD_errorValueOutput8Bit                             CO_OD_RAM.errorValueOutput8Bit
 
 #endif
 // clang-format on

@@ -1,6 +1,10 @@
 #include <zelos/canopen.h>
 
 #include <canopennode.h>
+/* After the stack, which defines the types it uses. */
+#include <CO_OD.h>
+
+#include <string.h>
 
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
@@ -29,7 +33,14 @@ int zelos_canopen_run(void (*tick)(void))
 
 	canopen_set_rxmsg_callback(on_rx);
 
-	/* Reset-communication comes back here; CO_init reuses its allocation. */
+	/*
+	 * Reset-communication comes back here; CO_init reuses its allocation.
+	 * CiA 301 has it restore the communication parameters (0x1000-0x1FFF)
+	 * to their power-on values, which the stack leaves to us.
+	 */
+	static struct sCO_OD_ROM power_on;
+
+	memcpy(&power_on, &CO_OD_ROM, sizeof(power_on));
 	while (reset != CO_RESET_APP) {
 		CO_ReturnError_t err;
 		uint32_t elapsed_ms = 0U;
@@ -37,6 +48,9 @@ int zelos_canopen_run(void (*tick)(void))
 
 		/* The stack's PDO thread must not run on a half-built stack. */
 		CO_LOCK_OD();
+		if (reset == CO_RESET_COMM) {
+			memcpy(&CO_OD_ROM, &power_on, sizeof(power_on));
+		}
 		/* The stack takes kbit/s. */
 		err = CO_init(&can, CONFIG_ZELOS_CANOPEN_NODE_ID, CONFIG_ZELOS_CAN_BITRATE / 1000);
 		if (err == CO_ERROR_NO) {
@@ -71,6 +85,8 @@ int zelos_canopen_run(void (*tick)(void))
 	}
 
 	LOG_INF("NMT reset-node");
+	/* Held through the reboot: the PDO thread must not see a torn-down stack. */
+	CO_LOCK_OD();
 	CO_delete(&can);
 	sys_reboot(SYS_REBOOT_COLD);
 }

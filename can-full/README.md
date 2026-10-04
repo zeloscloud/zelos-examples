@@ -45,7 +45,7 @@ same default, so run one bench at a time or move one.
 | BMS | `../nodes/bms` | | `0x200`-`0x202` |
 | DC-DC | `../nodes/dcdc`, `-S xcp` | XCP on CAN | `0x300`; CRO `0x6F0`, DTO `0x6F1` |
 | genset | `../nodes/genset` | J1939 | 29-bit, source address `0x80` |
-| PDU | `../nodes/pdu` | CANopen, node-id `0x20` | NMT `0x000`, SYNC `0x080`, EMCY `0x0A0`, TPDO1 `0x1A0`, RPDO1 `0x220`, TPDO2 `0x2A0`, SDO `0x5A0`/`0x620`, heartbeat `0x720` |
+| PDU | `../nodes/pdu` | CANopen, node-id `0x20` | NMT `0x000`, SYNC `0x080`, TIME `0x100`, EMCY `0x0A0`, TPDO1 `0x1A0`, RPDO1 `0x220`, TPDO2 `0x2A0`, RPDO2 `0x320`, TPDO3 `0x3A0`, SDO `0x5A0`/`0x620`, heartbeat `0x720` |
 
 The first three are can-bench's, unchanged except that the DC-DC is built with
 XCP: its demand and slew rate become calibration parameters, its setpoint,
@@ -63,7 +63,7 @@ inputs and per-channel current, and trips channel 8, which is shorted.
 |---|---|---|
 | `../testing/suites/xcp` | DC-DC | Used as a bench uses its ECU: zelos-can opens the bus, pyxcp is the master, the A2L names everything, and `check` asserts on the Zelos trace. The EPK matches the A2L's; a measurement read over XCP matches the broadcast frame; DAQ on the A2L's event at its period, by the ECU's own timestamps; the node follows the BMS allowance; a calibration takes effect and is restored; measurements are read-only. Protocol conformance is covered by the ztests in `../tests/lib/xcp` |
 | `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; requests answered; periods; DM1 by BAM, reassembled by python-can-j1939 |
-| `../testing/suites/canopen` | PDU | Boot-up and heartbeat; NMT start, stop and pre-operational; SDO identity and downloads; RPDO commands reflected in TPDOs; an overcurrent trip raises EMCY and recovers, and trips again after a communication reset |
+| `../testing/suites/canopen` | PDU | Boot-up and heartbeat; NMT start, stop and pre-operational; SDO identity and downloads; RPDO commands reflected in TPDOs; an overcurrent trip raises EMCY and recovers; SYNC answered by the synchronous TPDO |
 
 The suites drive the other nodes' roles themselves when those nodes are absent,
 so the same suites run here, with every node present, and against one board.
