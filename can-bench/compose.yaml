@@ -38,8 +38,6 @@ services:
       # Mounted rather than copied into the image, so editing it takes effect
       # on the next `just up`.
       - ./bench:/bench:ro
-      # Recorded runs the tests check against, and where `just record` writes.
-      - ./traces:/traces
       # Writable: the notebook runner assigns cell ids and stages a
       # provisioning script beside each notebook.
       - ./notebooks:/notebooks

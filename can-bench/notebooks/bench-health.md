@@ -2,7 +2,7 @@
 description: Every node on the bench is talking, and what it says makes sense.
 requires-python: '>=3.10'
 dependencies:
-- zelos-sdk[notebook]>=0.0.12a2
+- zelos-sdk[notebook]==0.0.12
 - tzdata
 params:
   window: -2m

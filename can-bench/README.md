@@ -129,7 +129,6 @@ bench runs.
 ../nodes/vcu|bms|dcdc/    three Zephyr applications
 bench/                    the agent's config; the images and Renode script are ../bench/
 notebooks/                the tests
-traces/                   recorded runs the tests check against
 ```
 
 The firmware lives at the root of the repository, shared with any other bench.
@@ -168,16 +167,16 @@ and 512 KB.
 Open the Zelos app and connect to the bench:
 
 1. Open the right sidebar — `Cmd+J` or `Ctrl+J`
-2. **Data Sources** → **New agent**
+2. **Data** → **New agent**
 3. Enter `localhost:2300`, or `<bench host>:2300` from another machine
 
 The signal tree fills with `vcan0` and every message in the table above.
 Double-click a signal to plot it.
 
-Signals are named `vcan0/<id>_<Message>.<Signal>`, for example
-`vcan0/0300_DCDC_Status.InputCurrent`. A second source, `vcan0_raw`, carries
-every frame undecoded, which distinguishes "no traffic" from "traffic the DBC
-does not match".
+Signals are named `CAN/vcan0/<id>_<Message>.<Signal>`, for example
+`CAN/vcan0/0300_DCDC_Status.InputCurrent`. `CAN/vcan0/Frame` carries every frame
+undecoded, which distinguishes "no traffic" from "traffic the DBC does not
+match".
 
 **If port 2300 is already in use**, `docker compose` fails with `failed to bind
 host port`. The Zelos app runs its own agent on that port, so this happens on
@@ -214,8 +213,8 @@ That restarts the simulator with the second DC-DC firmware and gives the agent a
 fresh store, so what you see next comes only from this build. Give it a couple
 of minutes to get through a drive cycle, then plot two signals together:
 
-- `vcan0/0201_BMS_Limits.AuxCurrentLimit`
-- `vcan0/0300_DCDC_Status.InputCurrent`
+- `CAN/vcan0/0201_BMS_Limits.AuxCurrentLimit`
+- `CAN/vcan0/0300_DCDC_Status.InputCurrent`
 
 When the vehicle enters Charge, the BMS drops the converter's allowance. The
 draw should be under the new limit at once. Instead it walks down to it, drawing
@@ -247,8 +246,7 @@ Each file in `notebooks/` is a test, and `just test` runs both:
   the allowance rather than assuming the bench has been up long enough.
 
 `just flash defect` loads the defective DC-DC build, and the second notebook
-fails on it. `traces/dcdc-defect.trz` is a recording of that build, if you want
-to look at the fault without running it.
+fails on it.
 
 Each notebook is also a report: it charts what it measured and ends with its
 checks. `just test` exits non-zero if either fails, and writes a self-contained
@@ -292,8 +290,9 @@ extension in the app's Explorer. This has not been run here.
 | Zephyr | `v4.4.2` |
 | Zephyr SDK | `1.0.1`, Arm only |
 | Renode | `antmicro/renode:1.16.1` |
-| Zelos agent | `26.0.8` |
-| Zelos CLI | `0.1.9` |
+| Zelos agent | `26.0.9` |
+| Zelos CLI | `0.1.10` |
+| Zelos SDK (notebooks) | `0.0.12` |
 | CAN extension | `zeloscloud/zelos-extension-can` `v0.1.17` |
 | cantools | `41.3.1` |
 
