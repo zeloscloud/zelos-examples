@@ -1,0 +1,17 @@
+name = "Pack Watch"
+version = "0.1.0"
+description = "Weakest cell and alarm threshold"
+author = "Developer"
+repository = "https://github.com/developer/pack-watch"
+icon = "assets/icon.svg"
+readme = "README.md"
+
+[host]
+type = "app"
+
+[host.app]
+kind = "web_app"
+entry = "dist/index.html"
+
+[package]
+paths = ["dist"]
