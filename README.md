@@ -7,6 +7,7 @@ and is checked in CI.
 |---|---|
 | [`can-bench`](can-bench/) | Three emulated microcontrollers running Zephyr firmware, talking CAN on a virtual bus, decoded live. Ships two builds of one node so a fault can be found in the data and then fixed. |
 | [`can-full`](can-full/) | can-bench's nodes plus a J1939 genset and a CANopen PDU, with XCP on the DC-DC, each protocol checked by an independent implementation of it, in Renode and on a board. |
+| [`how-to`](how-to/) | The code the Zelos How-To blog posts run, one folder per post: Python scripts, notebooks, a pytest suite and two extension projects. Not Docker benches; each folder says how to run it. |
 
 Using a bench is always `cd <bench> && just up`. The nodes, the Renode bench
 and the test suites are shared at the root, so benches compose the same pieces

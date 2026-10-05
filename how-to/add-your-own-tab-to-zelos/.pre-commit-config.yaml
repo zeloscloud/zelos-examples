@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: "v6.0.0"
+    hooks:
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: check-json
+        exclude: ^.devcontainer/devcontainer.json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  # Prettier and ESLint run from node_modules, at the versions package.json locks.
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: npx prettier --write --ignore-unknown
+        language: system
+        types: [text]
+      - id: eslint
+        name: eslint
+        entry: npx eslint --fix
+        language: system
+        files: ^src/.*\.(ts|tsx)$
