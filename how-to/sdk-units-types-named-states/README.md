@@ -1,9 +1,9 @@
-# Give your Python data units, types and named states
+# Define your data's units and states up front
 
-Code for [Give your Python data units, types and named states](https://zeloscloud.io/blog/sdk-units-types-named-states).
+Code for [Define your data's units and states up front](https://zeloscloud.io/blog/sdk-units-types-named-states).
 
-Install the SDK with `pip install zelos-sdk`, start the Zelos app, then:
+Install [uv](https://docs.astral.sh/uv/), start the Zelos app, then:
 
 ```bash
-python pack_sim.py
+uv run --with zelos-sdk pack_sim.py
 ```

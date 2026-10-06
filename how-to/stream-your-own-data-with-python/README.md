@@ -1,9 +1,9 @@
-# Stream your own measurements with Python
+# Stream your own measurements with the SDK
 
-Code for [Stream your own measurements with Python](https://zeloscloud.io/blog/stream-your-own-data-with-python).
+Code for [Stream your own measurements with the SDK](https://zeloscloud.io/blog/stream-your-own-data-with-python).
 
-Install the SDK with `pip install zelos-sdk`, start the Zelos app, then:
+This folder is the project the post makes with `uv init supply` and `uv add zelos-sdk`. Install [uv](https://docs.astral.sh/uv/), start the Zelos app, then run in this folder:
 
 ```bash
-python supply.py
+uv run supply.py
 ```
