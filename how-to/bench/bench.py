@@ -6,7 +6,7 @@ from zelos_sdk.actions import ActionExecuteResult
 VOLTS = {"3v3": 3.28, "5v0": 5.02, "12v0": 11.95}  # stand-in for your instrument
 enabled = {"3v3": True, "5v0": True, "12v0": False}
 CHANNELS = {"supply": ["ch1", "ch2"], "dmm": ["dcv", "acv"]}
-limit = {"volts": 3.0}  # added for E4
+limit = {"volts": 3.0}  # the alarm threshold a custom tab sets
 agent = Agent()  # lazy; used only by read_cell_voltage
 
 
@@ -44,7 +44,7 @@ def read_cell_voltage(cell: str):
     return agent.latest(f"bus0/BMS_message/cells.{cell}").value
 
 
-# added for E4: a custom tab sets this, then reads it back from limits/threshold.value
+# A custom tab sets this, then reads it back from limits/threshold.value
 @action("Set Threshold", "Set the low-cell alarm threshold")
 @action.number("volts", minimum=2.5, maximum=4.2, default=3.0)
 def set_threshold(volts: float = 3.0):
@@ -54,9 +54,11 @@ def set_threshold(volts: float = 3.0):
 
 init("bench", actions=True)
 
-# added for X1/E4: stream the rails and the threshold at 10 Hz (S1 teaches streaming)
-rails = TraceSource("rails").add_event("voltage", [TraceEventFieldMetadata(r, DataType.Float64, "V") for r in VOLTS])
-threshold = TraceSource("limits").add_event("threshold", [TraceEventFieldMetadata("value", DataType.Float64, "V")])
+# Stream the rails and the threshold at 10 Hz
+rails = TraceSource("rails").add_event(
+    "voltage", [TraceEventFieldMetadata(r, DataType.Float64, "V") for r in VOLTS])
+threshold = TraceSource("limits").add_event(
+    "threshold", [TraceEventFieldMetadata("value", DataType.Float64, "V")])
 try:
     while True:
         rails.log(**{r: VOLTS[r] if enabled[r] else 0.0 for r in VOLTS})

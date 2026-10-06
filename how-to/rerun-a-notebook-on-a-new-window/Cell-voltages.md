@@ -2,7 +2,6 @@
 requires-python: '>=3.10'
 dependencies:
 - zelos-sdk[notebook]
-- scipy
 params:
   window: -10m
 ---
@@ -27,12 +26,5 @@ cells.short_names().plot(title=f"Cell voltages, {params.window}")
 
 ```python {#h2kyhjnd}
 weak = cells["bus0/BMS_message/cells.cell_3"]
-(weak < 3.2).sum()
-```
-
-```python {#9kjyhmyy}
-from scipy.signal import find_peaks
-
-dips, _ = find_peaks(-weak.to_numpy(), prominence=0.5)
-len(dips)
+(weak < 3.0).sum()
 ```
