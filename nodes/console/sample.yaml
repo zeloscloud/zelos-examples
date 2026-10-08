@@ -1,0 +1,8 @@
+sample:
+  name: Console node
+common:
+  platform_allow: nucleo_h753zi
+  integration_platforms:
+    - nucleo_h753zi
+tests:
+  zelos.nodes.console: {}
