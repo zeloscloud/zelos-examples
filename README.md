@@ -7,6 +7,7 @@ and is checked in CI.
 |---|---|
 | [`can-bench`](can-bench/) | Three emulated microcontrollers running Zephyr firmware, talking CAN on a virtual bus, decoded live. Ships two builds of one node so a fault can be found in the data and then fixed. |
 | [`can-full`](can-full/) | can-bench's nodes plus a J1939 genset and a CANopen PDU, with XCP on the DC-DC, each protocol checked by an independent implementation of it, in Renode and on a board. |
+| [`serial-bench`](serial-bench/) | A Zephyr node and a Linux machine in Renode whose only interface is a console, recorded by the Serial extension. One notebook shows their logs, values and command replies. |
 | [`how-to`](how-to/) | The code the Zelos How-To blog posts run, one folder per post: Python scripts, notebooks, a pytest suite and two extension projects. Not Docker benches; each folder says how to run it. |
 
 Using a bench is always `cd <bench> && just up`. The nodes, the Renode bench
@@ -19,7 +20,7 @@ rather than copying them.
 |---|---|
 | `west.yml` | The Zephyr workspace every node builds in, pinned to one tag |
 | `zephyr/`, `CMakeLists.txt`, `Kconfig` | This repository as a Zephyr module, contributing `lib/` |
-| `nodes/` | Zephyr applications, one per node, each reusable by any bench: `vcu`, `bms`, `dcdc`, `genset`, `pdu` |
+| `nodes/` | Zephyr applications, one per node, each reusable by any bench: `vcu`, `bms`, `dcdc`, `genset`, `pdu`, `console` |
 | `lib/`, `include/zelos/` | Code the nodes share, each piece off until a node's `prj.conf` enables it |
 | `snippets/` | Protocols any node can build with, e.g. `-S xcp` |
 | `dbc/` | Wire formats of the shared nodes; `lib/codec_bench/` is generated from `bench.dbc` |
