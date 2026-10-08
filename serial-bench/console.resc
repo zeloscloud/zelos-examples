@@ -1,0 +1,31 @@
+# nodes/console on its board, its console served on TCP port 4001.
+#
+# Renode holds the console's output until a client connects, then sends all of
+# it, so the agent sees the node boot however late it attaches.
+
+using sysbus
+mach create "console"
+machine LoadPlatformDescription @platforms/boards/nucleo_h753zi.repl
+
+# Renode's model of this board clocks the SysTick at 96 MHz, while Zephyr
+# assumes the core's 480 MHz, so the node's time ran at 0.2x real time. At
+# 480 MHz its log time stamps track virtual time to within 0.023%, and the node
+# runs at 1.0000x real time.
+sysbus.nvic Frequency 480000000
+
+# Errors only, as in ../bench/renode-run.sh: Zephyr's D-cache maintenance writes
+# registers Renode does not model, and each write logs a warning.
+logLevel 3 nvic
+
+# Also print the console to the container's log, for `just console`: the socket
+# serves one client, and that is the agent.
+showAnalyzer usart3
+
+emulation CreateServerSocketTerminal 4001 "dut" false
+connector Connect sysbus.usart3 dut
+
+# Loaded from the reset macro, which Renode also runs when the firmware reboots.
+macro reset "sysbus LoadELF @/elf/console.elf"
+runMacro $reset
+
+start

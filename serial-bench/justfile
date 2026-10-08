@@ -1,0 +1,80 @@
+# The serial bench. Run `just` for the list of recipes.
+#
+# CI runs these same recipes, so it cannot diverge from the guide.
+
+set shell := ["bash", "--noprofile", "--norc", "-euo", "pipefail", "-c"]
+
+# The firmware is built by the repository's shared recipes, one level up.
+FIRMWARE := quote(just_executable()) + " --justfile " + quote(justfile_directory() / ".." / "justfile")
+
+# Show the available recipes.
+default:
+    @just --list --unsorted
+
+# Bring the bench up. Idempotent.
+up: _elf
+    docker compose up -d --wait
+    @echo
+    @echo "Bench is up. Connect the Zelos app to localhost:${BENCH_PORT:-2300}"
+    @echo "Watch the node's console with:  just console"
+
+# Stop the bench and remove its containers and network.
+down:
+    docker compose down --remove-orphans --volumes
+
+# Tail the console node's output as it prints.
+console:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # From Renode's log, because the console's socket serves one client and
+    # the agent holds it.
+    docker compose logs -f --tail 100 --no-log-prefix renode-zephyr \
+        | sed -n 's/^[^ ]* \[INFO\] usart3: \[[^]]*\] //p'
+
+# Run every test notebook against the running bench.
+test:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    shopt -s nullglob
+    notebooks=(notebooks/*.md)
+    if [ ${#notebooks[@]} -eq 0 ]; then
+        echo "no notebooks in notebooks/" >&2
+        exit 1
+    fi
+    failed=()
+    for nb in "${notebooks[@]}"; do
+        name=$(basename "$nb")
+        echo "==> ${name}"
+        docker compose exec -T agent \
+            zelos notebook run "/notebooks/${name}" -o "/notebooks/${name%.md}.html" \
+            || failed+=("${name}")
+    done
+    if [ ${#failed[@]} -gt 0 ]; then
+        echo
+        echo "failed: ${failed[*]}" >&2
+        exit 1
+    fi
+
+# Build the console node into build/console.elf.
+build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ FIRMWARE }} build console build/console.elf
+    # `just up` will not reload a running simulator.
+    if docker compose ps --status running --services 2>/dev/null | grep -qx renode-zephyr; then
+        echo
+        echo "The bench is running the previous firmware: just down && just up"
+    fi
+
+# Firmware must exist and must not be older than its sources.
+_elf:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f build/console.elf ]; then
+        echo "No firmware in build/. Build it:"
+        echo "    just build"
+        exit 1
+    fi
+    {{ FIRMWARE }} _fresh build/console.elf \
+        ../nodes/console ../lib/Kconfig ../lib/CMakeLists.txt \
+        ../west.yml ../CMakeLists.txt ../Kconfig ../zephyr

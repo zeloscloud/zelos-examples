@@ -1,0 +1,16 @@
+{
+  "ports": [
+    {
+      "connection": "tcp",
+      "host": "127.0.0.1",
+      "tcp_port": 4001,
+      "name": "dut"
+    },
+    {
+      "connection": "tcp",
+      "host": "127.0.0.1",
+      "tcp_port": 4002,
+      "name": "linux"
+    }
+  ]
+}

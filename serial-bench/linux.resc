@@ -1,0 +1,11 @@
+# Renode's stock Linux demo, its console served on TCP port 4002.
+#
+# The stock script must be the only machine in its Renode: one of its hooks
+# reads the first machine. It downloads a 64 MiB image on every start.
+
+include @scripts/single-node/cortex-a53-linux.resc
+
+emulation CreateServerSocketTerminal 4002 "linux" false
+connector Connect sysbus.uart0 linux
+
+start
