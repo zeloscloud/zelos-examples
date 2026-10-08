@@ -31,8 +31,8 @@ console:
     docker compose logs -f --tail 100 --no-log-prefix renode-zephyr \
         | sed -n 's/^[^ ]* \[INFO\] usart3: \[[^]]*\] //p'
 
-# Run every test notebook against the running bench.
-test:
+# Run every notebook against the running bench.
+test: _ready
     #!/usr/bin/env bash
     set -euo pipefail
     shopt -s nullglob
@@ -65,6 +65,34 @@ build:
         echo
         echo "The bench is running the previous firmware: just down && just up"
     fi
+
+# Wait until Serial has both ports open, the node has logged, and Linux has
+# booted to its login prompt. `just up` returns before the agent starts Serial.
+_ready:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    state() {
+        docker compose exec -T agent zelos actions execute Serial/get_state \
+            --mode live --params "{\"port\": \"$1\"}" 2>/dev/null || true
+    }
+    ready() {
+        local s
+        s=$(state "$1")
+        grep -q '"state": "open"' <<<"$s" && grep -Eq "\"$2\": [1-9]" <<<"$s"
+    }
+    deadline=$((SECONDS + 180))
+    until ready dut lines && ready linux prompts; do
+        if [ "$SECONDS" -ge "$deadline" ]; then
+            echo "Serial was not ready after 180 s. Its state:" >&2
+            state dut >&2
+            state linux >&2
+            exit 1
+        fi
+        sleep 2
+    done
+    # Renode holds the node's output until Serial connects, then sends it at once,
+    # and those lines land at their arrival time. Let 15 s of live output follow.
+    sleep 15
 
 # Firmware must exist and must not be older than its sources.
 _elf:
