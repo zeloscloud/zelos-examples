@@ -1,7 +1,8 @@
-# testing/, installed with its locked dependencies. Runs pytest on the bench's bus.
+# The bench's tester: testing/, installed with its locked dependencies. Runs
+# pytest on the bench's bus.
 #
-# Built from testing/ as the context. dbc/ is mounted at /dbc, which is where
-# the package looks for it relative to /testing.
+# dbc/ is mounted at /dbc, which is where the package looks for it relative to
+# /testing.
 FROM python:3.12-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /usr/local/bin/uv

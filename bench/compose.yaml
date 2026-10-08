@@ -80,9 +80,10 @@ services:
 
   # Started by `docker compose run tester <pytest args>`, not by `up`.
   tester:
+    # Its Dockerfile lives in the context: compose grants buildx bake read
+    # access to a build's context and nothing outside it.
     build:
       context: ../testing
-      dockerfile: ../bench/tester.Dockerfile
     image: zelos-bench-tester
     pull_policy: build
     profiles: ["tester"]
