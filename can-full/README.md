@@ -33,8 +33,8 @@ just test       # the protocol suites against the running bench
 just down
 ```
 
-`just bus` tails the raw bus. The agent decodes `../dbc/bench.dbc` and
-`../dbc/genset.dbc` and listens on 2300, or on `BENCH_PORT`; can-bench uses the
+`just bus` tails the raw bus. The agent decodes `../dbc/full.dbc` (every
+classic and J1939 message; the PDU's CANopen frames come from its EDS) and listens on 2300, or on `BENCH_PORT`; can-bench uses the
 same default, so run one bench at a time or move one.
 
 ## The nodes
