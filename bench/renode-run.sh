@@ -25,6 +25,11 @@ first=
 		echo "${name}  /elf/${elf}" >&2
 		# Every node is the same board; only the firmware differs.
 		#
+		# Renode's model of this part clocks the SysTick at 96 MHz. Zephyr runs
+		# the board's core at 480 MHz and counts its ticks at that rate, so
+		# `sysbus.nvic Frequency` matches the two and the firmware keeps time
+		# with Renode's clock.
+		#
 		# `showAnalyzer usart3` routes the node's Zephyr console to stdout, so
 		# `docker compose logs renode` shows each node booting.
 		#
@@ -38,6 +43,7 @@ first=
 		cat <<-EOF
 			mach create "${name}"
 			machine LoadPlatformDescription @platforms/boards/nucleo_h753zi.repl
+			sysbus.nvic Frequency 480000000
 			logLevel 3 nvic
 			showAnalyzer usart3
 			macro reset "sysbus LoadELF @/elf/${elf}"
@@ -47,18 +53,28 @@ first=
 	done
 	# One bridge only: two bridges on one vcan interface loop frames forever.
 	#
-	# Both values below were measured on three nodes rather than copied from an
-	# example. Without serial execution, nodes stop transmitting at random with
-	# no error reported, and throughput varied between 28% and 100% of real time
-	# across identical runs. At 100 us the nodes stay within 4 ms of each other;
-	# 25 us, which upstream's two-machine example uses, costs about 23% of
-	# throughput, and 1 ms spreads the nodes 76 ms apart.
+	# Serial execution runs the machines in turn on one host thread, which
+	# Renode documents as its deterministic mode, at some cost in speed. The
+	# quantum is how far each machine runs before the next takes its turn, and
+	# a frame sent in one quantum reaches the other machines at the next; 1 ms
+	# is a fiftieth of the fastest period on the bus.
+	#
+	# Measured on GitHub's 4-vCPU runners with Renode 1.16.1, Renode's clock
+	# against the host's over 120 s unless noted. Three nodes keep real time at
+	# any quantum from 250 us to 2 ms, and over 600 s at 1 ms, where no gap
+	# between a node's frames strayed more than 19 ms from its period; at
+	# Renode's default of 100 us they run at 0.73 to 0.76 of real time, and at
+	# 25 us at 0.22. Five nodes (../can-full) run at 0.74 of real time at 1 ms
+	# over 600 s, 0.82 at 2 ms and 0.88 at 5 ms, so real time for them needs a
+	# faster host than a runner. Threaded execution, Renode's default, was no
+	# faster with five nodes (0.47 to 0.66) and dropped no frames in 600 s with
+	# three.
 	cat <<-EOF
 		mach set "${first}"
 		machine CreateSocketCANBridge "socketcan" "vcan0"
 		connector Connect socketcan canHub
 		emulation SetGlobalSerialExecution True
-		emulation SetGlobalQuantum "0.0001"
+		emulation SetGlobalQuantum "0.001"
 		start
 	EOF
 } > "${RESC}"

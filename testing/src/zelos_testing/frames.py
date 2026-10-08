@@ -9,14 +9,22 @@ import can
 import pytest
 
 # Set once by the plugin from the channel. SIMULATED: the nodes run under
-# Renode, whose clock runs slow and unsteady against the host's. TIME_SCALE:
-# host seconds a wait may take per second of the node's time (--time-scale).
+# Renode, whose clock keeps pace with the host's only as long as the host can
+# run the bench at full speed. TIME_SCALE: host seconds a wait may take per
+# second of the node's time (--time-scale).
 SIMULATED = False
 TIME_SCALE = 1.0
 
 # Waits end on the node's frames, so they run in its time whatever the host's.
 # This much of its time bounds any one of them.
 WAIT_S = 10.0
+
+# How far a host timestamp can sit from the node's clock under Renode: the
+# bridge writes a frame when the emulation reaches it, and the emulation runs
+# ahead of or behind the host by whatever the host's scheduling allows. Over
+# ten minutes on GitHub's 4-vCPU runners, gaps between a node's frames strayed
+# up to 19 ms from its period with three nodes on the bench and 120 ms with five.
+HOST_JITTER_S = 0.2
 
 
 def bound(node_s: float) -> float:
@@ -63,13 +71,14 @@ def assert_period(gaps: list[float], period_s: float, tol: float):
     """Gaps between one node's frames keep its period_s.
 
     On hardware the mean is within tol (a fraction) of period_s, and no gap is
-    a fifth late. Under Renode the host stamps measure how fast the simulation
-    ran, not the node's period, so what holds is a steady cadence: no gap half
-    or double the mean, which would be a stall or a burst.
+    a fifth late. Under Renode the host stamps carry HOST_JITTER_S of the
+    host's scheduling, and stretch together when the host cannot keep up, so
+    what holds there is that the node never stalled; a drop or a burst shows in
+    its own counters and ratios, which the suites check in its time.
     """
     mean = sum(gaps) / len(gaps)
     if SIMULATED:
-        assert mean / 2 < min(gaps) and max(gaps) < 2 * mean, f"gaps {min(gaps):.4f}..{max(gaps):.4f} s, mean {mean:.4f} s"
+        assert max(gaps) < 2 * mean + HOST_JITTER_S, f"gaps {min(gaps):.4f}..{max(gaps):.4f} s, mean {mean:.4f} s"
     else:
         assert abs(mean - period_s) < tol * period_s, f"mean {mean * 1000:.2f} ms for {period_s * 1000:.0f} ms"
         assert max(gaps) < 1.2 * period_s, f"max {max(gaps) * 1000:.2f} ms for {period_s * 1000:.0f} ms"

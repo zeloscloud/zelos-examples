@@ -229,11 +229,12 @@ def test_dm1_by_bam_when_hot(bus, node):
     tp = [m for m in frames if parse(m)[2] == sa and parse(m)[0] in (PGN.TP_CM, PGN.DATATRANSFER)]
     assert [m.data[0] for m in tp[1:]] == list(range(1, packets + 1)), [bytes(m.data).hex() for m in tp]
 
-    # J1939-21: 50 to 200 ms between BAM packets. Renode's clock only runs slow
-    # against the host's, so there only the low end holds, within 10%.
+    # J1939-21: 50 to 200 ms between BAM packets. Under Renode the host stamps
+    # carry jitter of the order of the spacing itself, so there only the high
+    # end holds, at the host's time scale; the low end is checked on hardware.
     gaps = [b.timestamp - a.timestamp for a, b in zip(tp, tp[1:])]
     if bench.SIMULATED:
-        lower, upper = 0.9 * 0.05, float("inf")
+        lower, upper = 0.0, 0.2 * bench.TIME_SCALE + bench.HOST_JITTER_S
     else:
         lower, upper = 0.05, 0.2
     assert all(lower <= g <= upper for g in gaps), [round(g * 1000, 1) for g in gaps]
