@@ -1,4 +1,5 @@
-# The Zelos agent, with the CAN extension installed.
+# The Zelos agent, with one extension installed: CAN unless a bench passes
+# EXTENSION and EXTENSION_VERSION.
 #
 # Installing the extension at build time rather than at run time keeps the
 # download, the Python interpreter and its dependencies in an image layer.
@@ -7,8 +8,8 @@ FROM ubuntu:22.04
 ARG AGENT_VERSION=26.0.9
 ARG CLI_VERSION=0.1.10
 # The marketplace identifier is the extension's repository.
-ARG CAN_EXTENSION=zeloscloud/zelos-extension-can
-ARG CAN_EXTENSION_VERSION=v0.1.17
+ARG EXTENSION=zeloscloud/zelos-extension-can
+ARG EXTENSION_VERSION=v0.1.17
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl procps \
@@ -34,11 +35,11 @@ RUN set -eux; \
         if zelos extensions list >/dev/null 2>&1; then break; fi; \
         sleep 1; \
     done; \
-    zelos extensions install "${CAN_EXTENSION}" "${CAN_EXTENSION_VERSION}"; \
+    zelos extensions install "${EXTENSION}" "${EXTENSION_VERSION}"; \
     kill "${agent_pid}"; \
     wait "${agent_pid}" 2>/dev/null || true
 
-# Starts the agent and the extension with the bench's configuration, mounted at
-# /bench/can.json by the bench that runs it.
+# Starts the agent and the extension with the bench's configuration, mounted
+# under /bench by the bench that runs it.
 COPY agent-entrypoint.sh /usr/local/bin/bench-agent
 CMD ["bash", "/usr/local/bin/bench-agent"]
