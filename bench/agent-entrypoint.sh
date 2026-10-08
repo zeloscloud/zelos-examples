@@ -1,13 +1,17 @@
 #!/bin/bash
-# Start the agent and hand the CAN extension its configuration.
+# Start the agent and hand an extension its configuration: the CAN extension
+# unless BENCH_EXTENSION names another.
 #
 # The agent owns the extension from then on: its process, its restarts and its
 # exit codes. Configuring it here also avoids a limitation of the app, which
 # disables extension installs while more than one agent is connected.
 set -euo pipefail
 
-CONFIG=${BENCH_CAN_CONFIG:-/bench/can.json}
-EXTENSION=${BENCH_CAN_EXTENSION:-zeloscloud.zelos-extension-can}
+CONFIG=${BENCH_CONFIG:-/bench/can.json}
+EXTENSION=${BENCH_EXTENSION:-zeloscloud.zelos-extension-can}
+# A directory holding an extension's source, for one not yet on the
+# marketplace. Installed at every start, which took 12 to 42 s on the bench.
+LOCAL=${BENCH_EXTENSION_LOCAL:-}
 
 # zelos-agent has no --version; it logs its version on startup instead.
 echo "cli:       $(zelos --version 2>&1 | head -1)"
@@ -43,6 +47,12 @@ done
 if [ "${ready}" != yes ]; then
     echo "agent did not answer within 60s" >&2
     exit 1
+fi
+
+# install-local runs the extension from that directory and builds its
+# environment under /var/lib/zelos-agent, so the mount can be read-only.
+if [ -n "${LOCAL}" ]; then
+    zelos extensions install-local "${LOCAL}"
 fi
 
 # Retried because it is the first call that does real work.
