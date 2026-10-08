@@ -25,7 +25,7 @@ def pytest_addoption(parser):
         type=float,
         help="Host seconds a wait may take per second of the node's time. Waits end "
         "on the node's frames; this only bounds them (default: 1 on a physical "
-        "channel, 20 on vcan, where Renode runs several times slower than real time)",
+        "channel, 5 on vcan, for a host that runs the bench slower than real time)",
     )
     parser.addoption(
         "--a2l",
@@ -39,7 +39,7 @@ def pytest_configure(config):
     """Whether the nodes are simulated, and how long a wait may take, decided once."""
     frames.SIMULATED = _link(config.getoption("channel"))["info_kind"] == "vcan"
     scale = config.getoption("time_scale")
-    frames.TIME_SCALE = scale if scale is not None else 20.0 if frames.SIMULATED else 1.0
+    frames.TIME_SCALE = scale if scale is not None else 5.0 if frames.SIMULATED else 1.0
 
 
 @pytest.fixture

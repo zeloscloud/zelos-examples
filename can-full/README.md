@@ -80,14 +80,17 @@ just test-bench can_raw can-full/build/dcdc-xcp.elf
 
 ## Timing under Renode
 
-The bench runs at a fifth of real time on a 16-core machine, the same as
-can-bench: five nodes cost no more than three there. Renode's clock is not tied
-to the host's, so on this bench the suites assert timing relative to the node's
-own frames: ten EEC1 per ET1, one DAQ sample per DC-DC cycle, heartbeats never
-faster than declared. Waits end on frames counted in the node's time; host
-seconds only bound them, scaled by pytest's `--time-scale`: 1 on a physical
-channel, 20 on vcan. Absolute periods and latencies are asserted on hardware
-only.
+The nodes keep time with Renode's clock, and Renode keeps its clock to the
+host's as long as the host can run five machines at full speed. GitHub's 4-vCPU
+runners cannot: there the bench runs at 0.74 of real time over ten minutes,
+every node slowed together, where can-bench's three nodes run at real time. So
+the suites assert timing relative to the nodes' own frames: ten EEC1 per ET1,
+one DAQ sample per DC-DC cycle, heartbeats never faster than declared. Waits
+end on frames counted in the node's time; host seconds only bound them, scaled
+by pytest's `--time-scale`: 1 on a physical channel, 5 on vcan, enough for a
+host that runs the bench at a fifth of real time. Absolute periods and
+latencies are asserted on hardware only: a host timestamp can lead or trail
+the node's clock by tens of milliseconds while Renode catches up after a pause.
 
 ## On hardware
 

@@ -78,7 +78,8 @@ def node(bus):
     network = canopen.Network(bus)
     pdu = network.add_node(NODE_ID, str(EDS))
     pdu.frames = Frames(network, (HEARTBEAT, EMCY, TPDO1, TPDO2))
-    # An SDO answer takes the node no time, but Renode's clock runs slow.
+    # An SDO answer takes the node no time, but a host that runs the bench
+    # slower than real time stretches it.
     pdu.sdo.RESPONSE_TIMEOUT = bound(pdu.sdo.RESPONSE_TIMEOUT)
     network.connect()
     try:

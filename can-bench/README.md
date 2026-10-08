@@ -81,12 +81,12 @@ just bus
 ```
 
 ```
- (000.000000)  vcan0  300   [8]  3C 05 6E 04 C2 01 54 7A
- (000.251239)  vcan0  200   [7]  95 0E 41 03 9B 02 DF
- (000.003411)  vcan0  100   [4]  01 2C 03 DF
- (000.004805)  vcan0  201   [7]  50 46 00 00 58 02 DF
- (000.005541)  vcan0  300   [8]  3C 05 6E 04 C2 01 54 7C
- (000.234282)  vcan0  300   [8]  3C 05 6E 04 C2 01 54 7E
+ (000.000000)  vcan0  300   [8]  3C 05 6E 04 C2 01 51 1C
+ (000.006951)  vcan0  200   [7]  96 0E 41 03 9B 02 47
+ (000.002506)  vcan0  100   [4]  01 B3 03 47
+ (000.003861)  vcan0  201   [7]  50 46 00 00 58 02 47
+ (000.036333)  vcan0  300   [8]  3C 05 6E 04 C2 01 51 1E
+ (000.051012)  vcan0  300   [8]  3C 05 6E 04 C2 01 51 20
 ```
 
 Three senders, five identifiers, and `0x300` arriving twice per cycle of the
@@ -117,8 +117,7 @@ the current envelope for that mode, including `AuxCurrentLimit` — the pack
 current the DC-DC may draw. The DC-DC respects it.
 
 The VCU walks a fixed drive cycle: stand still, drive, charge, repeat. One pass
-is 15 seconds of firmware time, about 75 seconds of wall clock at the speed the
-bench runs.
+is 15 seconds: 2 s of standby, 8 s of drive, 5 s of charge.
 
 ## Layout
 
@@ -189,17 +188,22 @@ BENCH_PORT=2301 just up
 Running the bench on a headless box and the app on your laptop avoids the clash,
 and is how a real bench is usually arranged.
 
-### The bench runs slower than wall clock
+### Timing
 
-Three emulated Cortex-M7 cores take turns on one host core. The bench runs at
-about a fifth of real time on a 12th Gen Core i7-1260P and about a quarter on an
-Intel N100, so a message declared at 100 ms arrives every 400 to 500 ms.
+The firmware keeps time with Renode's clock, and Renode keeps its clock to the
+host's as long as the host can run the emulation at full speed. On GitHub's
+4-vCPU runners this bench does: over ten minutes, every message arrived at its
+declared period to four figures, and no gap between a node's frames was more
+than 19 ms off. A host that cannot keep up slows the whole bench together, so
+the ratios between messages stay exact and only the host's timestamps stretch.
 
-Serial execution and the 100 µs quantum in `../bench/renode-run.sh` were chosen by
-measuring this bench, not copied from an example; the file records what the
-alternatives cost. The ratios between messages are exact, so anything that
-depends on relative timing is faithful. Anything that depends on absolute rate
-is not.
+Two Renode settings in `../bench/renode-run.sh` matter, and the file records
+what the alternatives measured. `sysbus.nvic Frequency 480000000` matches
+Renode's SysTick to the 480 MHz Zephyr counts it at; Renode's model of this
+part clocks it at 96 MHz, which would run the firmware at a fifth of Renode's
+clock. Serial execution with a 1 ms quantum runs the three machines in turn,
+deterministically, and at real time; Renode's default quantum of 100 µs costs
+a quarter of that.
 
 ## Finding the defect
 
@@ -210,8 +214,8 @@ just flash defect
 ```
 
 That restarts the simulator with the second DC-DC firmware and gives the agent a
-fresh store, so what you see next comes only from this build. Give it a couple
-of minutes to get through a drive cycle, then plot two signals together:
+fresh store, so what you see next comes only from this build. Give it a drive
+cycle, 15 seconds, then plot two signals together:
 
 - `CAN/vcan0/0201_BMS_Limits.AuxCurrentLimit`
 - `CAN/vcan0/0300_DCDC_Status.InputCurrent`

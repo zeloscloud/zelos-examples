@@ -8,7 +8,7 @@ params:
   window: -5m
   settle_samples: 2
   tolerance_a: 0.02
-  wait_s: 240
+  wait_s: 90
 ---
 
 `AuxCurrentLimit` in `BMS_Limits` is the pack current the DC-DC converter may
@@ -39,7 +39,7 @@ def cuts(frame):
     return frame["AuxCurrentLimit"].diff().to_pandas() < -params.tolerance_a
 
 
-# The allowance drops once per drive cycle, so wait for a cut rather than
+# The allowance drops once per 15 s drive cycle, so wait for a cut rather than
 # assume the bench has been up long enough.
 deadline = time.monotonic() + params.wait_s
 while not cuts(both := query(start=params.window)).any():
@@ -51,12 +51,12 @@ while not cuts(both := query(start=params.window)).any():
 ## The last cut
 
 The draw should drop with the allowance. On the defective build it walks down
-after it instead.
+after it instead, over a quarter of a second.
 
 ```python
 steps = cuts(both)
 at = steps.index[steps][-1]
-query(start=at - timedelta(seconds=3), end=at + timedelta(seconds=6)).plot()
+query(start=at - timedelta(seconds=0.5), end=at + timedelta(seconds=1.5)).plot()
 ```
 
 ## The check
