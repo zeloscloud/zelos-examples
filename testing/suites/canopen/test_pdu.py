@@ -75,7 +75,7 @@ def node(bus):
     """The PDU, reset and pre-operational, with its PDOs mapped as the EDS declares."""
     network = canopen.Network(bus)
     node = network.add_node(NODE_ID, str(EDS))
-    # Renode runs slower than real time, so SDO answers take longer there.
+    # A host that runs the bench slower than real time stretches SDO answers.
     node.sdo.RESPONSE_TIMEOUT = bound(node.sdo.RESPONSE_TIMEOUT)
     node.heartbeats = []
     node.nmt.add_heartbeat_callback(node.heartbeats.append)
