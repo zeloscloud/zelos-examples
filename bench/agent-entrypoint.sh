@@ -9,9 +9,6 @@ set -euo pipefail
 
 CONFIG=${BENCH_CONFIG:-/bench/can.json}
 EXTENSION=${BENCH_EXTENSION:-zeloscloud.zelos-extension-can}
-# A directory holding an extension's source, for one not yet on the
-# marketplace. Installed at every start, which took 12 to 42 s on the bench.
-LOCAL=${BENCH_EXTENSION_LOCAL:-}
 
 # zelos-agent has no --version; it logs its version on startup instead.
 echo "cli:       $(zelos --version 2>&1 | head -1)"
@@ -47,12 +44,6 @@ done
 if [ "${ready}" != yes ]; then
     echo "agent did not answer within 60s" >&2
     exit 1
-fi
-
-# install-local runs the extension from that directory and builds its
-# environment under /var/lib/zelos-agent, so the mount can be read-only.
-if [ -n "${LOCAL}" ]; then
-    zelos extensions install-local "${LOCAL}"
 fi
 
 # Retried because it is the first call that does real work.
