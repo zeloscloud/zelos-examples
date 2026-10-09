@@ -12,10 +12,11 @@ Docker or an agent.
 ## Run them
 
 You need [uv](https://docs.astral.sh/uv/) and a checkout of the extension
-beside this repository, as for the bench. Run each script from the extension's
-checkout, so it imports that code. From this repository's root:
+beside this repository. Run each script from the extension's checkout, so it
+imports that code. From this repository's root:
 
 ```bash
+git clone --branch v0.1.0 https://github.com/zeloscloud/zelos-extension-serial ../zelos-extension-serial
 cd ../zelos-extension-serial
 uv run python ../zelos-examples/serial-bench/measure/split.py
 uv run python ../zelos-examples/serial-bench/measure/adapter_clock.py

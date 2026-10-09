@@ -54,27 +54,18 @@ services:
       retries: 30
       start_period: 120s
 
-  # The shared agent, recording with serial.json.
-  #
-  # Serial is not on the marketplace yet, so this is the CAN bench's image, and
-  # the agent installs Serial at start from a checkout of
-  # zeloscloud/zelos-extension-serial, SERIAL_EXTENSION_DIR, by default one
-  # beside this repository. Once v0.1.0 is released, install it
-  # like the CAN extension instead: give this service
-  #
-  #   image: zelos-bench-agent-serial
-  #   build:
-  #     args:
-  #       EXTENSION: zeloscloud/zelos-extension-serial
-  #       EXTENSION_VERSION: v0.1.0
-  #
-  # set BENCH_EXTENSION to zeloscloud.zelos-extension-serial, and drop
-  # BENCH_EXTENSION_LOCAL, the /extension mount, and the checkout step in
-  # .github/workflows/serial-bench.yml.
+  # The shared agent with the Serial extension, recording with serial.json.
+  # Its own image name, so it does not replace the CAN benches' image, which
+  # holds the CAN extension.
   agent:
     extends:
       file: ../bench/compose.yaml
       service: agent
+    image: zelos-bench-agent-serial
+    build:
+      args:
+        EXTENSION: zeloscloud/zelos-extension-serial
+        EXTENSION_VERSION: v0.1.0
     network_mode: "service:renode-zephyr"
     depends_on: !override
       renode-zephyr:
@@ -82,19 +73,10 @@ services:
       renode-linux:
         condition: service_healthy
     environment:
-      BENCH_EXTENSION: local.serial
-      BENCH_EXTENSION_LOCAL: /extension
+      BENCH_EXTENSION: zeloscloud.zelos-extension-serial
       BENCH_CONFIG: /bench/serial.json
     volumes: !override
       - ./serial.json:/bench/serial.json:ro
-      - type: bind
-        source: ${SERIAL_EXTENSION_DIR:-../../zelos-extension-serial}
-        target: /extension
-        read_only: true
-        # A missing checkout fails `up`, rather than mounting an empty
-        # directory that Docker creates.
-        bind:
-          create_host_path: false
       # Writable: the notebook runner assigns cell ids and stages a
       # provisioning script beside each notebook.
       - ./notebooks:/notebooks
