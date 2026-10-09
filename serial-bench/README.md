@@ -33,14 +33,6 @@ Cortex-A53 demo: Buildroot, kernel 6.3.0.
   curl -fsSL https://just.systems/install.sh | bash -s -- --to ~/.local/bin
   ```
 
-- **A checkout of the Serial extension beside this repository.** From the
-  repository root:
-
-  ```bash
-  git clone https://github.com/zeloscloud/zelos-extension-serial ../zelos-extension-serial
-  ```
-
-  To use a checkout elsewhere, set `SERIAL_EXTENSION_DIR` to its path.
 - **Network access on every start.** Renode downloads the Linux image, 64 MiB,
   each time the Linux container starts.
 
@@ -56,9 +48,6 @@ just up
 the agent answers `zelos status`, its healthcheck. On an Intel N100 running
 Ubuntu 22.04, it takes 40 to 45 s once the images are built, and about 2.5 minutes when it
 builds them.
-
-The agent installs the extension from your checkout at every start, which took
-8 to 10 s on that machine. Data appears once the install finishes.
 
 Watch the node's console:
 
@@ -142,12 +131,9 @@ machines share a clock, and Linux booting slowed the node to 0.08x real time.
 
 ## How the agent gets the extension
 
-The extension is not on the marketplace yet. The agent image is the CAN
-bench's, and `../bench/agent-entrypoint.sh` installs the extension from the
-checkout mounted at `/extension` on every start, then starts it with
-`serial.json`. CI checks out a pinned commit of the extension for this. Once the
-extension is released, the agent installs it from the marketplace like the CAN
-extension; `compose.yaml` lists the lines to change.
+The agent image, `zelos-bench-agent-serial`, installs Serial `v0.1.0` from the
+Zelos marketplace when it builds. `../bench/agent-entrypoint.sh` starts it with
+`serial.json` each time the container starts.
 
 ## If port 2300 is in use
 
@@ -170,7 +156,7 @@ Then connect the app to `localhost:2301`.
 | Zelos agent | `26.0.9` |
 | Zelos CLI | `0.1.10` |
 | Zelos SDK (notebooks) | `0.0.12` |
-| Serial extension | a commit of `zeloscloud/zelos-extension-serial`, pinned in `.github/workflows/serial-bench.yml` |
+| Serial extension | `v0.1.0` |
 
 ## Licence
 

@@ -50,21 +50,11 @@ jobs:
   bench:
     runs-on: ubuntu-latest
     needs: firmware
-    env:
-      SERIAL_EXTENSION_DIR: ${{ github.workspace }}/zelos-extension-serial
     steps:
       - uses: actions/checkout@v4
       - uses: extractions/setup-just@v4
         with:
           just-version: "1.58.0"
-
-      # The extension under test, installed by the agent at start until it is
-      # on the marketplace; see compose.yaml.
-      - uses: actions/checkout@v4
-        with:
-          repository: zeloscloud/zelos-extension-serial
-          ref: c71a2827555a66b0e6b78fa7c3d2b2f4420fc652
-          path: zelos-extension-serial
 
       - uses: actions/download-artifact@v4
         with:
