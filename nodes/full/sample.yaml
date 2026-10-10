@@ -1,0 +1,11 @@
+sample:
+  name: Combined bench image (DC-DC + XCP + UDS, genset J1939, PDU CANopen)
+common:
+  platform_allow: nucleo_h753zi
+  integration_platforms:
+    - nucleo_h753zi
+tests:
+  zelos.nodes.full:
+    required_snippets:
+      - xcp
+      - uds

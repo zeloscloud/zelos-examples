@@ -1,0 +1,11 @@
+/* A fake controller the test plays the bus with. */
+/ {
+	chosen {
+		zephyr,canbus = &fake_can;
+	};
+
+	fake_can: fake_can {
+		compatible = "zephyr,fake-can";
+		status = "okay";
+	};
+};

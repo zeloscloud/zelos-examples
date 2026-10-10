@@ -22,9 +22,10 @@ LOG_MODULE_REGISTER(zelos_j1939, LOG_LEVEL_INF);
  */
 #define MAX_MSGS 8
 
-K_MSGQ_DEFINE(rx_msgq, sizeof(struct can_frame), 16, 4);
-K_MUTEX_DEFINE(lock);
-K_THREAD_STACK_DEFINE(stack, 1024);
+/* K_MSGQ_DEFINE cannot be static, so its name carries the library's. */
+K_MSGQ_DEFINE(zelos_j1939_rx_msgq, sizeof(struct can_frame), 16, 4);
+static K_MUTEX_DEFINE(lock);
+static K_THREAD_STACK_DEFINE(stack, 1024);
 static struct k_thread thread;
 
 /* Frames a poll produced, queued under the lock and sent after it. */
@@ -47,7 +48,8 @@ static void run(void *p1, void *p2, void *p3)
 
 	for (;;) {
 		struct can_frame frame;
-		bool got = k_msgq_get(&rx_msgq, &frame, K_MSEC(CONFIG_ZELOS_J1939_TICK_MS)) == 0;
+		bool got = k_msgq_get(&zelos_j1939_rx_msgq, &frame,
+				      K_MSEC(CONFIG_ZELOS_J1939_TICK_MS)) == 0;
 		uint32_t now = k_uptime_get_32();
 
 		k_mutex_lock(&lock, K_FOREVER);
@@ -90,7 +92,7 @@ int zelos_j1939_start(struct zelos_j1939 *j)
 	}
 
 	for (size_t i = 0; i < ARRAY_SIZE(pgns); i++) {
-		err = zelos_can_subscribe_ext(pgns[i] << 8, PF_MASK, &rx_msgq);
+		err = zelos_can_subscribe_ext(pgns[i] << 8, PF_MASK, &zelos_j1939_rx_msgq);
 		if (err < 0) {
 			LOG_ERR("subscribe to PGN %u: %d", pgns[i], err);
 			return err;

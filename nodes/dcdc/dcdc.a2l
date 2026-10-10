@@ -153,13 +153,13 @@ ASAP2_VERSION 1 71
 
     /begin CHARACTERISTIC DEMAND_A "What the 12 V loads ask of the converter, pack side"
       VALUE 0x0 Scalar_FLOAT32_IEEE 0 NO_COMPU_METHOD 0 20
-      SYMBOL_LINK "dcdc_demand_a" 0
+      SYMBOL_LINK "dcdc_cal" 0
       PHYS_UNIT "A"
     /end CHARACTERISTIC
 
     /begin CHARACTERISTIC SLEW_A_PER_S "Rate cap on the pack-side current"
       VALUE 0x0 Scalar_FLOAT32_IEEE 0 NO_COMPU_METHOD 0.1 100
-      SYMBOL_LINK "dcdc_slew_a_per_s" 0
+      SYMBOL_LINK "dcdc_cal" 4
       PHYS_UNIT "A/s"
     /end CHARACTERISTIC
 

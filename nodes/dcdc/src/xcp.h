@@ -3,9 +3,7 @@
 #ifndef DCDC_XCP_H_
 #define DCDC_XCP_H_
 
-/* Calibration parameters, defined in main.c. */
-extern float dcdc_demand_a;
-extern float dcdc_slew_a_per_s;
+#include "calibration.h"
 
 int dcdc_xcp_start(void);
 

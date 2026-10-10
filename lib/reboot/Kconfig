@@ -1,0 +1,6 @@
+config ZELOS_REBOOT
+	bool "One orderly MCU reboot for every caller"
+	select REBOOT
+	help
+	  zelos_reboot() runs the registered hook, then reboots. See
+	  include/zelos/reboot.h.

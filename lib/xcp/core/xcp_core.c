@@ -288,7 +288,9 @@ static void download(struct zelos_xcp_core *xcp, uint8_t n, const uint8_t *data)
 	 * The application reads calibration values without a lock, so an
 	 * aligned 32-bit parameter is stored in one access, never byte by byte.
 	 */
-	if (n == 4 && ((uintptr_t)dst & 3U) == 0U) {
+	if (xcp->config->write != NULL) {
+		xcp->config->write(dst, data, n);
+	} else if (n == 4 && ((uintptr_t)dst & 3U) == 0U) {
 		uint32_t v;
 
 		memcpy(&v, data, 4);

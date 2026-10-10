@@ -104,6 +104,15 @@ wheels = [
 ]
 
 [[package]]
+name = "can-isotp"
+version = "2.0.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/29/5a4bfa625254686ee2e6ce4e54530956d62af6e995b0588916b4caae4dc3/can_isotp-2.0.7.tar.gz", hash = "sha256:4586ca62f8646da918df1d3ffd257c7e3532a4fbd138cebd8fe0777e3b94e361", size = 52548, upload-time = "2025-05-14T02:54:13.148Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e4/1e/f1b163783c90ccbad0227de267d899d7283b3174b89f1d66bb7c2a509808/can_isotp-2.0.7-py3-none-any.whl", hash = "sha256:28d155dec1c640bf32771fb4e271323d777158ab130372724a8b7b82aca66a7c", size = 34571, upload-time = "2025-05-14T02:54:11.805Z" },
+]
+
+[[package]]
 name = "can-j1939"
 version = "2.0.12"
 source = { registry = "https://pypi.org/simple" }
@@ -770,6 +779,15 @@ wheels = [
 ]
 
 [[package]]
+name = "udsoncan"
+version = "1.26.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/8e/7d0a876681f1578711c96a2996b114fd77d4a5786a9f00f440bc8655269a/udsoncan-1.26.1.tar.gz", hash = "sha256:e4e04df9ad3be4f1dd6cc6dd580aa8a25cb842b3bb1b10c482d3cffa07303910", size = 95828, upload-time = "2026-06-25T20:43:14.023Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9b/99/5c79ce34af274fe20c4511ecf792ed2d868ad64a2406351f20df7f2b33fd/udsoncan-1.26.1-py3-none-any.whl", hash = "sha256:c1bd6cc54d6c1124c0eafeff2ffaab48bfeb7d0d2576959f21840c37e96dfb9a", size = 120636, upload-time = "2026-06-25T20:43:12.998Z" },
+]
+
+[[package]]
 name = "wrapt"
 version = "1.17.3"
 source = { registry = "https://pypi.org/simple" }
@@ -852,24 +870,28 @@ name = "zelos-testing"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "can-isotp" },
     { name = "can-j1939" },
     { name = "canopen" },
     { name = "cantools" },
     { name = "pytest" },
     { name = "python-can" },
     { name = "pyxcp" },
+    { name = "udsoncan" },
     { name = "zelos-can" },
     { name = "zelos-sdk" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "can-isotp", specifier = "==2.0.7" },
     { name = "can-j1939", specifier = "==2.0.12" },
     { name = "canopen", specifier = "==2.4.1" },
     { name = "cantools", specifier = "==41.3.1" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "python-can", specifier = "==4.6.1" },
     { name = "pyxcp", specifier = "==0.29.19" },
+    { name = "udsoncan", specifier = "==1.26.1" },
     { name = "zelos-can", specifier = "==0.0.11a5" },
     { name = "zelos-sdk", specifier = "==0.0.12a3" },
 ]

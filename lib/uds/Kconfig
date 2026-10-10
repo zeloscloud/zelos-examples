@@ -1,0 +1,62 @@
+config ZELOS_UDS
+	bool "UDS server on ISO-TP"
+	depends on ZELOS_CAN
+	select ZELOS_UDS_CORE
+	select ISOTP
+	select ZELOS_REBOOT
+	select CSPRNG_NEEDED
+	help
+	  Answers a diagnostic tester (ISO 14229-1) over ISO-TP (ISO
+	  15765-2, Zephyr's CONFIG_ISOTP) on the node's CAN bus: sessions,
+	  security access, data identifiers, I/O control, routines, DTCs,
+	  ECU reset and download into RAM. See include/zelos/uds.h.
+
+config ZELOS_UDS_CORE
+	bool "UDS protocol core"
+	select CRC
+	help
+	  The protocol logic without a transport. ZELOS_UDS selects it; on
+	  its own it is only useful to unit tests.
+
+if ZELOS_UDS
+
+config ZELOS_UDS_PHYS_ID
+	hex "CAN identifier of physically addressed requests"
+	default 0x7e0
+
+config ZELOS_UDS_FUNC_ID
+	hex "CAN identifier of functionally addressed requests"
+	default 0x7df
+
+config ZELOS_UDS_RESP_ID
+	hex "CAN identifier of responses"
+	default 0x7e8
+
+endif # ZELOS_UDS
+
+if ZELOS_UDS_CORE
+
+config ZELOS_UDS_BUF_SIZE
+	int "Largest request or response, bytes"
+	range 64 4095
+	default 1026
+	help
+	  Also the maxNumberOfBlockLength RequestDownload and RequestUpload
+	  report: a TransferData message, its SID and counter included. ISO-TP's
+	  receive pool must hold one (ISOTP_RX_BUF_COUNT x ISOTP_RX_BUF_SIZE).
+
+config ZELOS_UDS_DOWNLOAD_ADDRESS
+	hex "Address of the download window"
+	default 0x00100000
+	help
+	  Where RequestDownload, RequestUpload and the erase and check
+	  routines address the RAM download buffer.
+
+config ZELOS_UDS_DOWNLOAD_SIZE
+	int "RAM download buffer, bytes"
+	range 1 65536
+	default 65536
+	help
+	  The download window's size. Never written to flash.
+
+endif # ZELOS_UDS_CORE

@@ -150,6 +150,31 @@ ZTEST(xcp, test_download_allowlist)
 	zassert_equal(secret, 0x5EC7E7);
 }
 
+static int hook_calls;
+
+static void hook(void *dst, const void *src, size_t len)
+{
+	hook_calls++;
+	memcpy(dst, src, len);
+}
+
+/* The application's write hook stores every DOWNLOAD, e.g. under its lock. */
+ZTEST(xcp, test_download_through_write_hook)
+{
+	struct zelos_xcp_config hooked = config;
+	struct zelos_xcp_frame f;
+
+	hooked.write = hook;
+	hook_calls = 0;
+	zelos_xcp_core_init(&xcp, &hooked);
+	CMD(&f, 0xFF, 0x00);
+	CMD(&f, 0xF6, 0, 0, 0, LE32(ADDR(&param)));
+	CMD(&f, 0xF0, 4, LE32(0x01020304));
+	assert_ok(&f);
+	zassert_equal(hook_calls, 1);
+	zassert_equal(param, 0x01020304);
+}
+
 ZTEST(xcp, test_daq_round_trip)
 {
 	struct zelos_xcp_frame f;

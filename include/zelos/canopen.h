@@ -16,7 +16,13 @@
  * what the master wrote (RPDO, SDO) from it, and write what the node reports.
  * PDOs are sent and received by the stack's own thread.
  *
- * NMT reset-communication restarts the stack in place; NMT reset-node reboots.
+ * Call zelos_can_init() first: the stack shares the controller lib/can owns.
+ *
+ * Both NMT resets restart the stack in place, without touching the controller
+ * or the MCU, and announce it with a boot-up message. Reset-communication
+ * restores the communication area (0x1000-0x1FFF) to its values at this call;
+ * reset-node restores the whole dictionary. Node state that a reset-node must
+ * clear therefore lives in the dictionary.
  *
  * @param tick The node's business logic.
  * @return Only on failure to start: negative errno.

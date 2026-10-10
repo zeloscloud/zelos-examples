@@ -46,6 +46,11 @@ struct zelos_xcp_config {
 	const char *id;
 	/* The build's EPK: readable by the master, ADDR_EPK in the A2L. NULL: none. */
 	const char *epk;
+	/*
+	 * Every DOWNLOAD's store, e.g. under a lock the application shares with
+	 * another writer of the same memory. NULL: stored directly.
+	 */
+	void (*write)(void *dst, const void *src, size_t len);
 };
 
 #if defined(CONFIG_ZELOS_XCP)

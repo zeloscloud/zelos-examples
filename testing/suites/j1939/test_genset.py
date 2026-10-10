@@ -2,12 +2,14 @@
 
 Frames are checked directly, and BAM is reassembled by python-can-j1939, an
 independent J1939 stack. Each test finds the node's address by requesting
-Address Claimed, so none depends on a fresh boot or on an earlier test.
+Address Claimed, so none depends on a fresh boot or on an earlier test. Other
+claimants (a bench PLC) are tolerated and recorded.
 
 Waits end on frames rather than on host seconds where they can: on Renode the
 host clock measures how fast the simulation runs, not the node's timing.
 """
 
+import itertools
 import time
 
 import can
@@ -16,7 +18,13 @@ import pytest
 
 from zelos_testing import dbc
 from zelos_testing import frames as bench
-from zelos_testing.frames import assert_period, bound, collect, play_unless_present, until
+from zelos_testing.frames import (
+    assert_period,
+    bound,
+    collect,
+    play_unless_present,
+    until,
+)
 
 GENSET = dbc.load("genset")
 EEC1 = GENSET.get_message_by_name("EEC1")
@@ -105,24 +113,28 @@ def first(bus, want):
     return gather(bus, lambda got: want(got[-1]))
 
 
-def answered(got):
-    """A claim came back, and the claimant's next two EEC1 left time for any other."""
-    found = claims(got)
-    if not found:
-        return False
-    t, sa, _ = found[0]
-    return sa == NULL or len([m for m in got if m.timestamp > t and is_from(PGN_EEC1, sa)(m)]) >= 2
+def genset_claim(got):
+    """(sa, NAME) of the claimant that then sends EEC1 twice, by when any other has answered too."""
+    for t, sa, name in claims(got):
+        if sa != NULL and len([m for m in got if m.timestamp > t and is_from(PGN_EEC1, sa)(m)]) >= 2:
+            return sa, name
+    return None
 
 
 @pytest.fixture
-def node(bus):
-    """(sa, NAME) of the one J1939 node on the bus, as it answers a request."""
+def node(bus, record_property):
+    """(sa, NAME) of the genset, as it answers a request.
+
+    A bench may carry other J1939 nodes (a PLC): their claims are recorded, not
+    failed. The genset is the claimant that sends EEC1.
+    """
     request(bus, PGN.ADDRESSCLAIM)
-    found = [(sa, name) for _, sa, name in claims(gather(bus, answered))]
-    assert len(found) == 1, f"expected one claimant, got {found}"
-    sa, name = found[0]
-    assert sa != NULL, "the node could not claim an address"
-    return sa, name
+    got = gather(bus, lambda got: genset_claim(got) is not None or any(sa == NULL for _, sa, _ in claims(got)))
+    found = genset_claim(got)
+    assert found is not None, f"the genset could not claim an address: {[(hex(sa), hex(name)) for _, sa, name in claims(got)]}"
+    others = sorted({(sa, name) for _, sa, name in claims(got)} - {found})
+    record_property("other_claimants", [f"0x{sa:02x} NAME 0x{name:016x}" for sa, name in others])
+    return found
 
 
 def test_claims_address_on_request(node):
@@ -184,7 +196,7 @@ def test_periods(bus, node):
     for pgn, msg in ((PGN_EEC1, EEC1), (PGN_ET1, ET1)):
         stamps = [m.timestamp for m in frames if is_from(pgn, sa)(m)]
         # 2%: an untrimmed node clock; the host stamps on receipt.
-        assert_period([b - a for a, b in zip(stamps, stamps[1:])], msg.cycle_time / 1000, 0.02)
+        assert_period([b - a for a, b in itertools.pairwise(stamps)], msg.cycle_time / 1000, 0.02)
 
     # On any clock the periods keep their ratio: ten EEC1 per ET1, +-1 for jitter.
     eec1 = len([m for m in frames if is_from(PGN_EEC1, sa)(m)])
@@ -232,7 +244,7 @@ def test_dm1_by_bam_when_hot(bus, node):
     # J1939-21: 50 to 200 ms between BAM packets. Under Renode the host stamps
     # carry jitter of the order of the spacing itself, so there only the high
     # end holds, at the host's time scale; the low end is checked on hardware.
-    gaps = [b.timestamp - a.timestamp for a, b in zip(tp, tp[1:])]
+    gaps = [b.timestamp - a.timestamp for a, b in itertools.pairwise(tp)]
     if bench.SIMULATED:
         lower, upper = 0.0, 0.2 * bench.TIME_SCALE + bench.HOST_JITTER_S
     else:
