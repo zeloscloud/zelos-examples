@@ -10,7 +10,7 @@ ECU_ADDRESS (MEASUREMENT) and the address field (CHARACTERISTIC) from the
 ELF's symbol table, and the EPK and ADDR_EPK from the firmware's EPK string
 (zelos_xcp_epk), so the A2L names the one build it describes.
 
-    uv run tools/a2l_addresses.py nodes/dcdc/dcdc.a2l build/dcdc-xcp.elf build/dcdc-xcp.a2l
+    uv run tools/a2l_addresses.py nodes/dcdc/dcdc.a2l build/full.elf build/full.a2l
 """
 
 import re

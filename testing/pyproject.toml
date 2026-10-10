@@ -9,12 +9,14 @@ version = "0.1.0"
 description = "Shared pytest fixtures and suites for the CAN nodes"
 requires-python = ">=3.12"
 dependencies = [
+    "can-isotp==2.0.7",
     "can-j1939==2.0.12",
     "canopen==2.4.1",
     "cantools==41.3.1",
     "pytest==9.1.1",
     "python-can==4.6.1",
     "pyxcp==0.29.19",
+    "udsoncan==1.26.1",
     "zelos-can==0.0.11a5",
     "zelos-sdk==0.0.12a3",
 ]

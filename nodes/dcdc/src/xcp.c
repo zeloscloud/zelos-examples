@@ -18,15 +18,14 @@ float dcdc_slew_step_a;
 float dcdc_temperature_c;
 float dcdc_aux_limit_a;
 
-/* All a master may reach. Only the two calibration parameters are writable. */
+/* All a master may reach. Only the calibration parameters are writable. */
 static const struct zelos_xcp_region regions[] = {
 	{&dcdc_setpoint_a, sizeof(float), false},
 	{&dcdc_input_current_a, sizeof(float), false},
 	{&dcdc_slew_step_a, sizeof(float), false},
 	{&dcdc_temperature_c, sizeof(float), false},
 	{&dcdc_aux_limit_a, sizeof(float), false},
-	{&dcdc_demand_a, sizeof(float), true},
-	{&dcdc_slew_a_per_s, sizeof(float), true},
+	{&dcdc_cal, sizeof(dcdc_cal), true},
 };
 
 /* One event, once per DCDC_Status cycle. */
@@ -41,6 +40,7 @@ static const struct zelos_xcp_config config = {
 	.event_count = ARRAY_SIZE(events),
 	.id = "dcdc",
 	.epk = zelos_xcp_epk,
+	.write = dcdc_cal_write,
 };
 
 int dcdc_xcp_start(void)

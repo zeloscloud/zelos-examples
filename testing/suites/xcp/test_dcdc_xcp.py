@@ -6,8 +6,8 @@ and broadcasts lands in the test's Zelos trace, where `check` asserts on it:
 `--zelos-trace-file --zelos-local-artifacts-dir out` writes both.
 """
 
+import time
 from itertools import pairwise
-from pathlib import Path
 
 import can
 import pytest
@@ -17,6 +17,7 @@ from zelos_can import CanDecoder
 from zelos_testing.dbc import DBC_DIR
 from zelos_testing.dcdc import LIMITS, LIMITS_PERIOD_S, STATUS, BmsLimits
 from zelos_testing.frames import Periodic, bound, count, play_unless_present, until
+from zelos_testing.plugin import find_a2l
 from zelos_testing.xcp import Ecu, XcpResponseError
 
 # Below every allowance either BMS grants (a real one: 2 to 6 A by mode), and
@@ -28,13 +29,9 @@ pytestmark = pytest.mark.usefixtures("bus_health")
 
 @pytest.fixture(scope="module")
 def a2l_path(pytestconfig):
-    """--a2l, or the one in /elf, where a bench's tester mounts its ELFs."""
-    path = pytestconfig.getoption("a2l")
+    path = find_a2l(pytestconfig)
     if path is None:
-        found = sorted(Path("/elf").glob("*.a2l"))
-        if len(found) != 1:
-            pytest.fail(f"{len(found)} A2Ls in /elf: pass --a2l with the one built beside the ELF")
-        path = found[0]
+        pytest.fail("no A2L: pass --a2l with the one built beside the ELF")
     return path
 
 
@@ -63,7 +60,12 @@ def status(pytestconfig, bus):
         notifier = can.Notifier(decoded, [decoder.decode_message])
         try:
             until(bus, lambda frames: len(frames) >= 2, ids=[STATUS.frame_id])
-            yield source[f"{STATUS.frame_id:04x}_{STATUS.name}"]
+            event = source[f"{STATUS.frame_id:04x}_{STATUS.name}"]
+            # `bus` holds frames from before `decoded` opened: wait for the decoder's own.
+            end = time.monotonic() + bound(1.0)
+            while event.Temperature.get() is None and time.monotonic() < end:
+                time.sleep(0.01)
+            yield event
         finally:
             notifier.stop()
 

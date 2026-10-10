@@ -9,6 +9,11 @@ The master reads nodes/pdu/od/pdu.eds, the file the node's object dictionary is
 generated from. Every test starts by resetting the node over NMT, so none
 depends on a fresh boot or on an earlier test.
 
+A hardware bench may carry a CANopen manager of its own (a PLC) that owns the
+node. These tests take the node from it: the PLC is paused through bench_quiet
+for the module, or the module skips when that is not configured.
+test_pdu_managed.py checks the node as the PLC runs it.
+
 Run it against a bench (`cd can-full && just test`) or a board on an adapter:
 
     cd testing && uv run pytest suites/canopen --channel can0
@@ -39,7 +44,7 @@ EMC_CURRENT_OUTPUT = 0x2300
 INPUTS = "Read input 8-bit.Input 1 to 8"
 OUTPUTS = "Write output 8-bit.Output 1 to 8"
 
-pytestmark = pytest.mark.usefixtures("bus_health")
+pytestmark = pytest.mark.usefixtures("bus_health", "canopen_takeover")
 
 
 def wait_until(condition, what):
@@ -81,13 +86,16 @@ def node(bus):
     node.nmt.add_heartbeat_callback(node.heartbeats.append)
     network.connect()
     try:
-        # Reset node: the node restarts and announces it with a boot-up message.
+        # Reset node: the node resets its application, without rebooting, and
+        # announces it with a boot-up message.
         set_state(node, "RESET", BOOTUP)
         # A reset restores the default PDO mapping, which is the EDS's.
         node.tpdo.read(from_od=True)
         node.rpdo.read(from_od=True)
         yield node
     finally:
+        # Pre-operational, as booted: an operational PDU reads as a foreign manager's.
+        node.nmt.state = "PRE-OPERATIONAL"
         # The bus belongs to its fixture; only stop listening on it.
         network.notifier.stop()
 
@@ -219,3 +227,4 @@ def test_sync_produces_tpdo3(node):
         node.network.sync.transmit()
         wait_for(lambda: len(received), count, f"TPDO3 after SYNC {count}")
         assert tpdo3[INPUTS].raw == inputs
+

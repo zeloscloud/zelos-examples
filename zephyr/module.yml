@@ -2,5 +2,8 @@ name: zelos
 build:
   cmake: .
   kconfig: Kconfig
+  # After the CANopen stack's module, so lib/canopen can replace its driver.
+  depends:
+    - canopennodezephyr
   settings:
     snippet_root: .

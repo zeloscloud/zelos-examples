@@ -39,14 +39,18 @@ first=
 		# 99.9% of everything the container printed.
 		#
 		# The ELF loads from the reset macro, which Renode also runs when the
-		# firmware reboots.
+		# firmware reboots. A machine reset puts the SysTick back to 96 MHz,
+		# so the macro sets its frequency again.
 		cat <<-EOF
 			mach create "${name}"
 			machine LoadPlatformDescription @platforms/boards/nucleo_h753zi.repl
-			sysbus.nvic Frequency 480000000
 			logLevel 3 nvic
 			showAnalyzer usart3
-			macro reset "sysbus LoadELF @/elf/${elf}"
+			macro reset
+			"""
+			sysbus LoadELF @/elf/${elf}
+			sysbus.nvic Frequency 480000000
+			"""
 			runMacro \$reset
 			connector Connect sysbus.fdcan1 canHub
 		EOF

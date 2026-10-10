@@ -1,0 +1,27 @@
+/*
+ * FDCAN1 message RAM sized for every protocol on one controller, included by
+ * each node's boards/nucleo_h753zi.overlay.
+ *
+ * Zephyr's M_CAN driver sizes every RX and TX element for CAN FD, 72 bytes,
+ * whatever the frames, and puts each filter's frames in FIFO0 or FIFO1 by the
+ * filter's index (even, odd), so both FIFOs take any protocol and are sized
+ * alike. The stock 3-deep FIFOs and 3 TX buffers fill within a UDS download
+ * burst or a SYNC with its TPDOs. The TX event FIFO matches the TX buffers,
+ * one event per frame sent.
+ *
+ *   28 std filters x 4 + 8 ext x 8 + (32 + 32) RX x 72 + 16 events x 8
+ *   + 16 TX x 72 = 6064 bytes (0x17B0) of the 10 KiB message RAM.
+ *
+ * FDCAN2 shares that RAM and starts after FDCAN1, keeping its stock layout
+ * (0x350 bytes), so enabling it later cannot overlap.
+ */
+
+&fdcan1 {
+	reg = <0x4000a000 0x400>, <0x4000ac00 0x17b0>;
+	bosch,mram-cfg = <0x0 28 8 32 32 0 16 16>;
+};
+
+&fdcan2 {
+	reg = <0x4000a400 0x400>, <0x4000ac00 0x1b00>;
+	bosch,mram-cfg = <0x17b0 28 8 3 3 0 3 3>;
+};
