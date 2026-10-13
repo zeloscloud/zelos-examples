@@ -121,9 +121,10 @@ hil ELF CHANNEL +SUITES:
     #!/usr/bin/env bash
     set -euo pipefail
     elf="{{ join(invocation_directory(), ELF) }}"
-    # Under reset: a running image can idle the core out of reach of SWD.
-    probe-rs download --chip {{ CHIP }} --connect-under-reset --verify "$elf"
-    probe-rs reset --chip {{ CHIP }} --connect-under-reset
+    flash() { probe-rs download --chip {{ CHIP }} "$@" --verify "$elf" && probe-rs reset --chip {{ CHIP }} "$@"; }
+    # Under reset only if a plain attach fails: a running image can idle the
+    # core out of reach of SWD, and not every probe has NRST wired.
+    flash || flash --connect-under-reset
     suites=()
     for suite in {{ SUITES }}; do suites+=("suites/$suite"); done
     # An XCP build's A2L sits beside its ELF.
