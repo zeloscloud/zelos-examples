@@ -529,9 +529,10 @@ def test_self_test_answers_pending_then_its_result(ecu, bus):
     assert nrc(ecu.client.stop_routine, SELF_TEST) == 0x24
     started_at = time.time()
     # udsoncan waits out the pending response; the bus shows what the server sent.
-    result = ecu.client.start_routine(SELF_TEST).service_data.routine_status_record
+    with frames.reading(bus) as seen:
+        result = ecu.client.start_routine(SELF_TEST).service_data.routine_status_record
     assert len(result) == 1
-    responses = [m for m in collect(bus, 0.1, ids=[RESPONSE]) if m.timestamp >= started_at]
+    responses = [m for m in seen if m.arbitration_id == RESPONSE and not m.is_error_frame and m.timestamp >= started_at]
     payloads = [bytes(m.data[1 : 1 + m.data[0]]) for m in responses]
     assert payloads == [b"\x7f\x31\x78", b"\x71\x01\x02\x01" + result]
     if not frames.SIMULATED:
