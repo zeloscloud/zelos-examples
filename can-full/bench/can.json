@@ -3,7 +3,7 @@
     {
       "interface": "socketcan",
       "channel": "vcan0",
-      "database_files": ["/dbc/bench.dbc", "/dbc/genset.dbc"],
+      "database_files": ["/dbc/full.dbc"],
       "name": "vcan0",
       "emit_schemas_on_init": true,
       "log_raw_frames": true,
