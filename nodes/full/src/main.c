@@ -1,7 +1,7 @@
 /*
- * One MCU hosting three logical ECUs on one controller: the DC-DC (with XCP
- * and UDS), the genset (J1939) and the PDU (CANopen). lib/can brings the bus
- * up once; each node then starts its own threads.
+ * One MCU hosting three logical ECUs on one controller: the DC-DC (with XCP,
+ * UDS and AUTOSAR PDUs), the genset (J1939) and the PDU (CANopen). lib/can
+ * brings the bus up once; each node then starts its own threads.
  *
  * The UDS server is the DC-DC's: CommunicationControl and ControlDTCSetting
  * act on the DC-DC alone. ECUReset reboots the MCU, so every node restarts.

@@ -1,0 +1,4 @@
+zephyr_library()
+zephyr_library_sources(core/autosar_core.c)
+zephyr_library_sources_ifdef(CONFIG_ZELOS_AUTOSAR zephyr/autosar.c)
+zephyr_library_sources_ifdef(CONFIG_ZELOS_AUTOSAR_CMAC zephyr/cmac.c)
