@@ -22,3 +22,7 @@ tests:
     required_snippets:
       - xcp
       - uds
+  # AUTOSAR PDUs: E2E, container, multiplexed, secured; see arxml/can-full.arxml.
+  zelos.nodes.dcdc.autosar:
+    required_snippets:
+      - autosar

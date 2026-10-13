@@ -20,7 +20,7 @@
  * I/O control 0x0300: the same setpoint, overridden: return, reset to 1380,
  * freeze, short-term adjustment (1000..1600).
  * Memory, by address (0x23, 0x3D):
- *   0x00010000, 32 bytes, read-only: struct dcdc_state (src/uds.h), little-endian
+ *   0x00010000, 32 bytes, read-only: struct dcdc_state (src/state.h), little-endian
  *   0x00020000, 8 bytes, writable in extended with level 0x01: demand A and
  *              slew rate A/s, float32 little-endian (struct dcdc_calibration)
  * Routine 0x0201: self-test, extended, about 2 s. Result: one byte, bit n set
