@@ -1,0 +1,104 @@
+# The serial board bench: a NUCLEO-H723ZG on your desk. Run `just` for the
+# list of recipes.
+
+set shell := ["bash", "--noprofile", "--norc", "-euo", "pipefail", "-c"]
+
+# The firmware is built by the repository's shared recipes, one level up.
+FIRMWARE := quote(just_executable()) + " --justfile " + quote(justfile_directory() / ".." / "justfile") + " BOARD=" + BOARD
+BOARD := "nucleo_h723zg"
+# The part on that board, for probe-rs.
+CHIP := "STM32H723ZG"
+# The name Serial gives the board's console, and the console's speed.
+PORT := "motor"
+BAUD := "921600"
+ELF := "build/motor.elf"
+
+# Show the available recipes.
+default:
+    @just --list --unsorted
+
+# Build, point Serial at the board, flash it, and load the dashboard.
+up: build configure flash layout
+    @echo
+    @echo "Open the 'Motor controller bring-up' layout in Zelos, then: just test"
+
+# Build the motor controller into build/motor.elf.
+build:
+    {{ FIRMWARE }} build motor {{ ELF }}
+
+# Point Serial at the board's ST-LINK console: a port named motor, at 921600 baud. Other ports stay.
+configure:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The running Serial if there is one, else the marketplace install, else a local one.
+    list=$(zelos extensions list)
+    ext=$(awk '/serial/ && /running/ {print $1; exit}' <<< "$list")
+    ext=${ext:-$(awk '$1 == "zeloscloud.zelos-extension-serial" {print $1; exit}' <<< "$list")}
+    ext=${ext:-$(awk '/serial/ {print $1; exit}' <<< "$list")}
+    if [ -z "$ext" ]; then
+        zelos extensions install zeloscloud/zelos-extension-serial
+        ext=zeloscloud.zelos-extension-serial
+    fi
+    # Every STLINK-V3 lists as 0483:374e, 374f, 3753 or 3754.
+    device=$(zelos actions execute Serial/list_ports --params '{}' \
+        | sed -n 's/.*"value": "\(usb:0483:37[45][0-9a-f]:[^"]*\)".*/\1/p' | head -1)
+    if [ -z "$device" ]; then
+        echo "No STLINK-V3 found. On an Apple Silicon Mac, plug the board in through a USB hub." >&2
+        exit 1
+    fi
+    # Keep the ports Serial already records; add or replace only the one named motor.
+    saved=$(zelos extensions config "$ext" --json)
+    config=$(SAVED="$saved" python3 -c '
+    import json, os, sys
+    name, device, baud = sys.argv[1:]
+    # Nothing saved yet is null, or no key at all right after an install; anything else must
+    # parse, or a port could be lost.
+    config = json.loads(os.environ["SAVED"]).get("last_config") or {}
+    ports = [p for p in config.get("ports", []) if p.get("name") != name and p.get("port") != device]
+    kept = [p.get("name") or p.get("port") or p.get("connection") for p in ports]
+    if kept:
+        print("keeping Serial ports: " + ", ".join(kept), file=sys.stderr)
+    ports.append({"connection": "serial", "name": name, "port": device, "baud": int(baud)})
+    config["ports"] = ports
+    print(json.dumps(config))
+    ' {{ PORT }} "$device" {{ BAUD }})
+    zelos extensions stop "$ext" > /dev/null 2>&1 || true
+    zelos extensions start "$ext" --config "$config" > /dev/null
+    # Serial's actions exist once it has started; wait for the port to open.
+    for _ in $(seq 60); do
+        if zelos actions execute Serial/get_state --params '{"port": "{{ PORT }}"}' 2>/dev/null \
+            | grep -q '"state": "open"'; then
+            echo "Serial ($ext) records $device as {{ PORT }} at {{ BAUD }} baud"
+            exit 0
+        fi
+        sleep 0.5
+    done
+    echo "Serial did not open $device within 30 s; run Serial/get_state to see why" >&2
+    exit 1
+
+# Flash build/motor.elf; Serial lets go of the port and takes it back in time for the boot.
+flash:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    params='{"port": "{{ PORT }}"}'
+    zelos actions execute Serial/release --params "$params" > /dev/null
+    trap 'zelos actions execute Serial/acquire --params "$params" > /dev/null || echo "acquire failed; run Serial/get_state to see why" >&2' EXIT
+    # Under reset: between interrupts Zephyr sleeps the core, and a sleeping
+    # STM32H7 does not answer the debugger.
+    probe-rs download --chip {{ CHIP }} --connect-under-reset --verify {{ ELF }}
+    zelos actions execute Serial/acquire --params "$params" > /dev/null
+    trap - EXIT
+    probe-rs reset --chip {{ CHIP }} --connect-under-reset
+
+# Load the dashboard into Zelos as a personal layout.
+layout:
+    @zelos layouts create "Motor controller bring-up" --data-file layout.json --personal > /dev/null
+    @echo "Layout 'Motor controller bring-up' created"
+
+# Run the bring-up notebook against the board: the bench's end-to-end test.
+test:
+    zelos notebook run notebooks/bring-up.md -o notebooks/bring-up.html
+
+# Print the console's last lines, as Serial received them.
+console LINES="40":
+    @zelos actions execute Serial/sample --params '{"port": "{{ PORT }}", "lines": {{ LINES }}}'
