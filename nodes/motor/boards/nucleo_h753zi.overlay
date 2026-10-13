@@ -1,0 +1,9 @@
+/* NUCLEO-H753ZI, the board CI builds every node for: the same console speed and sensors. */
+
+&usart3 {
+	current-speed = <921600>;
+};
+
+&vref {
+	status = "okay";
+};
