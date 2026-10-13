@@ -1,15 +1,16 @@
 # The CAN bench with protocols on it
 
 can-bench's VCU and BMS plus one image carrying every protocol real vehicle
-networks put on top of CAN: XCP for measurement and calibration and UDS for
-diagnostics on the DC-DC, J1939 for the engine, CANopen for a power
-distribution unit. One MCU hosts the three as logical ECUs, as one board does
+networks put on top of CAN: XCP for measurement and calibration, UDS for
+diagnostics and AUTOSAR PDUs on the DC-DC, J1939 for the engine, CANopen for a
+power distribution unit. One MCU hosts the three as logical ECUs, as one board does
 on the hardware bench; the same image is the bench's default and fallback.
 
 ```
  ┌───────┐ ┌───────┐ ┌──────────────────────────────────┐
  │  VCU  │ │  BMS  │ │ full: DC-DC   genset    PDU      │   Zephyr on STM32H753, in Renode
  │       │ │       │ │       XCP+UDS J1939     CANopen  │
+ │       │ │       │ │       AUTOSAR                    │
  └───┬───┘ └───┬───┘ └────────────────┬─────────────────┘
      └─────────┴──────── vcan0 ───────┘
                            │
@@ -17,8 +18,9 @@ on the hardware bench; the same image is the bench's default and fallback.
 ```
 
 Each protocol is checked by an independent implementation of it: pyxcp as the
-XCP master, can-isotp and udsoncan as the UDS tester, python-can-j1939
-reassembling J1939 transport, python `canopen` as the CANopen master. A bug shared by the node and the tool cannot hide that way.
+XCP master, can-isotp and udsoncan as the UDS tester, cantools reading the
+AUTOSAR system description, python-can-j1939 reassembling J1939 transport,
+python `canopen` as the CANopen master. A bug shared by the node and the tool cannot hide that way.
 
 ## What you need
 
@@ -45,12 +47,12 @@ same default, so run one bench at a time or move one.
 |---|---|---|---|
 | VCU | `../nodes/vcu` | | `0x101` |
 | BMS | `../nodes/bms` | | `0x200`-`0x202` |
-| DC-DC | `../nodes/full` (`../nodes/dcdc`, XCP and UDS) | XCP on CAN, UDS on ISO-TP | `0x300`; CRO `0x6F0`, DTO `0x6F1`; UDS `0x7E0`, functional `0x7DF`, responses `0x7E8` |
+| DC-DC | `../nodes/full` (`../nodes/dcdc`, XCP, UDS and AUTOSAR) | XCP on CAN, UDS on ISO-TP, AUTOSAR PDUs | `0x300`; AUTOSAR `0x310`-`0x315`; CRO `0x6F0`, DTO `0x6F1`; UDS `0x7E0`, functional `0x7DF`, responses `0x7E8` |
 | genset | `../nodes/full` (`../nodes/genset`) | J1939 | 29-bit, source address `0x80` |
 | PDU | `../nodes/full` (`../nodes/pdu`) | CANopen, node-id `0x20` | NMT `0x000`, SYNC `0x080`, TIME `0x100`, EMCY `0x0A0`, TPDO1 `0x1A0`, RPDO1 `0x220`, TPDO2 `0x2A0`, RPDO2 `0x320`, TPDO3 `0x3A0`, SDO `0x5A0`/`0x620`, heartbeat `0x720` |
 
-The first three are can-bench's, unchanged except that the DC-DC runs XCP and
-UDS. Over XCP its demand and slew rate become calibration parameters, its
+The first three are can-bench's, unchanged except that the DC-DC runs XCP, UDS
+and AUTOSAR PDUs. Over XCP its demand and slew rate become calibration parameters, its
 setpoint, current, temperature and allowance measurements, all described by
 `build/full.a2l`, which the build fills with that ELF's addresses.
 Over UDS (ISO 14229-1) it is a diagnostic server as an OEM baseline ECU carries
@@ -64,6 +66,14 @@ the PDU alone, without a reboot. Every protocol sends through one queue in
 
 XCP writes the calibration without seed and key while UDS asks level 0x01 for
 the same memory: this is a development ECU.
+
+As an AUTOSAR ECU it sends what `../arxml/can-full.arxml` (an AUTOSAR R19-11
+System Template of this bench, `bench.dbc` included) describes: E2E profiles 1,
+2 and 5, a container with short headers, a multiplexed PDU and a SecOC profile 1
+secured PDU, each carrying the model's values. Its tables are generated from the
+ARXML (`just arxml` at the root); the SecOC key is RFC 4493's example key. The
+ARXML is the node's description for host tools too: Zelos decodes the bench from
+it as from the DBC, each AUTOSAR PDU by name with its E2E status.
 
 The DC-DC and PDU single-node images still build, for focused work: `just build
 dcdc-xcp-uds pdu`. The genset runs only in `full`.
@@ -83,6 +93,7 @@ inputs and per-channel current, and trips channel 8, which is shorted.
 |---|---|---|
 | `../testing/suites/xcp` | DC-DC | Used as a bench uses its ECU: zelos-can opens the bus, pyxcp is the master, the A2L names everything, and `check` asserts on the Zelos trace. The EPK matches the A2L's; a measurement read over XCP matches the broadcast frame; DAQ on the A2L's event at its period, by the ECU's own timestamps; the node follows the BMS allowance; a calibration takes effect and is restored; measurements are read-only. Protocol conformance is covered by the ztests in `../tests/lib/xcp` |
 | `../testing/suites/uds` | DC-DC | A conformance suite for any UDS server on any python-can bus: this node, or the UDS extension's demo ECU in-process. Used as a tester uses an ECU: zelos-can opens the bus, can-isotp carries, udsoncan asks. Every Tier A service with its NRCs and their ISO 14229-1 order, physical and functional; sessions, S3, P2; both security levels, lockout and power-up delay; memory by address; erase, download, check, upload of 64 KiB. `test_dcdc_node.py`, against the node itself: 0x28 stops DCDC_Status, the setpoint drives the output, DTCs follow the model through operation cycles, a reset is a fresh boot, XCP and UDS share the ECU. Core conformance: ztests in `../tests/lib/uds` |
+| `../testing/suites/autosar` | DC-DC | Decoded as a bench decodes an AUTOSAR ECU, from the ARXML alone: ids, lengths and cycles as described; E2E profile 1 (by hand), 2 and 5 (cantools) CRCs and counters; the container's PDUs in turn; the multiplexed PDU's alternatives; the SecOC MAC verified with the key; every value equal to DCDC_Status's of the same sample; UDS on the CanTp addresses the ARXML gives, its flow control as described; 0x28 silences the PDUs. The ARXML carries `bench.dbc` unchanged. Core: ztests in `../tests/lib/autosar` with the PRS E2E examples |
 | `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; requests answered; periods; DM1 by BAM, reassembled by python-can-j1939; SOFT by RTS/CTS in the windows the requester grants, and by BAM to a global request. Originator conformance (windows, retransmit, abort, T3/T4): ztests in `../tests/lib/j1939` |
 | `../testing/suites/canopen` | PDU | Boot-up and heartbeat; NMT start, stop and pre-operational; SDO identity and downloads; RPDO commands reflected in TPDOs; an overcurrent trip raises EMCY and recovers; SYNC answered by the synchronous TPDO |
 | `../testing/suites/full` | all three | Every protocol at once for `--soak-s` (120 s here, 10 s on hardware): XCP DAQ, a UDS 64 KiB download and upload loop, CANopen operational with SYNC every 10 ms and RPDO1, J1939 and DCDC_Status. No EMCY, no DAQ sample lost, periods kept, and the node's counters (UDS DID `0x0110`) show no TX queue overflow, TX error or RX FIFO overrun |

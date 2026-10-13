@@ -1,6 +1,9 @@
 """Receiving and sending frames on a bus under test."""
 
 import contextlib
+import re
+import subprocess
+import tempfile
 import threading
 import time
 from collections.abc import Callable, Iterable, Iterator
@@ -119,6 +122,21 @@ class Periodic:
 
 
 @contextlib.contextmanager
+def reading(bus: can.BusABC) -> Iterator[list[can.Message]]:
+    """Every frame bus receives during the block, read as it arrives.
+
+    Around a call that blocks for seconds: a socket left unread that long on a
+    busy bus overflows and drops the newest frames.
+    """
+    seen: list[can.Message] = []
+    notifier = can.Notifier(bus, [seen.append])
+    try:
+        yield seen
+    finally:
+        notifier.stop()
+
+
+@contextlib.contextmanager
 def play_unless_present(bus: can.BusABC, frame_id: int, make_msg: Callable[[], can.Message], period_s: float, window: Callable[[list[can.Message]], bool]):
     """Play the peer that sends frame_id for the block, unless one is on the bus.
 
@@ -131,3 +149,34 @@ def play_unless_present(bus: can.BusABC, frame_id: int, make_msg: Callable[[], c
         return
     with Periodic(bus, make_msg, period_s):
         yield
+
+
+# Standard identifiers only: candump's 11-bit filters also pass 29-bit frames that match in their low bits.
+CANDUMP_LINE = re.compile(r"\((\d+\.\d+)\) \S+ ([0-9A-F]{3})#([0-9A-F]*)$")
+
+
+@contextlib.contextmanager
+def recording(channel: str, ids: Iterable[int]) -> Iterator[list[can.Message]]:
+    """The bus as candump (can-utils) records it during the block: data frames on these standard
+    IDs, oldest first, in the yielded list once the block ends.
+
+    candump is a process of its own: a socket in the test process can overflow
+    when the process stalls and drop frames silently, which would read as the
+    node's. Seen under Renode and on hardware. candump's socket can overflow too
+    on a loaded host; it counts its drops (-d), and a record with any fails here
+    rather than as the node's fault.
+    """
+    filters = ",".join(f"{i:03X}:7FF" for i in ids)
+    recorded: list[can.Message] = []
+    with tempfile.NamedTemporaryFile("r") as log:
+        with open(log.name, "w") as out, subprocess.Popen(["candump", "-d", "-L", f"{channel},{filters}"], stdout=out, stderr=subprocess.DEVNULL) as candump:
+            try:
+                yield recorded
+            finally:
+                candump.terminate()
+        lines = log.read().splitlines()
+    if drops := [line for line in lines if line.startswith("DROPCOUNT")]:
+        pytest.fail(f"the bus record is incomplete, the host dropped frames: {drops}")
+    for line in lines:
+        if m := CANDUMP_LINE.match(line):
+            recorded.append(can.Message(timestamp=float(m[1]), arbitration_id=int(m[2], 16), data=bytes.fromhex(m[3]), is_extended_id=False))
