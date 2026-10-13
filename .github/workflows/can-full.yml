@@ -16,6 +16,7 @@ on:
       - "include/**"
       - "snippets/**"
       - "dbc/**"
+      - "arxml/**"
       - "tools/**"
       - "toolchain/**"
       - "zephyr/**"
