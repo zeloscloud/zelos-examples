@@ -1,0 +1,267 @@
+{
+  "tabs": [
+    {
+      "id": "716cdd1a-9647-5c80-b6b4-3fb0a4a3d4f8",
+      "kind": "LAYOUT",
+      "name": "Motor bring-up",
+      "layout": {
+        "panels": [
+          {
+            "id": "73940567-47c4-5c8f-9e1a-45876163000a",
+            "kind": "VALUE",
+            "title": null,
+            "location": {
+              "x": 0,
+              "y": 0,
+              "w": 12,
+              "h": 0.5
+            },
+            "options": {
+              "columnCount": 8
+            },
+            "signals": [
+              {
+                "source": "Serial",
+                "message": "motor/motor",
+                "signal": "speed",
+                "color": "#33b1ff"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/motor",
+                "signal": "target",
+                "color": "#8a3ffc"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/motor",
+                "signal": "current",
+                "color": "#ff7eb6"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/motor",
+                "signal": "winding",
+                "color": "#fa4d56"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/sys",
+                "signal": "die",
+                "color": "#d2a106"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/sys",
+                "signal": "vdda",
+                "color": "#08bdba"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/sys",
+                "signal": "cpu",
+                "color": "#6fdc8c"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/sys",
+                "signal": "loop_max",
+                "color": "#4589ff"
+              }
+            ]
+          },
+          {
+            "id": "56b32bb6-d763-58ac-a903-d34eacd01c7c",
+            "kind": "PLOT",
+            "title": "Speed",
+            "location": {
+              "x": 0,
+              "y": 0.5,
+              "w": 12,
+              "h": 1.3
+            },
+            "options": {
+              "fillArea": false,
+              "linePathMode": "linear",
+              "yAxisLayout": "shared"
+            },
+            "signals": [
+              {
+                "source": "Serial",
+                "message": "motor/motor",
+                "signal": "speed",
+                "color": "#33b1ff"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/motor",
+                "signal": "target",
+                "color": "#8a3ffc"
+              }
+            ]
+          },
+          {
+            "id": "6af48ead-a73d-586d-993e-cacad776a53e",
+            "kind": "PLOT",
+            "title": "Drive",
+            "location": {
+              "x": 0,
+              "y": 1.8,
+              "w": 12,
+              "h": 1.0
+            },
+            "options": {
+              "fillArea": false,
+              "linePathMode": "linear",
+              "yAxisLayout": "lanes"
+            },
+            "signals": [
+              {
+                "source": "Serial",
+                "message": "motor/motor",
+                "signal": "current",
+                "color": "#ff7eb6"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/motor",
+                "signal": "duty",
+                "color": "#d2a106"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/values",
+                "signal": "error",
+                "color": "#fa4d56"
+              }
+            ]
+          },
+          {
+            "id": "a1bcf37e-6d7e-5c1a-b23d-cb21050940f9",
+            "kind": "PLOT",
+            "title": "Step response, measured on the chip",
+            "location": {
+              "x": 0,
+              "y": 2.8,
+              "w": 4,
+              "h": 0.9
+            },
+            "options": {
+              "fillArea": false,
+              "linePathMode": "linear",
+              "yAxisLayout": "lanes"
+            },
+            "signals": [
+              {
+                "source": "Serial",
+                "message": "motor/tune",
+                "signal": "overshoot",
+                "color": "#fa4d56"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/tune",
+                "signal": "settle",
+                "color": "#33b1ff"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/tune",
+                "signal": "rise",
+                "color": "#6fdc8c"
+              }
+            ]
+          },
+          {
+            "id": "f8dd4388-bf60-592a-b155-2cc9e569edb4",
+            "kind": "PLOT",
+            "title": "Chip",
+            "location": {
+              "x": 4,
+              "y": 2.8,
+              "w": 4,
+              "h": 0.9
+            },
+            "options": {
+              "fillArea": false,
+              "linePathMode": "linear",
+              "yAxisLayout": "lanes"
+            },
+            "signals": [
+              {
+                "source": "Serial",
+                "message": "motor/sys",
+                "signal": "die",
+                "color": "#d2a106"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/sys",
+                "signal": "cpu",
+                "color": "#6fdc8c"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/sys",
+                "signal": "loop_max",
+                "color": "#4589ff"
+              }
+            ]
+          },
+          {
+            "id": "c724a1a7-b8e8-54cd-b9fb-f9ebca943f3c",
+            "kind": "ACTION",
+            "title": "Console",
+            "location": {
+              "x": 8,
+              "y": 2.8,
+              "w": 4,
+              "h": 0.9
+            },
+            "namespace": "Serial",
+            "actionName": "command",
+            "options": {
+              "actionAgent": "localhost",
+              "inlineExecute": true
+            }
+          },
+          {
+            "id": "2fe2c83a-3a22-5a4e-ad23-55a3d818e101",
+            "kind": "LOG",
+            "title": "Firmware log",
+            "location": {
+              "x": 0,
+              "y": 3.7,
+              "w": 12,
+              "h": 1.4
+            },
+            "options": null,
+            "signals": [
+              {
+                "source": "Serial",
+                "message": "motor/log",
+                "signal": "level",
+                "color": "",
+                "eventType": "zelos.log.v1"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/log",
+                "signal": "name",
+                "color": "",
+                "eventType": "zelos.log.v1"
+              },
+              {
+                "source": "Serial",
+                "message": "motor/log",
+                "signal": "message",
+                "color": "",
+                "eventType": "zelos.log.v1"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

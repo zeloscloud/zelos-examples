@@ -1,0 +1,5 @@
+# Built firmware. Release artifacts, not sources.
+build/
+
+# Rendered notebook runs.
+*.html
