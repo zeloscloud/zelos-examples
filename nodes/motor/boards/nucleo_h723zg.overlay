@@ -1,0 +1,54 @@
+/*
+ * NUCLEO-H723ZG: the board the serial-board bench runs on. The board file
+ * enables none of these, so the node does.
+ */
+
+/ {
+	aliases {
+		watchdog0 = &iwdg;
+	};
+};
+
+/* The console at 921600 baud: the ST-LINK-V3's virtual COM port carries it. */
+&usart3 {
+	current-speed = <921600>;
+};
+
+&iwdg1 {
+	status = "okay";
+};
+
+/* The die temperature and VREFINT sensors read internal channels of ADC3. */
+&adc3 {
+	st,adc-clock-source = "SYNC";
+	st,adc-prescaler = <4>;
+	status = "okay";
+};
+
+/*
+ * The H72x keeps its factory calibration of these channels at ADC3's 12-bit
+ * resolution; the H7 family file says 16, which reads VDDA 16 times too low.
+ */
+&die_temp {
+	ts-cal-resolution = <12>;
+	status = "okay";
+};
+
+&vref {
+	vrefint-cal-resolution = <12>;
+	status = "okay";
+};
+
+/* The last two 128 KiB sectors hold the saved tuning. */
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		storage_partition: partition@c0000 {
+			label = "storage";
+			reg = <0x000c0000 DT_SIZE_K(256)>;
+		};
+	};
+};

@@ -1,0 +1,10 @@
+sample:
+  name: Motor controller node
+common:
+  platform_allow:
+    - nucleo_h723zg
+    - nucleo_h753zi
+  integration_platforms:
+    - nucleo_h753zi
+tests:
+  zelos.nodes.motor: {}
