@@ -3,7 +3,6 @@
 import contextlib
 import re
 import subprocess
-import tempfile
 import threading
 import time
 from collections.abc import Callable, Iterable, Iterator
@@ -151,32 +150,37 @@ def play_unless_present(bus: can.BusABC, frame_id: int, make_msg: Callable[[], c
         yield
 
 
-# Standard identifiers only: candump's 11-bit filters also pass 29-bit frames that match in their low bits.
-CANDUMP_LINE = re.compile(r"\((\d+\.\d+)\) \S+ ([0-9A-F]{3})#([0-9A-F]*)$")
+# A data frame in candump's log format: standard (3 digits) or extended (8) identifier.
+CANDUMP_LINE = re.compile(r"\((\d+\.\d+)\) \S+ ([0-9A-F]{3}|[0-9A-F]{8})#([0-9A-F]*)$")
 
 
 @contextlib.contextmanager
-def recording(channel: str, ids: Iterable[int]) -> Iterator[list[can.Message]]:
-    """The bus as candump (can-utils) records it during the block: data frames on these standard
-    IDs, oldest first, in the yielded list once the block ends.
+def recording(channel: str, ids: Iterable[int] | None = None) -> Iterator[list[can.Message]]:
+    """The bus as candump (can-utils) records it during the block: every data frame, or
+    those on these standard IDs, oldest first, in the yielded list once the block ends.
 
     candump is a process of its own: a socket in the test process can overflow
     when the process stalls and drop frames silently, which would read as the
-    node's. Seen under Renode and on hardware. candump's socket can overflow too
-    on a loaded host; it counts its drops (-d), and a record with any fails here
-    rather than as the node's fault.
+    node's. Seen under Renode and on hardware. It writes into a pipe this process
+    drains, not a file: on hardware a write waiting on the disk stalled candump
+    until its socket overflowed. It counts its drops (-d), and a record with any
+    fails here rather than as the node's fault.
     """
-    filters = ",".join(f"{i:03X}:7FF" for i in ids)
+    # candump's 11-bit filters also pass 29-bit frames that match in their low bits: dropped below.
+    spec = channel if ids is None else f"{channel}," + ",".join(f"{i:03X}:7FF" for i in ids)
     recorded: list[can.Message] = []
-    with tempfile.NamedTemporaryFile("r") as log:
-        with open(log.name, "w") as out, subprocess.Popen(["candump", "-d", "-L", f"{channel},{filters}"], stdout=out, stderr=subprocess.DEVNULL) as candump:
-            try:
-                yield recorded
-            finally:
-                candump.terminate()
-        lines = log.read().splitlines()
+    chunks: list[bytes] = []
+    with subprocess.Popen(["candump", "-d", "-L", spec], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL) as candump:
+        reader = threading.Thread(target=lambda: chunks.extend(iter(candump.stdout.read1, b"")), daemon=True)
+        reader.start()
+        try:
+            yield recorded
+        finally:
+            candump.terminate()
+            reader.join()
+    lines = b"".join(chunks).decode().splitlines()
     if drops := [line for line in lines if line.startswith("DROPCOUNT")]:
         pytest.fail(f"the bus record is incomplete, the host dropped frames: {drops}")
     for line in lines:
-        if m := CANDUMP_LINE.match(line):
-            recorded.append(can.Message(timestamp=float(m[1]), arbitration_id=int(m[2], 16), data=bytes.fromhex(m[3]), is_extended_id=False))
+        if (m := CANDUMP_LINE.match(line)) and (ids is None or len(m[2]) == 3):
+            recorded.append(can.Message(timestamp=float(m[1]), arbitration_id=int(m[2], 16), data=bytes.fromhex(m[3]), is_extended_id=len(m[2]) == 8))
