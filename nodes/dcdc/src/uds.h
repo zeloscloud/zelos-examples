@@ -4,23 +4,8 @@
 #define DCDC_UDS_H_
 
 #include <stdbool.h>
-#include <stdint.h>
 
-/*
- * One cycle's state. Also the read-only memory window at 0x00010000, as is:
- * 32 bytes, little-endian.
- */
-struct dcdc_state {
-	float output_v;
-	float output_a;
-	/* Pack voltage from BMS_Status; NaN when none is fresh. */
-	float input_v;
-	float input_a;
-	float temperature_c;
-	float setpoint_v;
-	float aux_limit_a;
-	uint32_t uptime_ms;
-};
+#include "state.h"
 
 int dcdc_uds_start(void);
 

@@ -13,3 +13,8 @@ endif()
 if(CONFIG_ZELOS_UDS)
   target_sources(app PRIVATE src/uds.c)
 endif()
+# AUTOSAR PDUs, only with `-S autosar`. autosar_pdus.c is generated from
+# arxml/can-full.arxml: `just arxml`.
+if(CONFIG_ZELOS_AUTOSAR)
+  target_sources(app PRIVATE src/autosar.c src/autosar_pdus.c)
+endif()

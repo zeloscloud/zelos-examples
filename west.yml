@@ -2,6 +2,7 @@
 #
 # The allowlist keeps the workspace to what an STM32 CAN application needs.
 # cmsis_6 is the Cortex-M module; cmsis is Cortex-A/R and fails obscurely here.
+# mbedtls and tf-psa-crypto: PSA Crypto, for lib/autosar's SecOC CMAC.
 manifest:
   remotes:
     - name: zephyrproject-rtos
@@ -15,6 +16,8 @@ manifest:
         name-allowlist:
           - cmsis_6
           - hal_stm32
+          - mbedtls
+          - tf-psa-crypto
 
     # The CANopen stack, used by lib/canopen. Zephyr is moving it out of its own
     # manifest into this repository, which has no tags yet, so it is pinned by
