@@ -1,4 +1,12 @@
 /*
+ * Copyright (c) 2010-2020 Janez Paternoster
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The typedefs are from CANopenNode v1.3 example/CO_OD.h.
+ */
+
+/*
  * The TIME types the v1.3 stack's CO_TIME.h expects from CO_OD.h. CANopenEditor
  * no longer emits them; the stack's own sample adds them by hand. Force-included
  * by lib/canopen/CMakeLists.txt, so a node's od/CO_OD.h stays a plain export.
