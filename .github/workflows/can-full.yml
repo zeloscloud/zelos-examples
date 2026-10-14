@@ -83,8 +83,8 @@ jobs:
         run: just down
 
       # The raw-CAN DC-DC suite plays the BMS, so it cannot run on the bench
-      # above, which has one. It gets a bench of its own, the DC-DC alone, and
+      # above, which has one. It gets a bench of its own, the image alone, and
       # runs whether or not the full bench passed.
       - if: "!cancelled()"
-        run: just test-bench can_raw can-full/build/dcdc-xcp.elf
+        run: just test-bench can_raw can-full/build/full.elf
         working-directory: .

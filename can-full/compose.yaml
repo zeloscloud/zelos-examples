@@ -1,6 +1,6 @@
 name: can-full
 
-# Five nodes on one virtual CAN bus, an agent decoding it, and the suites'
+# The VCU, the BMS and the combined image on one virtual CAN bus, an agent decoding it, and the suites'
 # tester.
 #
 # Built on the repository's shared bench (../bench): this file picks the nodes
@@ -23,7 +23,7 @@ services:
     volumes:
       - ./build:/elf:ro
     environment:
-      BENCH_ELFS: vcu.elf bms.elf dcdc-xcp.elf genset.elf pdu.elf
+      BENCH_ELFS: vcu.elf bms.elf full.elf
 
   # The shared agent, decoding with bench/can.json.
   agent:

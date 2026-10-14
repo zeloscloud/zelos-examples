@@ -1,14 +1,14 @@
 config ZELOS_CANOPEN
 	bool "CANopen node runtime"
 	depends on CAN
+	select ZELOS_CAN
 	select CANOPENNODE
-	select REBOOT
 	help
 	  Runs the CANopenNode stack (the canopennodezephyr module) for a
 	  node that builds its own object dictionary, od/CO_OD.c and
-	  od/CO_OD.h. The stack drives the CAN controller through its own
-	  glue on Zephyr's CAN API, not through lib/can, at
-	  ZELOS_CAN_BITRATE. See include/zelos/canopen.h.
+	  od/CO_OD.h. The stack shares the controller lib/can owns: its
+	  driver here (CO_driver.c) sends through lib/can's queue and never
+	  stops or reconfigures the controller. See include/zelos/canopen.h.
 
 config ZELOS_CANOPEN_NODE_ID
 	int "CANopen node-id"

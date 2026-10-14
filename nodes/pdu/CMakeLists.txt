@@ -7,4 +7,4 @@ project(zelos_pdu)
 # firmware cannot disagree. The stack's own sources include CO_OD.h, hence a
 # global include directory.
 zephyr_include_directories(od)
-target_sources(app PRIVATE src/main.c od/CO_OD.c)
+target_sources(app PRIVATE src/main.c src/pdu.c od/CO_OD.c)

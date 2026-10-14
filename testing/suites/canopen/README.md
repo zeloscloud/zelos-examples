@@ -27,8 +27,8 @@ each draws, and trips channel 8, which is shorted, with an EMCY.
 
 ```bash
 cd can-full && just test                        # every suite, on the Renode bench
-just test-bench canopen can-full/build/pdu.elf  # this suite alone, from the root
-cd can-full && just hil pdu can0                # flash a NUCLEO-H753ZI, run on can0
+just test-bench canopen can-full/build/full.elf # this suite alone, from the root
+cd can-full && just hil full can0               # flash a NUCLEO-H753ZI, run on can0
 ```
 
 Against a node already on a SocketCAN channel:
@@ -46,4 +46,29 @@ cd testing && uv run pytest suites/canopen --channel can0
   them, and the tests that use them, with your node's objects.
 
 The `node` fixture resets the node over NMT before each test, so every test
-starts from the node's defaults.
+starts from the node's defaults. Reset-node restores the PDU's whole object
+dictionary in place; the MCU does not reboot. A synchronous TPDO already in
+the node's transmit queue when the SYNC window closes goes out late rather
+than being dropped.
+
+## A bench with its own CANopen manager
+
+A hardware bench may carry a manager (a PLC) that owns the node: NMT, SYNC,
+heartbeat `0x77F`. The plugin listens for one before any test sends; the PDU
+already operational counts as one, as only a manager starts it. The suites
+leave it pre-operational. With one:
+
+- `test_pdu.py` pauses it for the module through its `bench_quiet` Modbus
+  register, via the Modbus extension's named-register actions on a Zelos
+  agent (one write and read-back each way), and puts the register back as
+  found; unconfigured, the module skips.
+- `test_pdu_managed.py` checks the node as the manager runs it: operational
+  with its heartbeat, one TPDO3 per foreign SYNC, SDO. Without a manager it
+  skips.
+
+| Option | Env | Default |
+|---|---|---|
+| `--quiet-agent` | `ZELOS_BENCH_QUIET_AGENT` | unset: test_pdu.py skips |
+| `--quiet-device` | `ZELOS_BENCH_QUIET_DEVICE` | unset: test_pdu.py skips |
+| `--quiet-register` | `ZELOS_BENCH_QUIET_REGISTER` | `setpoints/bench_quiet` |
+| `--quiet-mask` | `ZELOS_BENCH_QUIET_MASK` | `0b10`, the CANopen manager's bit |

@@ -13,3 +13,12 @@ tests:
   zelos.nodes.dcdc.xcp:
     required_snippets:
       - xcp
+  # Diagnostics over UDS; see src/uds.c.
+  zelos.nodes.dcdc.uds:
+    required_snippets:
+      - uds
+  # Both, as one ECU: a UDS reset ends the XCP session.
+  zelos.nodes.dcdc.xcp_uds:
+    required_snippets:
+      - xcp
+      - uds

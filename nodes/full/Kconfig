@@ -1,0 +1,4 @@
+# The DC-DC's build option, which this image builds with too.
+rsource "../dcdc/Kconfig.node"
+
+source "Kconfig.zephyr"

@@ -31,7 +31,7 @@ LOG_MODULE_REGISTER(bms, LOG_LEVEL_INF);
 /* BMS_CellVoltages is slower than the status frames. */
 #define CELLS_EVERY (BENCH_BMS_CELL_VOLTAGES_CYCLE_TIME_MS / BENCH_BMS_STATUS_CYCLE_TIME_MS)
 
-K_MSGQ_DEFINE(vcu_msgq, sizeof(struct can_frame), 4, 4);
+K_MSGQ_DEFINE(bms_vcu_msgq, sizeof(struct can_frame), 4, 4);
 
 struct pack_state {
 	float soc_pct;
@@ -45,7 +45,7 @@ static void follow_vcu(struct pack_state *pack)
 	struct bench_vcu_command_t cmd;
 
 	/* Drain the queue: the newest command is the current one. */
-	while (k_msgq_get(&vcu_msgq, &frame, K_NO_WAIT) == 0) {
+	while (k_msgq_get(&bms_vcu_msgq, &frame, K_NO_WAIT) == 0) {
 		if (bench_vcu_command_unpack(&cmd, frame.data, can_dlc_to_bytes(frame.dlc)) == 0) {
 			pack->mode = cmd.requested_mode;
 		}
@@ -106,7 +106,7 @@ int main(void)
 		return 0;
 	}
 
-	if (zelos_can_subscribe(BENCH_VCU_COMMAND_FRAME_ID, &vcu_msgq) < 0) {
+	if (zelos_can_subscribe(BENCH_VCU_COMMAND_FRAME_ID, &bms_vcu_msgq) < 0) {
 		LOG_ERR("subscribe to VCU_Command failed");
 		return 0;
 	}

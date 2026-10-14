@@ -2,6 +2,38 @@ config ZELOS_CAN
 	bool "CAN helper for the nodes"
 	depends on CAN
 	help
-	  Brings up the board's chosen CAN controller at ZELOS_CAN_BITRATE,
-	  sends classic frames and routes received frames into queues.
+	  Owns the board's chosen CAN controller: brings it up once at
+	  ZELOS_CAN_BITRATE, sends every protocol's frames through one
+	  queue and routes received frames into queues.
 	  See include/zelos/can.h.
+
+if ZELOS_CAN
+
+config ZELOS_CAN_TX_QUEUE_DEPTH
+	int "Frames the transmit queue holds"
+	range 1 255
+	default 64
+	help
+	  Shared by every protocol on the node. Frames wait here, lowest
+	  CAN identifier first, while the controller's own buffers are full.
+
+config ZELOS_CAN_TX_MAX_AGE_MS
+	int "Oldest frame the transmit thread still sends, in ms"
+	range 1 60000
+	default 1000
+	help
+	  A frame that waited longer, in the queue or for a controller
+	  buffer, is dropped and counted as a transmit error. Without an
+	  acknowledging node the queue fills; when one returns, it gets
+	  current frames rather than a burst of stale ones. The frames
+	  already in the controller's buffers still go out.
+
+config ZELOS_CAN_TX_PRIORITY
+	int "Priority of the transmit thread"
+	default -1
+	help
+	  Above every sender, so a free controller buffer is refilled at
+	  once. Cooperative by default, like the CANopen stack's own
+	  transmit work queue it replaces.
+
+endif # ZELOS_CAN
