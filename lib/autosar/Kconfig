@@ -1,0 +1,43 @@
+config ZELOS_AUTOSAR
+	bool "AUTOSAR PDUs on CAN"
+	depends on ZELOS_CAN
+	select ZELOS_AUTOSAR_CORE
+	select ZELOS_AUTOSAR_CMAC
+	help
+	  Sends the node's AUTOSAR I-PDUs on their timing: signals packed
+	  from tables generated from arxml/can-full.arxml, E2E profiles 1, 2
+	  and 5, a container I-PDU, a multiplexed I-PDU and a SecOC secured
+	  I-PDU. See include/zelos/autosar.h.
+
+config ZELOS_AUTOSAR_CORE
+	bool "AUTOSAR COM core"
+	select CRC
+	help
+	  Signal packing, E2E, container, multiplexed and SecOC framing
+	  without I/O. ZELOS_AUTOSAR selects it; on its own it is only useful
+	  to unit tests.
+
+config ZELOS_AUTOSAR_CMAC
+	bool "AES-128 CMAC for SecOC, through PSA Crypto"
+	depends on ZELOS_AUTOSAR_CORE
+	select PSA_CRYPTO
+	select PSA_WANT_ALG_CMAC
+	select PSA_WANT_KEY_TYPE_AES
+	help
+	  zelos_autosar_cmac(), on Zephyr's Mbed TLS. Needs the mbedtls and
+	  tf-psa-crypto modules (west.yml) and an entropy source.
+
+if ZELOS_AUTOSAR
+
+config ZELOS_AUTOSAR_TX_MAX
+	int "Most PDUs one schedule holds"
+	range 1 64
+	default 16
+
+config ZELOS_AUTOSAR_STACK_SIZE
+	int "Stack of the sending thread, bytes"
+	default 3072
+	help
+	  The PDU builders run on it, the SecOC CMAC (PSA Crypto) among them.
+
+endif # ZELOS_AUTOSAR

@@ -22,12 +22,13 @@ rather than copying them.
 | `zephyr/`, `CMakeLists.txt`, `Kconfig` | This repository as a Zephyr module, contributing `lib/` |
 | `nodes/` | Zephyr applications, one per node, each reusable by any bench: `vcu`, `bms`, `dcdc`, `genset`, `pdu`, `console`; `full` runs the DC-DC, genset and PDU in one image |
 | `lib/`, `include/zelos/` | Code the nodes share, each piece off until a node's `prj.conf` enables it. `lib/can` owns the controller: every protocol sends through its one queue, lowest id first |
-| `snippets/` | Protocols any node can build with, e.g. `-S xcp`, `-S uds` |
+| `snippets/` | Protocols any node can build with, e.g. `-S xcp`, `-S uds`, `-S autosar` |
 | `dbc/` | Wire formats of the shared nodes; `lib/codec_bench/` is generated from `bench.dbc` |
+| `arxml/` | `can-full.arxml`, the can-full bench as an AUTOSAR R19-11 System Template; the DC-DC's AUTOSAR tables are generated from it (`just arxml`) |
 | `toolchain/` | The firmware build image |
 | `testing/` | Host-side pytest suites and fixtures, run against any SocketCAN channel |
 | `bench/` | A Renode bench for any set of nodes, and the agent image; each bench builds on it, and `just test-bench` runs a suite on it |
-| `tools/` | Host scripts the build runs, e.g. filling a node's A2L with one build's addresses |
+| `tools/` | Host scripts: filling a node's A2L with one build's addresses (the build runs it), generating the DC-DC's AUTOSAR tables from `arxml/` (`just arxml`) |
 | `justfile` | Shared recipes: building nodes, `twister`, `test-bench`, and `hil` for a flashed board |
 
 ## Licence

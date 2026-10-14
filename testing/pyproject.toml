@@ -13,6 +13,7 @@ dependencies = [
     "can-j1939==2.0.12",
     "canopen==2.4.1",
     "cantools==41.3.1",
+    "cryptography==46.0.3",
     "pytest==9.1.1",
     "python-can==4.6.1",
     "pyxcp==0.29.19",

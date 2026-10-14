@@ -76,23 +76,22 @@ static float bounded(float value, float lo, float hi)
 #include "xcp.h"
 #endif
 
-#if defined(CONFIG_ZELOS_UDS)
+#if defined(CONFIG_ZELOS_UDS) || defined(CONFIG_ZELOS_AUTOSAR)
 /*
- * Built with `-S uds`, a tester sets the output voltage, controls the node's
- * communication and reads its state and DTCs. See src/uds.c.
+ * Built with `-S uds` or `-S autosar`, the node reports each cycle's state,
+ * the pack voltage it sees among it. See src/state.h.
  */
+#define DCDC_STATE
+
 #include <math.h>
 
-#include <zelos/uds.h>
-
-#include "uds.h"
+#include "state.h"
 
 /* A BMS frame older than this is missing. */
 #define BMS_TIMEOUT_MS (5 * BENCH_BMS_LIMITS_CYCLE_TIME_MS)
 
 K_MSGQ_DEFINE(dcdc_pack_msgq, sizeof(struct can_frame), 4, 4);
 
-static int64_t limits_at_ms;
 static int64_t pack_at_ms;
 static float pack_v;
 
@@ -111,6 +110,23 @@ static float latest_pack_v(bool apply, int64_t now)
 	}
 	return pack_at_ms != 0 && now - pack_at_ms <= BMS_TIMEOUT_MS ? pack_v : NAN;
 }
+#endif
+
+#if defined(CONFIG_ZELOS_UDS)
+/*
+ * Built with `-S uds`, a tester sets the output voltage, controls the node's
+ * communication and reads its state and DTCs. See src/uds.c.
+ */
+#include <zelos/uds.h>
+
+#include "uds.h"
+
+static int64_t limits_at_ms;
+#endif
+
+#if defined(CONFIG_ZELOS_AUTOSAR)
+/* Built with `-S autosar`, the node sends its AUTOSAR PDUs. See src/autosar.c. */
+#include "autosar.h"
 #endif
 
 /* Demand and slew rate, as one pair: a tool's write lands whole or not yet. */
@@ -177,8 +193,8 @@ int dcdc_start(void)
 		return -EIO;
 	}
 
-#if defined(CONFIG_ZELOS_UDS)
-	/* The pack voltage, for the input undervoltage DTC. */
+#if defined(DCDC_STATE)
+	/* The pack voltage: the input undervoltage DTC, the AUTOSAR PDUs. */
 	if (zelos_can_subscribe(BENCH_BMS_STATUS_FRAME_ID, &dcdc_pack_msgq) < 0) {
 		LOG_ERR("subscribe to BMS_Status failed");
 		return -EIO;
@@ -193,6 +209,12 @@ int dcdc_start(void)
 
 #if defined(CONFIG_ZELOS_UDS)
 	if (dcdc_uds_start() != 0) {
+		return -EIO;
+	}
+#endif
+
+#if defined(CONFIG_ZELOS_AUTOSAR)
+	if (dcdc_autosar_start() != 0) {
 		return -EIO;
 	}
 #endif
@@ -236,17 +258,20 @@ static void run(void *p1, void *p2, void *p3)
 		/* CommunicationControl: the application's normal messages only. */
 		const bool rx = zelos_uds_rx_enabled();
 		const bool tx = zelos_uds_tx_enabled();
+#else
+		const bool rx = true;
+		const bool tx = true;
+#endif
+#if defined(DCDC_STATE)
 		const int64_t now = k_uptime_get();
 		const float input_v = latest_pack_v(rx, now);
-
+#endif
+#if defined(CONFIG_ZELOS_UDS)
 		/* Reception back on: the BMS timeout runs from here, not the last frame before. */
 		if (rx && !rx_was) {
 			limits_at_ms = now;
 		}
 		rx_was = rx;
-#else
-		const bool rx = true;
-		const bool tx = true;
 #endif
 
 		aux_limit_a = latest_aux_limit(aux_limit_a, rx);
@@ -282,23 +307,29 @@ static void run(void *p1, void *p2, void *p3)
 		dcdc_xcp_sample(setpoint_a, input_current_a, slew_step_a, temperature_c,
 				aux_limit_a);
 #endif
+#if defined(DCDC_STATE)
+		const struct dcdc_state state = {
+			.output_v = rail_voltage_v,
+			.output_a = rail_current_a,
+			.input_v = input_v,
+			.input_a = input_current_a,
+			.temperature_c = temperature_c,
+			.setpoint_v = rail_nominal_v(),
+			.aux_limit_a = aux_limit_a,
+			.uptime_ms = (uint32_t)now,
+		};
+#endif
 #if defined(CONFIG_ZELOS_UDS)
-		dcdc_uds_sample(&(struct dcdc_state){
-					.output_v = rail_voltage_v,
-					.output_a = rail_current_a,
-					.input_v = input_v,
-					.input_a = input_current_a,
-					.temperature_c = temperature_c,
-					.setpoint_v = rail_nominal_v(),
-					.aux_limit_a = aux_limit_a,
-					.uptime_ms = (uint32_t)now,
-				},
+		dcdc_uds_sample(&state,
 				/*
 				 * Monitored while reception is on, from the first
 				 * frame or the first timeout, whichever comes first.
 				 */
 				rx && (limits_at_ms != 0 || now > BMS_TIMEOUT_MS),
 				now - limits_at_ms > BMS_TIMEOUT_MS);
+#endif
+#if defined(CONFIG_ZELOS_AUTOSAR)
+		dcdc_autosar_sample(&state, temperature_c > DERATE_ABOVE_C, tx);
 #endif
 
 		status.output_voltage = bench_dcdc_status_output_voltage_encode(rail_voltage_v);
