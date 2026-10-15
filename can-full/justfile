@@ -40,9 +40,9 @@ bus:
 test:
     docker compose run --rm --no-deps tester --a2l /elf/full.a2l {{ replace_regex(SUITES, '\S+:', 'suites/') }}
 
-# Build the nodes into build/: the bench's, or the ones you name, e.g. `just build genset`.
+# Build the nodes into build/: the bench's, or the ones you name, e.g. `just build full`.
 # full's A2L, the DC-DC's with its addresses, lands beside it. The single-node
-# images (dcdc-xcp-uds, genset, pdu) build too, for focused work.
+# images (dcdc-xcp-uds, pdu) build too, for focused work.
 build *names:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -50,9 +50,9 @@ build *names:
     [ ${#nodes[@]} -gt 0 ] || nodes=({{ NODES }})
     for node in "${nodes[@]}"; do
         case "$node" in
-            vcu | bms | genset | pdu | full) {{ FIRMWARE }} build "$node" "build/$node.elf" ;;
+            vcu | bms | pdu | full) {{ FIRMWARE }} build "$node" "build/$node.elf" ;;
             dcdc-xcp-uds) {{ FIRMWARE }} build dcdc build/dcdc-xcp-uds.elf -S xcp -S uds ;;
-            *) echo "no node '$node'; one of: vcu bms full dcdc-xcp-uds genset pdu" >&2; exit 2 ;;
+            *) echo "no node '$node'; one of: vcu bms full dcdc-xcp-uds pdu" >&2; exit 2 ;;
         esac
     done
     ls -la build/

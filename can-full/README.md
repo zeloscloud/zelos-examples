@@ -65,8 +65,8 @@ the PDU alone, without a reboot. Every protocol sends through one queue in
 XCP writes the calibration without seed and key while UDS asks level 0x01 for
 the same memory: this is a development ECU.
 
-The single-node images still build, for focused work: `just build
-dcdc-xcp-uds genset pdu`.
+The DC-DC and PDU single-node images still build, for focused work: `just build
+dcdc-xcp-uds pdu`. The genset runs only in `full`.
 
 The VCU's command sits at `0x101`, not CANopen's TIME id `0x100`: CiA 301 keeps
 CANopen devices out of `0x101`-`0x180`, so no CANopen node can collide with it.

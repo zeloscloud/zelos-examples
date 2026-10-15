@@ -1,2 +1,0 @@
-/* One message RAM layout for every node: see the included file. */
-#include "../../../lib/can/boards/nucleo_h753zi.dtsi"
