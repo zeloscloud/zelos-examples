@@ -62,7 +62,7 @@ build *names:
         echo "The bench is running the previous firmware: just down && just up"
     fi
 
-# Flash a node and run its suites on a channel, e.g. `just hil genset can0`.
+# Flash the full image and run its suites on a channel, e.g. `just hil full can0`.
 hil NODE CHANNEL: (_elf NODE)
     #!/usr/bin/env bash
     set -euo pipefail
