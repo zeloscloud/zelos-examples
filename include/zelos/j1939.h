@@ -1,6 +1,7 @@
 /*
  * SAE J1939 for a node: address claim, requests, periodic messages and
- * broadcast transport (TP.BAM) for messages longer than one frame.
+ * transport for messages longer than one frame: TP.BAM to everyone, RTS/CTS
+ * to the node that asked.
  *
  * The core is sans-IO: it takes received frames and the time, and hands
  * frames to send to a callback. It never blocks or sleeps, so it runs the same
@@ -33,6 +34,18 @@
  */
 #define ZELOS_J1939_BAM_GAP_MS 55U
 
+/*
+ * J1939-21 originator timeouts: T3 waiting for a CTS or the EOMA after the RTS
+ * or a window's last packet, T4 waiting for the next CTS after a hold.
+ */
+#define ZELOS_J1939_T3_MS 1250U
+#define ZELOS_J1939_T4_MS 1050U
+
+/* J1939-21 Connection Abort reasons this core sends. */
+#define ZELOS_J1939_ABORT_TIMEOUT    3U
+#define ZELOS_J1939_ABORT_CTS_IN_DT  4U /* a CTS while a window is going out */
+#define ZELOS_J1939_ABORT_OTHER      250U
+
 /* Longest message this core sends. DM1 with 15 DTCs fits. */
 #define ZELOS_J1939_MAX_LEN 64U
 
@@ -53,9 +66,9 @@ struct zelos_j1939_frame {
 };
 
 /*
- * A message the node sends: periodically, when requested, or both. Always to
- * global, so PDU2 PGNs only. Longer than 8 bytes goes by BAM, never RTS/CTS,
- * even when the request was addressed to this node.
+ * A message the node sends: periodically, when requested, or both. PDU2 PGNs
+ * only. Longer than 8 bytes goes by BAM, except the answer to a request
+ * addressed to this node, which goes by RTS/CTS to the requester.
  */
 struct zelos_j1939_msg {
 	uint32_t pgn;
@@ -69,6 +82,8 @@ struct zelos_j1939_msg {
 	/* Owned by the core. */
 	uint32_t due_ms;
 	bool requested;
+	/* Who the answer goes to: the requester, or ZELOS_J1939_ADDR_GLOBAL. */
+	uint8_t requester;
 };
 
 enum zelos_j1939_state {
@@ -108,6 +123,24 @@ struct zelos_j1939 {
 		uint32_t due_ms;
 		uint8_t buf[ZELOS_J1939_MAX_LEN];
 	} bam;
+	/* One RTS/CTS session at a time, whatever the destination. */
+	struct {
+		enum {
+			ZELOS_J1939_RTS_IDLE,
+			ZELOS_J1939_RTS_WAIT, /* for a CTS or the EOMA, until due_ms */
+			ZELOS_J1939_RTS_SEND, /* packets next..last */
+		} state;
+		uint8_t da;
+		uint32_t pgn;
+		uint16_t len;
+		uint8_t packets;
+		uint8_t next;
+		uint8_t last;
+		uint32_t due_ms;
+		/* An abort to send on the next poll; 0: none. */
+		uint8_t abort;
+		uint8_t buf[ZELOS_J1939_MAX_LEN];
+	} rts;
 };
 
 /*
@@ -120,12 +153,12 @@ int zelos_j1939_init(struct zelos_j1939 *j, uint32_t now_ms);
 void zelos_j1939_on_frame(struct zelos_j1939 *j, const struct zelos_j1939_frame *frame,
 			  uint32_t now_ms);
 
-/* Send whatever is due: claims, replies, periodic messages, the next BAM packet. */
+/* Send whatever is due: claims, replies, periodic messages, the next transport frame. */
 void zelos_j1939_poll(struct zelos_j1939 *j, uint32_t now_ms);
 
 /*
  * Zephyr glue. Needs zelos_can_init() first. One J1939 node per firmware: this
- * subscribes to requests and claims, sets j->send, and runs the core on its own
+ * subscribes to requests, claims and TP.CM, sets j->send, and runs the core on its own
  * thread every CONFIG_ZELOS_J1939_TICK_MS. At most 8 messages.
  */
 int zelos_j1939_start(struct zelos_j1939 *j);

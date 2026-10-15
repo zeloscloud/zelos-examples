@@ -4,7 +4,9 @@
  * The engine follows the mode the VCU commands: it runs hard while driving,
  * idles in standby and stops while the vehicle charges from the grid. Under
  * sustained load the coolant runs hot, and the ECU derates and raises
- * diagnostic trouble codes, which go out in DM1.
+ * diagnostic trouble codes, which go out in DM1. It answers a request for its
+ * software identification, longer than a frame, by RTS/CTS to the requester or
+ * BAM to everyone.
  */
 
 #include <bench.h>
@@ -25,6 +27,7 @@ LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 #define PGN_EEC1 61444U /* Electronic Engine Controller 1 */
 #define PGN_ET1  65262U /* Engine Temperature 1 */
 #define PGN_DM1  65226U /* Active Diagnostic Trouble Codes */
+#define PGN_SOFT 65242U /* Software Identification */
 
 /*
  * EEC1 and ET1 periods come from dbc/genset.dbc. J1939-71 ties EEC1's rate to
@@ -80,11 +83,16 @@ K_MSGQ_DEFINE(genset_vcu_msgq, sizeof(struct can_frame), 4, 4);
 static uint8_t eec1[8];
 static uint8_t et1[8];
 static uint8_t dm1[ZELOS_J1939_MAX_LEN];
+/* J1939-71 SOFT: the number of fields, then each field ending in '*'. */
+static uint8_t soft[] = "\x03" "ZELOS-GENSET*" "v1.0.0*" "zelos-examples node genset*";
+#define SOFT_LEN (sizeof(soft) - 1U)
+BUILD_ASSERT(SOFT_LEN > 8U && SOFT_LEN <= ZELOS_J1939_MAX_LEN, "SOFT goes by transport");
 
 static struct zelos_j1939_msg msgs[] = {
 	{.pgn = PGN_EEC1, .priority = 3, .period_ms = EEC1_PERIOD_MS, .len = 8, .data = eec1},
 	{.pgn = PGN_ET1, .priority = 6, .period_ms = ET1_PERIOD_MS, .len = 8, .data = et1},
 	{.pgn = PGN_DM1, .priority = 6, .period_ms = DM1_PERIOD_MS, .len = 8, .data = dm1},
+	{.pgn = PGN_SOFT, .priority = 6, .period_ms = 0, .len = SOFT_LEN, .data = soft},
 };
 
 static struct zelos_j1939 j1939 = {

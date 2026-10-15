@@ -19,9 +19,60 @@ BO_ 2364540032 EEC1: 8 GENSET
 BO_ 2566844032 ET1: 8 GENSET
  SG_ EngineCoolantTemp : 0|8@1+ (1,-40) [-40|210] "degC" Vector__XXX
 
+BO_ 2566838912 SOFT: 48 GENSET
+ SG_ NumberOfSoftwareIdFields : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte01 : 8|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte02 : 16|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte03 : 24|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte04 : 32|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte05 : 40|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte06 : 48|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte07 : 56|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte08 : 64|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte09 : 72|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte10 : 80|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte11 : 88|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte12 : 96|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte13 : 104|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte14 : 112|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte15 : 120|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte16 : 128|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte17 : 136|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte18 : 144|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte19 : 152|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte20 : 160|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte21 : 168|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte22 : 176|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte23 : 184|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte24 : 192|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte25 : 200|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte26 : 208|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte27 : 216|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte28 : 224|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte29 : 232|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte30 : 240|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte31 : 248|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte32 : 256|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte33 : 264|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte34 : 272|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte35 : 280|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte36 : 288|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte37 : 296|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte38 : 304|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte39 : 312|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte40 : 320|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte41 : 328|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte42 : 336|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte43 : 344|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte44 : 352|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte45 : 360|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte46 : 368|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SoftwareIdByte47 : 376|8@1+ (1,0) [0|255] "" Vector__XXX
+
 CM_ BU_ GENSET "Range extender engine ECU. J1939, preferred source address 0x80, arbitrary-address capable.";
 CM_ BO_ 2364540032 "Electronic Engine Controller 1, PGN 61444.";
 CM_ BO_ 2566844032 "Engine Temperature 1, PGN 65262.";
+CM_ BO_ 2566838912 "Software Identification, PGN 65242, on request only: RTS/CTS to a requester, BAM to a global request. The ASCII fields, each ending in '*', byte by byte.";
 
 BA_DEF_ "ProtocolType" STRING ;
 BA_DEF_ BO_ "VFrameFormat" ENUM "StandardCAN","ExtendedCAN","reserved","J1939PG";
@@ -34,8 +85,10 @@ BA_DEF_DEF_ "SPN" 0;
 BA_ "ProtocolType" "J1939";
 BA_ "VFrameFormat" BO_ 2364540032 3;
 BA_ "VFrameFormat" BO_ 2566844032 3;
+BA_ "VFrameFormat" BO_ 2566838912 3;
 BA_ "GenMsgCycleTime" BO_ 2364540032 100;
 BA_ "GenMsgCycleTime" BO_ 2566844032 1000;
 BA_ "SPN" SG_ 2364540032 ActualEnginePercentTorque 513;
 BA_ "SPN" SG_ 2364540032 EngineSpeed 190;
 BA_ "SPN" SG_ 2566844032 EngineCoolantTemp 110;
+BA_ "SPN" SG_ 2566838912 NumberOfSoftwareIdFields 965;
