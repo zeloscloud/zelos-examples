@@ -32,9 +32,9 @@ import pytest
 from udsoncan import MemoryLocation
 
 from zelos_testing import bench, dbc, frames
+from zelos_testing.bench_plugin import find_a2l
 from zelos_testing.dcdc import STATUS
 from zelos_testing.frames import assert_period, bound
-from zelos_testing.plugin import find_a2l
 from zelos_testing.uds import (
     CAN_STATS,
     DEFAULT,
