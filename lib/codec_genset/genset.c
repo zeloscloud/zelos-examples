@@ -222,3 +222,1192 @@ bool genset_et1_engine_coolant_temp_is_in_phys_range(float value)
 {
     return ((value >= -40.0f) && (value <= 210.0f));
 }
+
+int genset_soft_pack(
+    uint8_t *dst_p,
+    const struct genset_soft_t *src_p,
+    size_t size)
+{
+    if (size < 48u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 48);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->number_of_software_id_fields, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->software_id_byte01, 0u, 0xffu);
+    dst_p[2] |= pack_left_shift_u8(src_p->software_id_byte02, 0u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->software_id_byte03, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u8(src_p->software_id_byte04, 0u, 0xffu);
+    dst_p[5] |= pack_left_shift_u8(src_p->software_id_byte05, 0u, 0xffu);
+    dst_p[6] |= pack_left_shift_u8(src_p->software_id_byte06, 0u, 0xffu);
+    dst_p[7] |= pack_left_shift_u8(src_p->software_id_byte07, 0u, 0xffu);
+    dst_p[8] |= pack_left_shift_u8(src_p->software_id_byte08, 0u, 0xffu);
+    dst_p[9] |= pack_left_shift_u8(src_p->software_id_byte09, 0u, 0xffu);
+    dst_p[10] |= pack_left_shift_u8(src_p->software_id_byte10, 0u, 0xffu);
+    dst_p[11] |= pack_left_shift_u8(src_p->software_id_byte11, 0u, 0xffu);
+    dst_p[12] |= pack_left_shift_u8(src_p->software_id_byte12, 0u, 0xffu);
+    dst_p[13] |= pack_left_shift_u8(src_p->software_id_byte13, 0u, 0xffu);
+    dst_p[14] |= pack_left_shift_u8(src_p->software_id_byte14, 0u, 0xffu);
+    dst_p[15] |= pack_left_shift_u8(src_p->software_id_byte15, 0u, 0xffu);
+    dst_p[16] |= pack_left_shift_u8(src_p->software_id_byte16, 0u, 0xffu);
+    dst_p[17] |= pack_left_shift_u8(src_p->software_id_byte17, 0u, 0xffu);
+    dst_p[18] |= pack_left_shift_u8(src_p->software_id_byte18, 0u, 0xffu);
+    dst_p[19] |= pack_left_shift_u8(src_p->software_id_byte19, 0u, 0xffu);
+    dst_p[20] |= pack_left_shift_u8(src_p->software_id_byte20, 0u, 0xffu);
+    dst_p[21] |= pack_left_shift_u8(src_p->software_id_byte21, 0u, 0xffu);
+    dst_p[22] |= pack_left_shift_u8(src_p->software_id_byte22, 0u, 0xffu);
+    dst_p[23] |= pack_left_shift_u8(src_p->software_id_byte23, 0u, 0xffu);
+    dst_p[24] |= pack_left_shift_u8(src_p->software_id_byte24, 0u, 0xffu);
+    dst_p[25] |= pack_left_shift_u8(src_p->software_id_byte25, 0u, 0xffu);
+    dst_p[26] |= pack_left_shift_u8(src_p->software_id_byte26, 0u, 0xffu);
+    dst_p[27] |= pack_left_shift_u8(src_p->software_id_byte27, 0u, 0xffu);
+    dst_p[28] |= pack_left_shift_u8(src_p->software_id_byte28, 0u, 0xffu);
+    dst_p[29] |= pack_left_shift_u8(src_p->software_id_byte29, 0u, 0xffu);
+    dst_p[30] |= pack_left_shift_u8(src_p->software_id_byte30, 0u, 0xffu);
+    dst_p[31] |= pack_left_shift_u8(src_p->software_id_byte31, 0u, 0xffu);
+    dst_p[32] |= pack_left_shift_u8(src_p->software_id_byte32, 0u, 0xffu);
+    dst_p[33] |= pack_left_shift_u8(src_p->software_id_byte33, 0u, 0xffu);
+    dst_p[34] |= pack_left_shift_u8(src_p->software_id_byte34, 0u, 0xffu);
+    dst_p[35] |= pack_left_shift_u8(src_p->software_id_byte35, 0u, 0xffu);
+    dst_p[36] |= pack_left_shift_u8(src_p->software_id_byte36, 0u, 0xffu);
+    dst_p[37] |= pack_left_shift_u8(src_p->software_id_byte37, 0u, 0xffu);
+    dst_p[38] |= pack_left_shift_u8(src_p->software_id_byte38, 0u, 0xffu);
+    dst_p[39] |= pack_left_shift_u8(src_p->software_id_byte39, 0u, 0xffu);
+    dst_p[40] |= pack_left_shift_u8(src_p->software_id_byte40, 0u, 0xffu);
+    dst_p[41] |= pack_left_shift_u8(src_p->software_id_byte41, 0u, 0xffu);
+    dst_p[42] |= pack_left_shift_u8(src_p->software_id_byte42, 0u, 0xffu);
+    dst_p[43] |= pack_left_shift_u8(src_p->software_id_byte43, 0u, 0xffu);
+    dst_p[44] |= pack_left_shift_u8(src_p->software_id_byte44, 0u, 0xffu);
+    dst_p[45] |= pack_left_shift_u8(src_p->software_id_byte45, 0u, 0xffu);
+    dst_p[46] |= pack_left_shift_u8(src_p->software_id_byte46, 0u, 0xffu);
+    dst_p[47] |= pack_left_shift_u8(src_p->software_id_byte47, 0u, 0xffu);
+
+    return (48);
+}
+
+int genset_soft_unpack(
+    struct genset_soft_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 48u) {
+        return (-EINVAL);
+    }
+
+    dst_p->number_of_software_id_fields = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->software_id_byte01 = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->software_id_byte02 = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
+    dst_p->software_id_byte03 = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->software_id_byte04 = unpack_right_shift_u8(src_p[4], 0u, 0xffu);
+    dst_p->software_id_byte05 = unpack_right_shift_u8(src_p[5], 0u, 0xffu);
+    dst_p->software_id_byte06 = unpack_right_shift_u8(src_p[6], 0u, 0xffu);
+    dst_p->software_id_byte07 = unpack_right_shift_u8(src_p[7], 0u, 0xffu);
+    dst_p->software_id_byte08 = unpack_right_shift_u8(src_p[8], 0u, 0xffu);
+    dst_p->software_id_byte09 = unpack_right_shift_u8(src_p[9], 0u, 0xffu);
+    dst_p->software_id_byte10 = unpack_right_shift_u8(src_p[10], 0u, 0xffu);
+    dst_p->software_id_byte11 = unpack_right_shift_u8(src_p[11], 0u, 0xffu);
+    dst_p->software_id_byte12 = unpack_right_shift_u8(src_p[12], 0u, 0xffu);
+    dst_p->software_id_byte13 = unpack_right_shift_u8(src_p[13], 0u, 0xffu);
+    dst_p->software_id_byte14 = unpack_right_shift_u8(src_p[14], 0u, 0xffu);
+    dst_p->software_id_byte15 = unpack_right_shift_u8(src_p[15], 0u, 0xffu);
+    dst_p->software_id_byte16 = unpack_right_shift_u8(src_p[16], 0u, 0xffu);
+    dst_p->software_id_byte17 = unpack_right_shift_u8(src_p[17], 0u, 0xffu);
+    dst_p->software_id_byte18 = unpack_right_shift_u8(src_p[18], 0u, 0xffu);
+    dst_p->software_id_byte19 = unpack_right_shift_u8(src_p[19], 0u, 0xffu);
+    dst_p->software_id_byte20 = unpack_right_shift_u8(src_p[20], 0u, 0xffu);
+    dst_p->software_id_byte21 = unpack_right_shift_u8(src_p[21], 0u, 0xffu);
+    dst_p->software_id_byte22 = unpack_right_shift_u8(src_p[22], 0u, 0xffu);
+    dst_p->software_id_byte23 = unpack_right_shift_u8(src_p[23], 0u, 0xffu);
+    dst_p->software_id_byte24 = unpack_right_shift_u8(src_p[24], 0u, 0xffu);
+    dst_p->software_id_byte25 = unpack_right_shift_u8(src_p[25], 0u, 0xffu);
+    dst_p->software_id_byte26 = unpack_right_shift_u8(src_p[26], 0u, 0xffu);
+    dst_p->software_id_byte27 = unpack_right_shift_u8(src_p[27], 0u, 0xffu);
+    dst_p->software_id_byte28 = unpack_right_shift_u8(src_p[28], 0u, 0xffu);
+    dst_p->software_id_byte29 = unpack_right_shift_u8(src_p[29], 0u, 0xffu);
+    dst_p->software_id_byte30 = unpack_right_shift_u8(src_p[30], 0u, 0xffu);
+    dst_p->software_id_byte31 = unpack_right_shift_u8(src_p[31], 0u, 0xffu);
+    dst_p->software_id_byte32 = unpack_right_shift_u8(src_p[32], 0u, 0xffu);
+    dst_p->software_id_byte33 = unpack_right_shift_u8(src_p[33], 0u, 0xffu);
+    dst_p->software_id_byte34 = unpack_right_shift_u8(src_p[34], 0u, 0xffu);
+    dst_p->software_id_byte35 = unpack_right_shift_u8(src_p[35], 0u, 0xffu);
+    dst_p->software_id_byte36 = unpack_right_shift_u8(src_p[36], 0u, 0xffu);
+    dst_p->software_id_byte37 = unpack_right_shift_u8(src_p[37], 0u, 0xffu);
+    dst_p->software_id_byte38 = unpack_right_shift_u8(src_p[38], 0u, 0xffu);
+    dst_p->software_id_byte39 = unpack_right_shift_u8(src_p[39], 0u, 0xffu);
+    dst_p->software_id_byte40 = unpack_right_shift_u8(src_p[40], 0u, 0xffu);
+    dst_p->software_id_byte41 = unpack_right_shift_u8(src_p[41], 0u, 0xffu);
+    dst_p->software_id_byte42 = unpack_right_shift_u8(src_p[42], 0u, 0xffu);
+    dst_p->software_id_byte43 = unpack_right_shift_u8(src_p[43], 0u, 0xffu);
+    dst_p->software_id_byte44 = unpack_right_shift_u8(src_p[44], 0u, 0xffu);
+    dst_p->software_id_byte45 = unpack_right_shift_u8(src_p[45], 0u, 0xffu);
+    dst_p->software_id_byte46 = unpack_right_shift_u8(src_p[46], 0u, 0xffu);
+    dst_p->software_id_byte47 = unpack_right_shift_u8(src_p[47], 0u, 0xffu);
+
+    return (0);
+}
+
+int genset_soft_init(struct genset_soft_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_soft_t));
+
+    return 0;
+}
+
+uint8_t genset_soft_number_of_software_id_fields_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_number_of_software_id_fields_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_number_of_software_id_fields_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_number_of_software_id_fields_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte01_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte01_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte01_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte01_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte02_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte02_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte02_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte02_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte03_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte03_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte03_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte03_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte04_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte04_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte04_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte04_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte05_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte05_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte05_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte05_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte06_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte06_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte06_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte06_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte07_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte07_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte07_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte07_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte08_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte08_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte08_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte08_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte09_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte09_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte09_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte09_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte10_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte10_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte10_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte10_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte11_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte11_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte11_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte11_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte12_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte12_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte12_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte12_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte13_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte13_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte13_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte13_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte14_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte14_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte14_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte14_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte15_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte15_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte15_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte15_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte16_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte16_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte16_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte16_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte17_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte17_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte17_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte17_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte18_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte18_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte18_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte18_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte19_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte19_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte19_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte19_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte20_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte20_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte20_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte20_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte21_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte21_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte21_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte21_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte22_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte22_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte22_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte22_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte23_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte23_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte23_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte23_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte24_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte24_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte24_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte24_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte25_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte25_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte25_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte25_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte26_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte26_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte26_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte26_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte27_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte27_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte27_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte27_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte28_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte28_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte28_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte28_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte29_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte29_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte29_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte29_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte30_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte30_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte30_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte30_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte31_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte31_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte31_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte31_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte32_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte32_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte32_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte32_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte33_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte33_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte33_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte33_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte34_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte34_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte34_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte34_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte35_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte35_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte35_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte35_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte36_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte36_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte36_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte36_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte37_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte37_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte37_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte37_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte38_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte38_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte38_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte38_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte39_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte39_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte39_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte39_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte40_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte40_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte40_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte40_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte41_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte41_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte41_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte41_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte42_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte42_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte42_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte42_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte43_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte43_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte43_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte43_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte44_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte44_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte44_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte44_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte45_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte45_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte45_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte45_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte46_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte46_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte46_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte46_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_soft_software_id_byte47_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_soft_software_id_byte47_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_soft_software_id_byte47_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_soft_software_id_byte47_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}

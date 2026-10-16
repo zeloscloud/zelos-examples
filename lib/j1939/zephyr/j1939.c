@@ -17,8 +17,8 @@ LOG_MODULE_REGISTER(zelos_j1939, LOG_LEVEL_INF);
 #define PF_MASK 0x03FF0000U
 
 /*
- * A poll sends at most a claim, a NACK, a BAM packet and one frame per
- * message, so this many messages bound what it can queue.
+ * A poll sends at most a claim, a NACK, a BAM packet, an RTS/CTS frame and
+ * one frame per message, so this many messages bound what it can queue.
  */
 #define MAX_MSGS 8
 
@@ -29,7 +29,7 @@ static K_THREAD_STACK_DEFINE(stack, 1024);
 static struct k_thread thread;
 
 /* Frames a poll produced, queued under the lock and sent after it. */
-static struct zelos_j1939_frame out[3 + MAX_MSGS];
+static struct zelos_j1939_frame out[4 + MAX_MSGS];
 static size_t out_len;
 
 static void queue_frame(const struct zelos_j1939_frame *frame, void *user)
@@ -76,7 +76,8 @@ static void run(void *p1, void *p2, void *p3)
 
 int zelos_j1939_start(struct zelos_j1939 *j)
 {
-	static const uint32_t pgns[] = {ZELOS_J1939_PGN_REQUEST, ZELOS_J1939_PGN_ADDRESS_CLAIMED};
+	static const uint32_t pgns[] = {ZELOS_J1939_PGN_REQUEST, ZELOS_J1939_PGN_ADDRESS_CLAIMED,
+					ZELOS_J1939_PGN_TP_CM};
 	int err;
 
 	if (j->n_msgs > MAX_MSGS) {
