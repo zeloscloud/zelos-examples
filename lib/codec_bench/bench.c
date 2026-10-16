@@ -831,3 +831,152 @@ bool bench_dcdc_status_counter_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 127.0f));
 }
+
+int bench_waveform_pack(
+    uint8_t *dst_p,
+    const struct bench_waveform_t *src_p,
+    size_t size)
+{
+    uint16_t sawtooth;
+    uint16_t sine;
+    uint16_t square;
+
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u16(src_p->freq_hz, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u16(src_p->freq_hz, 8u, 0xffu);
+    sine = (uint16_t)src_p->sine;
+    dst_p[2] |= pack_left_shift_u16(sine, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(sine, 8u, 0xffu);
+    square = (uint16_t)src_p->square;
+    dst_p[4] |= pack_left_shift_u16(square, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(square, 8u, 0xffu);
+    sawtooth = (uint16_t)src_p->sawtooth;
+    dst_p[6] |= pack_left_shift_u16(sawtooth, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(sawtooth, 8u, 0xffu);
+
+    return (8);
+}
+
+int bench_waveform_unpack(
+    struct bench_waveform_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    uint16_t sawtooth;
+    uint16_t sine;
+    uint16_t square;
+
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->freq_hz = unpack_right_shift_u16(src_p[0], 0u, 0xffu);
+    dst_p->freq_hz |= unpack_left_shift_u16(src_p[1], 8u, 0xffu);
+    sine = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    sine |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
+    dst_p->sine = (int16_t)sine;
+    square = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    square |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->square = (int16_t)square;
+    sawtooth = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    sawtooth |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+    dst_p->sawtooth = (int16_t)sawtooth;
+
+    return (0);
+}
+
+int bench_waveform_init(struct bench_waveform_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct bench_waveform_t));
+
+    return 0;
+}
+
+uint16_t bench_waveform_freq_hz_encode(float value)
+{
+    return (uint16_t)(value / 0.01f);
+}
+
+float bench_waveform_freq_hz_decode(uint16_t value)
+{
+    return ((float)value * 0.01f);
+}
+
+bool bench_waveform_freq_hz_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool bench_waveform_freq_hz_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 655.35f));
+}
+
+int16_t bench_waveform_sine_encode(float value)
+{
+    return (int16_t)(value / 0.001f);
+}
+
+float bench_waveform_sine_decode(int16_t value)
+{
+    return ((float)value * 0.001f);
+}
+
+bool bench_waveform_sine_is_in_range(int16_t value)
+{
+    return ((value >= -1000) && (value <= 1000));
+}
+
+bool bench_waveform_sine_is_in_phys_range(float value)
+{
+    return ((value >= -1.0f) && (value <= 1.0f));
+}
+
+int16_t bench_waveform_square_encode(float value)
+{
+    return (int16_t)(value / 0.001f);
+}
+
+float bench_waveform_square_decode(int16_t value)
+{
+    return ((float)value * 0.001f);
+}
+
+bool bench_waveform_square_is_in_range(int16_t value)
+{
+    return ((value >= -1000) && (value <= 1000));
+}
+
+bool bench_waveform_square_is_in_phys_range(float value)
+{
+    return ((value >= -1.0f) && (value <= 1.0f));
+}
+
+int16_t bench_waveform_sawtooth_encode(float value)
+{
+    return (int16_t)(value / 0.001f);
+}
+
+float bench_waveform_sawtooth_decode(int16_t value)
+{
+    return ((float)value * 0.001f);
+}
+
+bool bench_waveform_sawtooth_is_in_range(int16_t value)
+{
+    return ((value >= -1000) && (value <= 1000));
+}
+
+bool bench_waveform_sawtooth_is_in_phys_range(float value)
+{
+    return ((value >= -1.0f) && (value <= 1.0f));
+}
