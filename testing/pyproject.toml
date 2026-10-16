@@ -24,6 +24,7 @@ dependencies = [
 # Loaded by pytest wherever this package is installed: no conftest.py needed.
 [project.entry-points.pytest11]
 zelos_testing = "zelos_testing.plugin"
+zelos_testing_bench = "zelos_testing.bench_plugin"
 
 [build-system]
 requires = ["hatchling"]

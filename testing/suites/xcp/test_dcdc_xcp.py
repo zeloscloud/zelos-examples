@@ -14,10 +14,10 @@ import pytest
 import zelos_sdk
 from zelos_can import CanDecoder
 
+from zelos_testing.bench_plugin import find_a2l
 from zelos_testing.dbc import DBC_DIR
 from zelos_testing.dcdc import LIMITS, LIMITS_PERIOD_S, STATUS, BmsLimits
 from zelos_testing.frames import Periodic, bound, count, play_unless_present, until
-from zelos_testing.plugin import find_a2l
 from zelos_testing.xcp import Ecu, XcpResponseError
 
 # Below every allowance either BMS grants (a real one: 2 to 6 A by mode), and
