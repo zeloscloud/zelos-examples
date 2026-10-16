@@ -50,6 +50,7 @@ extern "C" {
 #define BENCH_BMS_LIMITS_FRAME_ID (0x201u)
 #define BENCH_BMS_CELL_VOLTAGES_FRAME_ID (0x202u)
 #define BENCH_DCDC_STATUS_FRAME_ID (0x300u)
+#define BENCH_WAVEFORM_FRAME_ID (0x7f0u)
 
 /* Frame lengths in bytes. */
 #define BENCH_VCU_COMMAND_LENGTH (4u)
@@ -57,6 +58,7 @@ extern "C" {
 #define BENCH_BMS_LIMITS_LENGTH (7u)
 #define BENCH_BMS_CELL_VOLTAGES_LENGTH (7u)
 #define BENCH_DCDC_STATUS_LENGTH (8u)
+#define BENCH_WAVEFORM_LENGTH (8u)
 
 /* Extended or standard frame types. */
 #define BENCH_VCU_COMMAND_IS_EXTENDED (0)
@@ -64,6 +66,7 @@ extern "C" {
 #define BENCH_BMS_LIMITS_IS_EXTENDED (0)
 #define BENCH_BMS_CELL_VOLTAGES_IS_EXTENDED (0)
 #define BENCH_DCDC_STATUS_IS_EXTENDED (0)
+#define BENCH_WAVEFORM_IS_EXTENDED (0)
 
 /* Frame cycle times in milliseconds. */
 #define BENCH_VCU_COMMAND_CYCLE_TIME_MS (100u)
@@ -71,6 +74,7 @@ extern "C" {
 #define BENCH_BMS_LIMITS_CYCLE_TIME_MS (100u)
 #define BENCH_BMS_CELL_VOLTAGES_CYCLE_TIME_MS (500u)
 #define BENCH_DCDC_STATUS_CYCLE_TIME_MS (50u)
+#define BENCH_WAVEFORM_CYCLE_TIME_MS (2u)
 
 /* Signal choices. */
 #define BENCH_VCU_COMMAND_REQUESTED_MODE_STANDBY_CHOICE (0u)
@@ -92,6 +96,7 @@ extern "C" {
 #define BENCH_BMS_LIMITS_NAME "BMS_Limits"
 #define BENCH_BMS_CELL_VOLTAGES_NAME "BMS_CellVoltages"
 #define BENCH_DCDC_STATUS_NAME "DCDC_Status"
+#define BENCH_WAVEFORM_NAME "Waveform"
 
 /* Signal Names. */
 #define BENCH_VCU_COMMAND_REQUESTED_MODE_NAME "RequestedMode"
@@ -117,6 +122,10 @@ extern "C" {
 #define BENCH_DCDC_STATUS_TEMPERATURE_NAME "Temperature"
 #define BENCH_DCDC_STATUS_DERATE_ACTIVE_NAME "DerateActive"
 #define BENCH_DCDC_STATUS_COUNTER_NAME "Counter"
+#define BENCH_WAVEFORM_FREQ_HZ_NAME "FreqHz"
+#define BENCH_WAVEFORM_SINE_NAME "Sine"
+#define BENCH_WAVEFORM_SQUARE_NAME "Square"
+#define BENCH_WAVEFORM_SAWTOOTH_NAME "Sawtooth"
 
 /**
  * Signals in message VCU_Command.
@@ -334,6 +343,43 @@ struct bench_dcdc_status_t {
      * Offset: 0
      */
     uint8_t counter;
+};
+
+/**
+ * Signals in message Waveform.
+ *
+ * Signal generator: one phase, chirped 1 to 100 Hz over 20 s, as sine, square and sawtooth. Lowest-priority ID on the bus.
+ *
+ * All signal values are as on the CAN bus.
+ */
+struct bench_waveform_t {
+    /**
+     * Range: 0..65535 (0..655.35 Hz)
+     * Scale: 0.01
+     * Offset: 0
+     */
+    uint16_t freq_hz;
+
+    /**
+     * Range: -1000..1000 (-1..1 -)
+     * Scale: 0.001
+     * Offset: 0
+     */
+    int16_t sine;
+
+    /**
+     * Range: -1000..1000 (-1..1 -)
+     * Scale: 0.001
+     * Offset: 0
+     */
+    int16_t square;
+
+    /**
+     * Range: -1000..1000 (-1..1 -)
+     * Scale: 0.001
+     * Offset: 0
+     */
+    int16_t sawtooth;
 };
 
 /**
@@ -1440,6 +1486,203 @@ bool bench_dcdc_status_counter_is_in_range(uint8_t value);
  * @return true if in range, false otherwise.
  */
 bool bench_dcdc_status_counter_is_in_phys_range(float value);
+
+/**
+ * Pack message Waveform.
+ *
+ * @param[out] dst_p Buffer to pack the message into.
+ * @param[in] src_p Data to pack.
+ * @param[in] size Size of dst_p.
+ *
+ * @return Size of packed data, or negative error code.
+ */
+int bench_waveform_pack(
+    uint8_t *dst_p,
+    const struct bench_waveform_t *src_p,
+    size_t size);
+
+/**
+ * Unpack message Waveform.
+ *
+ * @param[out] dst_p Object to unpack the message into.
+ * @param[in] src_p Message to unpack.
+ * @param[in] size Size of src_p.
+ *
+ * @return zero(0) or negative error code.
+ */
+int bench_waveform_unpack(
+    struct bench_waveform_t *dst_p,
+    const uint8_t *src_p,
+    size_t size);
+
+/**
+ * Init message fields to default values from Waveform.
+ *
+ * @param[in] msg_p Message to init.
+ *
+ * @return zero(0) on success or (-1) in case of nullptr argument.
+ */
+int bench_waveform_init(struct bench_waveform_t *msg_p);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t bench_waveform_freq_hz_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float bench_waveform_freq_hz_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool bench_waveform_freq_hz_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool bench_waveform_freq_hz_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+int16_t bench_waveform_sine_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float bench_waveform_sine_decode(int16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool bench_waveform_sine_is_in_range(int16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool bench_waveform_sine_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+int16_t bench_waveform_square_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float bench_waveform_square_decode(int16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool bench_waveform_square_is_in_range(int16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool bench_waveform_square_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+int16_t bench_waveform_sawtooth_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float bench_waveform_sawtooth_decode(int16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool bench_waveform_sawtooth_is_in_range(int16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool bench_waveform_sawtooth_is_in_phys_range(float value);
 
 
 #ifdef __cplusplus

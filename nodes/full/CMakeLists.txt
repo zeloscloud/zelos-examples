@@ -9,7 +9,7 @@ project(full)
 set(nodes ${CMAKE_CURRENT_SOURCE_DIR}/..)
 zephyr_include_directories(${nodes}/pdu/od)
 target_sources(app PRIVATE
-  src/main.c
+  src/main.c src/waveform.c
   ${nodes}/dcdc/src/dcdc.c ${nodes}/dcdc/src/xcp.c ${nodes}/dcdc/src/uds.c
   ${nodes}/genset/src/genset.c
   ${nodes}/pdu/src/pdu.c ${nodes}/pdu/od/CO_OD.c
