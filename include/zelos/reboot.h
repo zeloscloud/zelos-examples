@@ -17,7 +17,7 @@ typedef void (*zelos_reboot_hook_t)(void);
 /**
  * Run fn before every zelos_reboot(). One hook per firmware: UDS's.
  *
- * @param fn Runs in the rebooting thread; must not block.
+ * @param fn Runs in the rebooting thread; may wait out flash writes already queued.
  */
 void zelos_reboot_on(zelos_reboot_hook_t fn);
 
