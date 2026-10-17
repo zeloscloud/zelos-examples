@@ -8,7 +8,8 @@ sends them; responses come from 0x7E8. The contract is nodes/dcdc/src/uds.c.
 Tests marked `node` need the DC-DC itself (its DCDC_Status frames); those
 that inject a fault play the BMS and fall silent, so they skip where a BMS
 is on the bus. An ECUReset ends an operation cycle, the DC-DC's driving
-cycle. ISO 15765-4 padding is the tester's choice: 0x00 here.
+cycle. The tester's flow control is ISO 15765-4's: block size 0, STmin 0;
+padding is its choice: 0xCC here.
 
     cd testing && uv run pytest suites/obd --channel can0
 """
@@ -61,7 +62,7 @@ class ScanTool:
         self.bus, self.timeout_s = bus, timeout_s
         self.notifier = can.Notifier(bus, [])
         address = isotp.Address(isotp.AddressingMode.Normal_11bits, txid=PHYSICAL, rxid=RESPONSE)
-        self.stack = isotp.NotifierBasedCanStack(bus, self.notifier, address=address, params={"tx_padding": 0x00, "tx_data_min_length": 8, "blocking_send": True})
+        self.stack = isotp.NotifierBasedCanStack(bus, self.notifier, address=address, params={"tx_padding": 0xCC, "tx_data_min_length": 8, "blocksize": 0, "stmin": 0, "blocking_send": True})
         self.stack.start()
 
     def close(self):
@@ -74,7 +75,7 @@ class ScanTool:
             pass
         if functional:
             frame = bytes([len(payload)]) + payload
-            self.bus.send(can.Message(arbitration_id=FUNCTIONAL, data=frame.ljust(8, b"\x00"), is_extended_id=False))
+            self.bus.send(can.Message(arbitration_id=FUNCTIONAL, data=frame.ljust(8, b"\xcc"), is_extended_id=False))
         else:
             self.stack.send(payload)
         return self.stack.recv(block=True, timeout=self.timeout_s if timeout_s is None else timeout_s)
