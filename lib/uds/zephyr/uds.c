@@ -234,7 +234,7 @@ int zelos_uds_start(const struct zelos_uds_config *config)
 {
 	int err;
 
-	err = zelos_uds_core_init(&core, config, seed_random, &dtc_memory, k_uptime_get());
+	err = zelos_uds_core_init(&core, config, seed_random, &dtc_memory, 0, k_uptime_get());
 	if (err < 0) {
 		LOG_ERR("configuration: %d", err);
 		return err;
