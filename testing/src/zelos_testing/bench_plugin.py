@@ -25,7 +25,7 @@ def pytest_addoption(parser):
         "--soak-s",
         type=float,
         help="Host seconds the coexistence suite runs every protocol at once "
-        "(default: 120 on vcan, 600 on a physical channel)",
+        "(default: 120 on vcan, 10 on a physical channel)",
     )
     parser.addoption(
         "--a2l",

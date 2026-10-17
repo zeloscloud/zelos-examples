@@ -128,7 +128,8 @@ hil ELF CHANNEL +SUITES:
     suites=()
     for suite in {{ SUITES }}; do suites+=("suites/$suite"); done
     # An XCP build's A2L sits beside its ELF.
-    cd testing && uv run --frozen pytest "${suites[@]}" --channel {{ CHANNEL }} --a2l "${elf%.elf}.a2l"
+    # --durations: the slowest tests, timed, after the results.
+    cd testing && uv run --frozen pytest "${suites[@]}" --channel {{ CHANNEL }} --a2l "${elf%.elf}.a2l" --durations=10
 
 # Remove the cached Zephyr workspace. Frees about 2 GB.
 clean-workspace:
