@@ -398,7 +398,9 @@ def test_obd_on_uds_mirrors_the_legacy_services(scan):
     did = int.from_bytes(scan.uds(b"\x22\xf4\x42")[3:], "big")
     after = int.from_bytes(scan.pid(0x42), "big")
     assert min(before, after) - 50 <= did <= max(before, after) + 50, (before, did, after)
-    assert scan.uds(b"\x22\xf4\x1f")[3:] in (scan.pid(0x1F), (int.from_bytes(scan.pid(0x1F), "big") - 1).to_bytes(2, "big"))
+    before = int.from_bytes(scan.pid(0x1F), "big")  # run time, s
+    did = int.from_bytes(scan.uds(b"\x22\xf4\x1f")[3:], "big")
+    assert before <= did <= int.from_bytes(scan.pid(0x1F), "big"), (before, did)
 
 
 def test_a_j1979_2_scan_tool_reads_what_a_legacy_one_does(scan):
