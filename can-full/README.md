@@ -46,6 +46,7 @@ same default, so run one bench at a time or move one.
 | VCU | `../nodes/vcu` | | `0x101` |
 | BMS | `../nodes/bms` | | `0x200`-`0x202` |
 | DC-DC | `../nodes/full` (`../nodes/dcdc`, XCP and UDS) | XCP on CAN, UDS on ISO-TP | `0x300`; CRO `0x6F0`, DTO `0x6F1`; UDS `0x7E0`, functional `0x7DF`, responses `0x7E8` |
+| Signal generator | `../nodes/full/src/waveform.c` | Classic CAN | `0x7F0` `Waveform` every 2 ms: sine, square and sawtooth of one phase, chirped 1 to 100 Hz over 20 s; the lowest-priority id, for plots |
 | genset | `../nodes/full` (`../nodes/genset`) | J1939 | 29-bit, source address `0x80` |
 | PDU | `../nodes/full` (`../nodes/pdu`) | CANopen, node-id `0x20` | NMT `0x000`, SYNC `0x080`, TIME `0x100`, EMCY `0x0A0`, TPDO1 `0x1A0`, RPDO1 `0x220`, TPDO2 `0x2A0`, RPDO2 `0x320`, TPDO3 `0x3A0`, SDO `0x5A0`/`0x620`, heartbeat `0x720` |
 
