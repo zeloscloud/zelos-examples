@@ -357,6 +357,9 @@ struct zelos_uds_core {
 	uint8_t transfer_bsc;
 	uint32_t transfer_last_len;
 	uint8_t download[CONFIG_ZELOS_UDS_DOWNLOAD_SIZE];
+	/* The window's CRC-32, recomputed on the first read after an erase or download. */
+	uint32_t cvn;
+	bool cvn_stale;
 
 	/* Set by ECUReset: reset once its response, if any, is sent. */
 	uint8_t reset;

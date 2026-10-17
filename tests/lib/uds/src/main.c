@@ -376,12 +376,21 @@ ZTEST(uds, test_dtc_status_over_operation_cycles)
 	NRC(0x19, 0x12, 0x82, 0xFF);
 }
 
+/* CVN: the whole window's CRC-32, as the window holds it now. */
+static void expect_cvn(void)
+{
+	uint32_t cvn = crc32_ieee(uds.download, sizeof(uds.download));
+
+	EXPECT((0x49, 0x06, 0x01, BE32(cvn)), 0x09, 0x06);
+}
+
 ZTEST(uds, test_transfer_sequence)
 {
 	static const uint8_t data[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 	uint32_t crc = crc32_ieee(data, sizeof(data));
 
 	unlocked(0x02);
+	expect_cvn();
 	NRC(0x34, 0x31, 0x00, 0x44, WIN, 0x00, 0x00, 0x01, 0x01); /* past the window */
 	NRC(0x34, 0x70, 0x00, 0x44, WIN, 0x00, 0x00, 0x00, 0x0A); /* not erased */
 	NRC(0x31, 0x24, 0x01, 0xFF, 0x01, BE32(crc));              /* nothing downloaded */
@@ -397,6 +406,7 @@ ZTEST(uds, test_transfer_sequence)
 	now += 1;
 	zassert_equal(zelos_uds_core_tick(&uds, now, rsp), 5);
 	zassert_mem_equal(rsp, ((uint8_t[]){0x71, 0x01, 0xFF, 0x00, 0x00}), 5);
+	expect_cvn(); /* erased */
 
 	EXPECT((0x74, 0x20, CONFIG_ZELOS_UDS_BUF_SIZE >> 8, CONFIG_ZELOS_UDS_BUF_SIZE & 0xFF),
 	       0x34, 0x00, 0x44, WIN, 0x00, 0x00, 0x00, 0x0A);
@@ -404,6 +414,7 @@ ZTEST(uds, test_transfer_sequence)
 	NRC(0x34, 0x31, 0x11, 0x44, WIN, 0x00, 0x00, 0x00, 0x0A); /* format before 0x22 */
 	NRC(0x36, 0x73, 0x02, 1);
 	EXPECT((0x76, 0x01), 0x36, 0x01, 1, 2, 3, 4);
+	expect_cvn(); /* written */
 	EXPECT((0x76, 0x01), 0x36, 0x01, 9, 9, 9, 9); /* a repeat: not written again */
 	NRC(0x37, 0x24);
 	NRC(0x36, 0x71, 0x02, 5, 6, 7, 8, 9, 10, 11);

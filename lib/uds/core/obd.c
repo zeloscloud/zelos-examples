@@ -229,7 +229,11 @@ static bool put_info(struct zelos_uds_core *uds, uint8_t info, struct rsp *r)
 		return put(r, text, VIN_LEN);
 	case INFO_CVN:
 		/* The download window's CRC-32, the value the check routine computes. */
-		return put_be32(r, crc32_ieee(uds->download, sizeof(uds->download)));
+		if (uds->cvn_stale) {
+			uds->cvn = crc32_ieee(uds->download, sizeof(uds->download));
+			uds->cvn_stale = false;
+		}
+		return put_be32(r, uds->cvn);
 	case INFO_CALID:
 	case INFO_ECU_NAME:
 		s = info == INFO_CALID ? cfg->calid : cfg->ecu_name;
