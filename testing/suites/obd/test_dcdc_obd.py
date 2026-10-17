@@ -393,3 +393,32 @@ def test_obd_on_uds_mirrors_the_legacy_services(scan):
     assert abs(int.from_bytes(legacy, "big") - int.from_bytes(did, "big")) <= 50  # 50 mV between two samples
     assert scan.uds(b"\x22\xf4\x1f")[3:] in (scan.pid(0x1F), (int.from_bytes(scan.pid(0x1F), "big") - 1).to_bytes(2, "big"))
     assert scan.request(b"\x22\xf4\x0c", functional=False) == b"\x7f\x22\x31"
+
+
+def test_a_j1979_2_scan_tool_reads_what_a_legacy_one_does(scan):
+    """The same values both ways: readiness (01 01 = F501 = F401), the support bitmaps, the DTC
+    lists (03 / 07 / 0A = 19 42 08 / 19 42 04 / 19 55 by their 2-byte codes)."""
+    assert scan.uds(b"\x22\xf5\x01")[3:] == scan.uds(b"\x22\xf4\x01")[3:] == scan.pid(0x01)
+    for base in (0x00, 0x20, 0x40):
+        assert scan.uds(bytes([0x22, 0xF4, base]))[3:] == scan.pid(base)
+    assert scan.uds(b"\x22\xf8\x00")[3:] == scan.pid(0x00, service=0x09)
+    for service, uds in ((0x03, (0x42, 0x08, SEVERITY)), (0x07, (0x42, 0x04, SEVERITY)), (0x0A, (0x55,))):
+        assert sorted(scan.dtcs(service)) == sorted(d >> 8 for d in scan.wwh_dtcs(*uds)), hex(service)
+
+
+def test_no_test_results_or_in_use_ratios_either_way(scan):
+    """Comprehensive components only: no test results (CCR (g)(4.5.1)), no in-use ratios ((d)(5.1)),
+    no PID 41. Legacy: no $06 answer, 08 absent from 09 00, 41 from 01 40; J1979-2: no F441,
+    no DTC supports record 0x91 / 0x92 (19 1A: 0x31, SWS_Dcm_01609; nothing functionally)."""
+    assert 0x41 not in supported(scan.pid(0x40), 0x40)
+    assert 0x08 not in supported(scan.pid(0x00, service=0x09), 0x00)
+    for request in (b"\x06\x00", b"\x06\x01", b"\x09\x08", b"\x01\x41"):
+        assert scan.request(request, timeout_s=bound(0.3)) is None, request.hex()
+        assert scan.request(request, functional=False, timeout_s=bound(0.3)) is None, request.hex()
+    for did in (b"\xf4\x41", b"\xf8\x08"):
+        assert scan.request(b"\x22" + did, functional=False) == b"\x7f\x22\x31", did.hex()
+    for record in (0x91, 0x92):
+        assert scan.request(bytes([0x19, 0x1A, record]), functional=False) == b"\x7f\x19\x31"
+        assert scan.request(bytes([0x19, 0x1A, record]), timeout_s=bound(0.3)) is None
+        request = bytes([0x19, 0x06, *U0111_UDS.to_bytes(3, "big"), record])
+        assert scan.request(request, functional=False) == b"\x7f\x19\x31", request.hex()
