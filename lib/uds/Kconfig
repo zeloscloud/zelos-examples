@@ -32,6 +32,19 @@ config ZELOS_UDS_RESP_ID
 	hex "CAN identifier of responses"
 	default 0x7e8
 
+config ZELOS_UDS_NVS
+	bool "Permanent DTCs in flash"
+	default y if ZELOS_UDS_OBD && $(dt_nodelabel_exists,storage_partition)
+	select FLASH
+	select FLASH_MAP
+	select ZMS
+	help
+	  Keeps the permanent DTCs (OBD service 0x0A) in Zephyr Memory
+	  Storage (ZMS) on the storage partition, so a power loss does not
+	  erase them (13 CCR 1968.2 (g)(4.4.6)(C)). Written from a thread of
+	  the lowest application priority whenever the set changes; read at
+	  start.
+
 endif # ZELOS_UDS
 
 if ZELOS_UDS_CORE
