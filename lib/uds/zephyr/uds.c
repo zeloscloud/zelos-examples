@@ -84,6 +84,8 @@ static bool nvs_ready;
 /* The permanent set flash holds, as a mask over the configuration's DTCs. */
 static atomic_t nvs_saved;
 static struct k_work_q nvs_queue;
+/* Held through a flash write; seal() takes it so a reboot never cuts one. */
+static K_MUTEX_DEFINE(nvs_lock);
 static K_THREAD_STACK_DEFINE(nvs_stack, NVS_STACK_SIZE);
 
 /* Mount; the permanent DTCs flash holds, as a mask (0 if none or no flash). */
@@ -134,8 +136,10 @@ static void nvs_store(struct k_work *work)
 			codes[n++] = core.config->dtcs[i];
 		}
 	}
+	k_mutex_lock(&nvs_lock, K_FOREVER);
 	err = n > 0 ? (int)zms_write(&nvs, NVS_ID_PERMANENT, codes, n * sizeof(codes[0]))
 		    : zms_delete(&nvs, NVS_ID_PERMANENT);
+	k_mutex_unlock(&nvs_lock);
 	if (err < 0) {
 		LOG_ERR("permanent DTCs not stored: %d", err);
 		return;
@@ -145,12 +149,29 @@ static void nvs_store(struct k_work *work)
 
 static K_WORK_DEFINE(nvs_work, nvs_store);
 
-/* Under core_lock: queue a write if the permanent set moved from flash's. */
+/*
+ * Queue a write if the permanent set moved from flash's. Under core_lock, but
+ * from zelos_uds_start(), before anything else uses the core.
+ */
 static void nvs_sync(void)
 {
 	if (nvs_ready && zelos_uds_core_permanent(&core) != (uint32_t)atomic_get(&nvs_saved)) {
 		k_work_submit_to_queue(&nvs_queue, &nvs_work);
 	}
+}
+
+/* Before core_lock, which the write takes: finish the write queued or running. */
+static void nvs_flush(void)
+{
+	struct k_work_sync sync;
+
+	(void)k_work_flush(&nvs_work, &sync);
+}
+
+/* Under core_lock: wait out a write begun since the flush; none begins after. */
+static void nvs_quiesce(void)
+{
+	k_mutex_lock(&nvs_lock, K_FOREVER);
 }
 #else
 static uint32_t nvs_load(const struct zelos_uds_config *config)
@@ -160,6 +181,14 @@ static uint32_t nvs_load(const struct zelos_uds_config *config)
 }
 
 static void nvs_sync(void)
+{
+}
+
+static void nvs_flush(void)
+{
+}
+
+static void nvs_quiesce(void)
 {
 }
 #endif
@@ -279,12 +308,14 @@ static void handle(struct net_buf *buf, bool functional)
 
 /*
  * zelos_reboot()'s hook, so every orderly reboot keeps the DTC memory, not only
- * ECUReset's. The lock is held through the reboot: nothing changes the memory
- * after its seal.
+ * ECUReset's. The locks are held through the reboot: nothing changes the memory
+ * after its seal, and no flash write is cut short.
  */
 static void seal(void)
 {
+	nvs_flush();
 	k_mutex_lock(&core_lock, K_FOREVER);
+	nvs_quiesce();
 	zelos_uds_core_persist(&core);
 }
 
