@@ -15,7 +15,7 @@ from udsoncan.services import ECUReset
 from zelos_testing import frames
 from zelos_testing.bench_plugin import find_a2l
 from zelos_testing.dcdc import DB, LIMITS, LIMITS_PERIOD_S, STATUS, BmsLimits
-from zelos_testing.frames import Periodic, bound, collect, count, until
+from zelos_testing.frames import Periodic, bound, collect, count, until, wait_until
 from zelos_testing.uds import (
     ACTIVE_SESSION,
     ADJUST,
@@ -53,15 +53,6 @@ from zelos_testing.xcp import Ecu as XcpEcu
 BMS_STATUS = DB.get_message_by_name("BMS_Status")
 
 pytestmark = pytest.mark.usefixtures("bus_health", "dcdc_node")
-
-
-def wait_until(done, node_s: float, step_s: float = 0.1):
-    """Poll done() until it holds, within node_s of the server's time."""
-    end = time.monotonic() + bound(node_s)
-    while not done():
-        assert time.monotonic() < end, f"not done within {node_s} s"
-        time.sleep(step_s)
-
 
 
 def cycles(bus, n: int):
