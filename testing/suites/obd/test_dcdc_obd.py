@@ -389,8 +389,11 @@ def test_obd_on_uds_mirrors_the_legacy_services(scan):
     assert scan.uds(b"\x22\xf4\x00")[3:] == scan.pid(0x00)
     assert scan.uds(b"\x22\xf4\x40")[3:] == scan.pid(0x40)
     assert scan.uds(b"\x22\xf4\x1c\xf4\x46")[3:] == b"\x01\xf4\x46" + scan.pid(0x46)  # within a degree
-    legacy, did = scan.pid(0x42), scan.uds(b"\x22\xf4\x42")[3:]
-    assert abs(int.from_bytes(legacy, "big") - int.from_bytes(did, "big")) <= 50  # 50 mV between two samples
+    # PID 42 is the live rail voltage: F442, read between two 01 42 reads, lies in their span (mV).
+    before = int.from_bytes(scan.pid(0x42), "big")
+    did = int.from_bytes(scan.uds(b"\x22\xf4\x42")[3:], "big")
+    after = int.from_bytes(scan.pid(0x42), "big")
+    assert min(before, after) - 50 <= did <= max(before, after) + 50, (before, did, after)
     assert scan.uds(b"\x22\xf4\x1f")[3:] in (scan.pid(0x1F), (int.from_bytes(scan.pid(0x1F), "big") - 1).to_bytes(2, "big"))
     assert scan.request(b"\x22\xf4\x0c", functional=False) == b"\x7f\x22\x31"
 
