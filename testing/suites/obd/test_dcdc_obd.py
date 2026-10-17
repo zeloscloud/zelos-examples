@@ -21,7 +21,6 @@ import can
 import isotp
 import pytest
 
-from zelos_testing import frames
 from zelos_testing.dcdc import LIMITS, LIMITS_PERIOD_S, STATUS, BmsLimits
 from zelos_testing.frames import Periodic, bound, collect, count, play_unless_present, until
 from zelos_testing.uds import FUNCTIONAL, PHYSICAL, RESPONSE
@@ -161,13 +160,6 @@ def failing(scan) -> set[int]:
     return set(scan.wwh_dtcs(0x42, 0x01, SEVERITY))
 
 
-@pytest.fixture
-def kept_over_resets():
-    """Cycles end with ECUReset, whose DTC memory survives it. Not under Renode: its reset reloads the ELF, zeroing RAM."""
-    if frames.SIMULATED:
-        pytest.skip("Renode zeroes RAM on a reset: every reset there is a power loss")
-
-
 def ran_this_cycle(scan, dtc: int) -> bool:
     """The DTC's test has run in this operation cycle (testNotCompletedThisOperationCycle clear)."""
     return dtc not in scan.wwh_dtcs(0x42, TNCTOC, SEVERITY)
@@ -282,7 +274,7 @@ def test_mil_off_and_no_dtcs_after_a_clear(scan, bus):
 # --- Faults -----------------------------------------------------------------------
 
 
-def test_a_fault_is_pending_in_its_first_cycle_and_confirmed_in_its_second(scan, bus, no_bms, kept_over_resets):
+def test_a_fault_is_pending_in_its_first_cycle_and_confirmed_in_its_second(scan, bus, no_bms):
     """CCR 1968.2 (d)(2.2.1)-(2.2.2), (d)(2.2.5): pending first; confirmed, MIL on and permanent the next failing cycle."""
     release_permanent(bus, scan)
     lose_bms(bus, scan)
@@ -298,7 +290,7 @@ def test_a_fault_is_pending_in_its_first_cycle_and_confirmed_in_its_second(scan,
     assert scan.wwh_dtcs(0x55) == {U0111_UDS: status}  # 4-byte DTCAndStatus records
 
 
-def test_the_mil_goes_off_after_three_passing_cycles_and_the_code_stays_confirmed(scan, bus, no_bms, kept_over_resets):
+def test_the_mil_goes_off_after_three_passing_cycles_and_the_code_stays_confirmed(scan, bus, no_bms):
     """CCR 1968.2 (d)(2.3.2), (d)(2.4), (d)(2.5.1): MIL off after three passing cycles; confirmed stays; permanent goes with the MIL."""
     confirm_lost_bms(bus, scan)
     with bms(bus):
@@ -311,7 +303,7 @@ def test_the_mil_goes_off_after_three_passing_cycles_and_the_code_stays_confirme
         assert U0111 in scan.dtcs(0x03) and scan.dtcs(0x07) == [] and scan.dtcs(0x0A) == []
 
 
-def test_a_permanent_code_survives_a_clear_and_goes_after_one_passing_cycle(scan, bus, no_bms, kept_over_resets):
+def test_a_permanent_code_survives_a_clear_and_goes_after_one_passing_cycle(scan, bus, no_bms):
     """CCR 1968.2 (g)(4.4.6)(C), (d)(2.5.2)(A): no clear erases a permanent code; one passing cycle after it does."""
     confirm_lost_bms(bus, scan)
     with bms(bus):

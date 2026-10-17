@@ -38,17 +38,22 @@ first=
 		# each write logs a warning: 134,221 of them in 56 minutes on one run,
 		# 99.9% of everything the container printed.
 		#
-		# The ELF loads from the reset macro, which Renode also runs when the
-		# firmware reboots. A machine reset puts the SysTick back to 96 MHz,
-		# so the macro sets its frequency again.
+		# The ELF loads once, at power-on. Renode runs the reset macro when
+		# the firmware reboots, and a machine reset keeps memory, as the
+		# board's does: reloading the ELF there would zero .noinit, which
+		# keeps DTC memory over an ECUReset. A machine reset puts the vector
+		# table back at 0, where Renode has empty ITCM, and the SysTick back
+		# to 96 MHz, so the macro sets the part's boot address (BOOT_ADD0,
+		# flash) and the frequency again.
 		cat <<-EOF
 			mach create "${name}"
 			machine LoadPlatformDescription @platforms/boards/nucleo_h753zi.repl
 			logLevel 3 nvic
 			showAnalyzer usart3
+			sysbus LoadELF @/elf/${elf}
 			macro reset
 			"""
-			sysbus LoadELF @/elf/${elf}
+			sysbus.cpu VectorTableOffset 0x08000000
 			sysbus.nvic Frequency 480000000
 			"""
 			runMacro \$reset
