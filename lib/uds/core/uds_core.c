@@ -1020,6 +1020,7 @@ static uint8_t transfer_data(struct zelos_uds_core *uds, const uint8_t *req, siz
 			return NRC_TRANSFER_SUSPENDED;
 		}
 		memcpy(at + uds->transfer_done, &req[2], n);
+		uds->cvn_stale = true;
 		uds->transfer_done += n;
 		uds->transfer_bsc++;
 	}
@@ -1182,6 +1183,8 @@ int zelos_uds_core_init(struct zelos_uds_core *uds, const struct zelos_uds_confi
 	}
 
 	memset(uds, 0, sizeof(*uds));
+	/* Here, not on a request: the window changes only in a programming session. */
+	uds->cvn = crc32_ieee(uds->download, sizeof(uds->download));
 	uds->config = config;
 	uds->random = random;
 	uds->memory = memory;
@@ -1276,6 +1279,7 @@ static void finish_pending(struct zelos_uds_core *uds)
 {
 	if (uds->pending == ZELOS_UDS_ROUTINE_ERASE) {
 		memset(&uds->download[uds->erase_addr - DOWNLOAD_ADDRESS], 0xFF, uds->erase_size);
+		uds->cvn_stale = true;
 		uds->erased_lo = uds->erase_addr;
 		uds->erased_hi = uds->erase_addr + uds->erase_size;
 		uds->downloaded = false;
