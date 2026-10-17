@@ -106,10 +106,10 @@ def test_dtcs_follow_the_model_over_operation_cycles(ecu, bus, no_bms):
         cycles(bus, 2)
         assert dtcs(ecu, TF | CDTC).get(DTC_BMS_LOST) is None
     wait_until(lambda: dtcs(ecu, TF).get(DTC_BMS_LOST) == TF | TFTOC | PDTC | CDTC | TFSLC | WIR, 2.0)
-    assert ecu.raw(b"\x19\x03") == b"\x59\x03\xc1\x11\x87\x01"
+    assert ecu.raw(b"\x19\x03") == b"\x59\x03\xc1\x11\x00\x01"
     snapshot = ecu.client.get_dtc_snapshot_by_dtc_number(DTC_BMS_LOST, 1).service_data.dtcs[0].snapshots[0]
     assert snapshot.record_number == 1 and snapshot.did in SNAPSHOT_DIDS
-    assert ecu.raw(b"\x19\x06\xc1\x11\x87\x01")[6:] == b"\x01\x01"
+    assert ecu.raw(b"\x19\x06\xc1\x11\x00\x01")[6:] == b"\x01\x01"
 
     with Periodic(bus, BmsLimits(aux=20.0), LIMITS_PERIOD_S):
         # Healed this cycle: confirmed and pending stay.
@@ -123,7 +123,7 @@ def test_dtcs_follow_the_model_over_operation_cycles(ecu, bus, no_bms):
             reset(ecu)
             cycles(bus, 4)
             assert dtcs(ecu).get(DTC_BMS_LOST) == status
-    assert ecu.raw(b"\x19\x06\xc1\x11\x87\x01")[6:] == b"\x01\x01"  # one cycle failed
+    assert ecu.raw(b"\x19\x06\xc1\x11\x00\x01")[6:] == b"\x01\x01"  # one cycle failed
 
 
 def test_dtc_setting_off_freezes_status(ecu, bus, no_bms):

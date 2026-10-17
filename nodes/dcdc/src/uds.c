@@ -25,11 +25,15 @@
  *              slew rate A/s, float32 little-endian (struct dcdc_calibration)
  * Routine 0x0201: self-test, extended, about 2 s. Result: one byte, bit n set
  * while DTC n below is failing; 0x00 passed.
- * DTCs, from the model, each tested every 50 ms cycle:
- *   0 0x1A0098 overtemperature: temperature above 70 degC
- *   1 0x1A0116 input undervoltage: pack voltage below 250 V (untested without one)
- *   2 0x1A0219 output overcurrent: output current above 300 A
- *   3 0xC11187 BMS_Limits missing for 500 ms (untested while 0x28 disables Rx)
+ * DTCs, from the model, each tested every 50 ms cycle (SAE J2012 generic
+ * numbers, failure type 00):
+ *   0 0x0A9400 P0A94 DC/DC converter performance: temperature above 70 degC
+ *   1 0x0A0900 P0A09 DC/DC converter status circuit low: pack voltage below
+ *              250 V (untested without one)
+ *   2 0x0A0800 P0A08 DC/DC converter status circuit: output current above 300 A
+ *   3 0xC11100 U0111 lost communication with the battery energy control
+ *              module: BMS_Limits missing for 500 ms (untested while 0x28
+ *              disables Rx)
  * Snapshot record 0x01: 0x0101, 0x0102, 0x0103, 0x0104, 0x0105.
  */
 
@@ -67,10 +71,10 @@
 enum { DTC_OVERTEMPERATURE, DTC_UNDERVOLTAGE, DTC_OVERCURRENT, DTC_BMS_LOST, DTC_COUNT };
 
 static const uint32_t dtcs[DTC_COUNT] = {
-	[DTC_OVERTEMPERATURE] = 0x1A0098,
-	[DTC_UNDERVOLTAGE] = 0x1A0116,
-	[DTC_OVERCURRENT] = 0x1A0219,
-	[DTC_BMS_LOST] = 0xC11187,
+	[DTC_OVERTEMPERATURE] = 0x0A9400,
+	[DTC_UNDERVOLTAGE] = 0x0A0900,
+	[DTC_OVERCURRENT] = 0x0A0800,
+	[DTC_BMS_LOST] = 0xC11100,
 };
 
 /* This cycle's state, copied out of main(); also the read-only memory window. */
