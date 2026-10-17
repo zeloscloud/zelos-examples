@@ -62,6 +62,11 @@ enum {
 #define SID_READ_DTC 0x19
 #define SID_READ_DID 0x22
 #define REPORT_SNAPSHOT 0x04
+/* J1979-2 per-DTC extended data: 0x91 in-use ratio, 0x92 test results (CCR (d)(5.1), (g)(4.5.1)). */
+#define REPORT_EXT_DATA 0x06
+#define REPORT_SUPPORTED_EXT_DATA 0x1A
+#define RECORD_IUMPR 0x91
+#define RECORD_TEST_RESULTS 0x92
 #define GROUP_EMISSIONS_24 0xFFFF33
 /* Legacy request limits on CAN: 6 PIDs, 3 freeze frame pairs, one data infotype. */
 #define MAX_PIDS 6
@@ -454,6 +459,15 @@ uint8_t uds_obd_read_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t 
 	case REPORT_WWH_READINESS:
 		want = 4;
 		break;
+	case REPORT_SUPPORTED_EXT_DATA:
+		/*
+		 * No DTC of this node has a ratio or test-result monitor (comprehensive
+		 * components only), so none supports 0x91 / 0x92 (SWS_Dcm_01609).
+		 */
+		if (len < 3 || (req[2] != RECORD_IUMPR && req[2] != RECORD_TEST_RESULTS)) {
+			return NRC_SUBFUNCTION_NOT_SUPPORTED;
+		}
+		return len == 3 ? NRC_OUT_OF_RANGE : NRC_INCORRECT_LENGTH;
 	default:
 		return NRC_SUBFUNCTION_NOT_SUPPORTED;
 	}
@@ -485,7 +499,11 @@ bool uds_obd_relevant(const uint8_t *req, size_t len)
 		       (req[1] == REPORT_WWH_BY_MASK || req[1] == REPORT_WWH_PERMANENT ||
 			req[1] == REPORT_WWH_READINESS ||
 			(req[1] == REPORT_SNAPSHOT && len == 6 &&
-			 (req[5] == UDS_RECORD_FIRST || req[5] == UDS_RECORD_LATEST)));
+			 (req[5] == UDS_RECORD_FIRST || req[5] == UDS_RECORD_LATEST)) ||
+			(req[1] == REPORT_EXT_DATA && len == 6 &&
+			 (req[5] == RECORD_IUMPR || req[5] == RECORD_TEST_RESULTS)) ||
+			(req[1] == REPORT_SUPPORTED_EXT_DATA && len >= 3 &&
+			 (req[2] == RECORD_IUMPR || req[2] == RECORD_TEST_RESULTS)));
 	case SID_CLEAR_DTC:
 		return len >= 4 && sys_get_be24(&req[1]) == GROUP_EMISSIONS_24;
 	default:
