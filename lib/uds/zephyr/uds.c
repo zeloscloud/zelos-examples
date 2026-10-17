@@ -10,6 +10,11 @@
  * queue; it only waits on the driver for a free buffer like the queue's
  * thread, up to ISO-TP's N_As (CONFIG_ISOTP_A_TIMEOUT). Its frames are not in
  * zelos_can_stats().
+ *
+ * With CONFIG_ZELOS_UDS_NVS the permanent DTCs, as their 3-byte numbers, are
+ * one entry of Zephyr Memory Storage (ZMS) on the storage partition: read at start, rewritten whenever
+ * the set changes by a thread of the lowest application priority, so a flash
+ * write or erase never delays the application, XCP or this server.
  */
 
 #include <zelos/reboot.h>
@@ -23,6 +28,13 @@
 #include <zephyr/net_buf.h>
 #include <zephyr/random/random.h>
 #include <zephyr/sys/reboot.h>
+
+#if defined(CONFIG_ZELOS_UDS_NVS)
+#include <zephyr/drivers/flash.h>
+#include <zephyr/kvss/zms.h>
+#include <zephyr/storage/flash_map.h>
+#include <zephyr/sys/atomic.h>
+#endif
 
 LOG_MODULE_REGISTER(zelos_uds, LOG_LEVEL_INF);
 
@@ -57,6 +69,100 @@ static struct zelos_uds_core core;
 static __noinit struct zelos_uds_dtc_memory dtc_memory;
 static uint8_t req[CONFIG_ZELOS_UDS_BUF_SIZE];
 static uint8_t rsp[CONFIG_ZELOS_UDS_BUF_SIZE];
+
+#if defined(CONFIG_ZELOS_UDS_NVS)
+#define NVS_PARTITION storage_partition
+#define NVS_ID_PERMANENT 1
+#define NVS_STACK_SIZE 1024
+
+/* ZMS, not NVS: NVS takes sectors of 64 KB at most, an H7 sector is 128 KB. */
+static struct zms_fs nvs = {
+	.flash_device = PARTITION_DEVICE(NVS_PARTITION),
+	.offset = PARTITION_OFFSET(NVS_PARTITION),
+};
+static bool nvs_ready;
+/* The permanent set flash holds, as a mask over the configuration's DTCs. */
+static atomic_t nvs_saved;
+static struct k_work_q nvs_queue;
+static K_THREAD_STACK_DEFINE(nvs_stack, NVS_STACK_SIZE);
+
+/* Mount; the permanent DTCs flash holds, as a mask (0 if none or no flash). */
+static uint32_t nvs_load(const struct zelos_uds_config *config)
+{
+	struct flash_pages_info page;
+	uint32_t codes[ZELOS_UDS_DTCS_MAX];
+	uint32_t mask = 0;
+	ssize_t n;
+
+	if (!device_is_ready(nvs.flash_device) ||
+	    flash_get_page_info_by_offs(nvs.flash_device, nvs.offset, &page) != 0) {
+		LOG_ERR("no flash: permanent DTCs are lost at power-off");
+		return 0;
+	}
+	nvs.sector_size = page.size;
+	nvs.sector_count = PARTITION_SIZE(NVS_PARTITION) / page.size;
+	if (zms_mount(&nvs) != 0) {
+		LOG_ERR("flash storage: permanent DTCs are lost at power-off");
+		return 0;
+	}
+	nvs_ready = true;
+	n = zms_read(&nvs, NVS_ID_PERMANENT, codes, sizeof(codes));
+	for (ssize_t i = 0; i < MIN(n, (ssize_t)sizeof(codes)) / (ssize_t)sizeof(codes[0]); i++) {
+		/* A DTC this build no longer has is dropped. */
+		for (size_t j = 0; j < config->dtc_count; j++) {
+			mask |= config->dtcs[j] == codes[i] ? BIT(j) : 0;
+		}
+	}
+	atomic_set(&nvs_saved, (atomic_val_t)mask);
+	return mask;
+}
+
+static void nvs_store(struct k_work *work)
+{
+	uint32_t codes[ZELOS_UDS_DTCS_MAX];
+	uint32_t mask;
+	size_t n = 0;
+	int err;
+
+	ARG_UNUSED(work);
+
+	k_mutex_lock(&core_lock, K_FOREVER);
+	mask = zelos_uds_core_permanent(&core);
+	k_mutex_unlock(&core_lock);
+	for (size_t i = 0; i < core.config->dtc_count; i++) {
+		if (mask & BIT(i)) {
+			codes[n++] = core.config->dtcs[i];
+		}
+	}
+	err = n > 0 ? (int)zms_write(&nvs, NVS_ID_PERMANENT, codes, n * sizeof(codes[0]))
+		    : zms_delete(&nvs, NVS_ID_PERMANENT);
+	if (err < 0) {
+		LOG_ERR("permanent DTCs not stored: %d", err);
+		return;
+	}
+	atomic_set(&nvs_saved, (atomic_val_t)mask);
+}
+
+static K_WORK_DEFINE(nvs_work, nvs_store);
+
+/* Under core_lock: queue a write if the permanent set moved from flash's. */
+static void nvs_sync(void)
+{
+	if (nvs_ready && zelos_uds_core_permanent(&core) != (uint32_t)atomic_get(&nvs_saved)) {
+		k_work_submit_to_queue(&nvs_queue, &nvs_work);
+	}
+}
+#else
+static uint32_t nvs_load(const struct zelos_uds_config *config)
+{
+	ARG_UNUSED(config);
+	return 0;
+}
+
+static void nvs_sync(void)
+{
+}
+#endif
 
 static uint32_t seed_random(void)
 {
@@ -234,11 +340,18 @@ int zelos_uds_start(const struct zelos_uds_config *config)
 {
 	int err;
 
-	err = zelos_uds_core_init(&core, config, seed_random, &dtc_memory, 0, k_uptime_get());
+	err = zelos_uds_core_init(&core, config, seed_random, &dtc_memory, nvs_load(config),
+				  k_uptime_get());
 	if (err < 0) {
 		LOG_ERR("configuration: %d", err);
 		return err;
 	}
+#if defined(CONFIG_ZELOS_UDS_NVS)
+	k_work_queue_start(&nvs_queue, nvs_stack, K_THREAD_STACK_SIZEOF(nvs_stack),
+			   K_LOWEST_APPLICATION_THREAD_PRIO, NULL);
+	/* The new cycle may have released some. */
+	nvs_sync();
+#endif
 
 	bind_phys(K_NO_WAIT);
 	if (!phys_bound) {
@@ -267,6 +380,7 @@ void zelos_uds_dtc(size_t index, bool failed)
 {
 	k_mutex_lock(&core_lock, K_FOREVER);
 	zelos_uds_core_dtc(&core, index, failed);
+	nvs_sync();
 	k_mutex_unlock(&core_lock);
 }
 

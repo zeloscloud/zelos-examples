@@ -45,8 +45,8 @@
  * of the first cycle in which its test ran and never failed (CCR
  * (d)(2.5.2)(A); this node's tests are treated as ratio-style monitors).
  * The DTC memory survives a reboot (it lives in RAM the startup code does not
- * clear); a power loss erases it as a clear does, except the permanent DTCs
- * the application gives zelos_uds_core_init() from non-volatile memory.
+ * clear); a power loss erases it as a clear does, except the permanent DTCs,
+ * which CONFIG_ZELOS_UDS_NVS keeps in flash (CCR (g)(4.4.6)(C)).
  *
  * With CONFIG_ZELOS_UDS_OBD the server is also an OBD-II responder (SAE
  * J1979 / ISO 15031-5) on the same identifiers: services 0x01 (PIDs 0x00,
