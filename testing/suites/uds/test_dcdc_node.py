@@ -99,8 +99,6 @@ def bms(bus, no_bms):
 
 
 def test_dtcs_follow_the_model_over_operation_cycles(ecu, bus, no_bms):
-    if frames.SIMULATED:
-        pytest.skip("Renode zeroes RAM on a reset: every reset there is a power loss")
     # BMS_Limits missing: the node's own test fails, with a snapshot.
     with Periodic(bus, BmsLimits(aux=20.0), LIMITS_PERIOD_S):
         cycles(bus, 4)
