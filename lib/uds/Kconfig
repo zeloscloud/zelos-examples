@@ -36,6 +36,15 @@ endif # ZELOS_UDS
 
 if ZELOS_UDS_CORE
 
+config ZELOS_UDS_OBD
+	bool "OBD-II responder (SAE J1979, J1979-2)"
+	default y if ZELOS_UDS
+	help
+	  Answers SAE J1979 services 0x01-0x0A on the same identifiers, and
+	  J1979-2 (OBDonUDS) DIDs 0xF4xx/0xF5xx/0xF8xx and ReadDTCInformation
+	  0x42/0x55/0x56. Needs a VIN DID 0xF190 and the node's PID table.
+	  See include/zelos/uds.h.
+
 config ZELOS_UDS_BUF_SIZE
 	int "Largest request or response, bytes"
 	range 64 4095

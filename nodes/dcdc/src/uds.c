@@ -35,6 +35,18 @@
  *              module: BMS_Limits missing for 500 ms (untested while 0x28
  *              disables Rx)
  * Snapshot record 0x01: 0x0101, 0x0102, 0x0103, 0x0104, 0x0105.
+ *
+ * OBD-II (SAE J1979), on the same identifiers. PIDs, each from a DID above so
+ * the freeze frame (service 0x02) reports it from the snapshot:
+ *   0x1F run time since engine start = uptime, s, uint16 saturating
+ *   0x42 control module voltage = output voltage, ((A*256)+B)/1000 V
+ *   0x46 ambient air temperature = temperature, A-40 degC
+ *   0x5B hybrid battery pack remaining life = pack voltage from 250 V (0 %)
+ *        to 400 V (100 %), A*100/255 %; 0 while unknown
+ * plus the core's 0x01 (MIL = any confirmed DTC, count; no monitors) and
+ * 0x1C (0x01, OBD-II CARB). Service 0x09: VIN = 0xF190, CALID "DCDC-1.0.0",
+ * CVN = CRC-32 of the download window, ECU name "DCDC". OBDonUDS (J1979-2)
+ * DIDs 0xF400 + PID, 0xF501, 0xF802/0xF804/0xF806/0xF80A.
  */
 
 #include "uds.h"
@@ -65,6 +77,9 @@
 #define OVERTEMPERATURE_C 70.0f
 #define UNDERVOLTAGE_V 250.0f
 #define OVERCURRENT_A 300.0f
+/* PID 0x5B: pack life, 0 % at the undervoltage limit, 100 % at a full pack. */
+#define PACK_FULL_V 400.0f
+#define ECU_NAME "DCDC"
 
 #define NRC_OUT_OF_RANGE 0x31
 
@@ -259,6 +274,42 @@ static const struct zelos_uds_memory memories[] = {
 
 static const uint16_t snapshot_dids[] = {0x0101, 0x0102, 0x0103, 0x0104, 0x0105};
 
+/* J1979 PIDs, each a formula over one DID's bytes (big-endian, as read above). */
+static void pid_run_time(const uint8_t *uptime_ms, uint8_t *out)
+{
+	sys_put_be16((uint16_t)MIN(sys_get_be32(uptime_ms) / 1000U, UINT16_MAX), out);
+}
+
+static void pid_module_voltage(const uint8_t *volts_f32, uint8_t *out)
+{
+	uint32_t bits = sys_get_be32(volts_f32);
+	float v;
+
+	memcpy(&v, &bits, sizeof(v));
+	sys_put_be16((uint16_t)scaled(v, 0.001f, 0, UINT16_MAX), out);
+}
+
+static void pid_ambient_temperature(const uint8_t *celsius_i8, uint8_t *out)
+{
+	out[0] = (uint8_t)CLAMP((int8_t)celsius_i8[0] + 40, 0, UINT8_MAX);
+}
+
+static void pid_pack_life(const uint8_t *pack_01v, uint8_t *out)
+{
+	uint16_t raw = sys_get_be16(pack_01v);
+	float life = (raw * 0.1f - UNDERVOLTAGE_V) / (PACK_FULL_V - UNDERVOLTAGE_V);
+
+	out[0] = raw == UINT16_MAX ? 0
+				   : (uint8_t)scaled(CLAMP(life, 0.0f, 1.0f), 1.0f / 255, 0, 255);
+}
+
+static const struct zelos_uds_pid pids[] = {
+	{0x1F, 2, 0x0104, pid_run_time},
+	{0x42, 2, 0x0101, pid_module_voltage},
+	{0x46, 1, 0x0103, pid_ambient_temperature},
+	{0x5B, 1, 0x0105, pid_pack_life},
+};
+
 static const struct zelos_uds_config config = {
 	.dids = dids,
 	.did_count = ARRAY_SIZE(dids),
@@ -273,6 +324,10 @@ static const struct zelos_uds_config config = {
 	.snapshot_dids = snapshot_dids,
 	.snapshot_did_count = ARRAY_SIZE(snapshot_dids),
 	.write = dcdc_cal_write,
+	.pids = pids,
+	.pid_count = ARRAY_SIZE(pids),
+	.calid = SW_VERSION,
+	.ecu_name = ECU_NAME,
 };
 
 int dcdc_uds_start(void)

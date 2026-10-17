@@ -20,7 +20,25 @@
  * 0x37 for 10 s; the delay is also armed for 10 s at power-up.
  *
  * DTC memory survives ECUReset (it lives in RAM the startup code does not
- * clear) and is lost at power-off. Each boot is a new operation cycle.
+ * clear) and is lost at power-off. Each boot is a new operation cycle. A DTC
+ * confirmed with its warning indicator requested is permanent: ClearDTC and
+ * OBD service 0x04 leave it, and it goes once its test has passed in three
+ * consecutive operation cycles.
+ *
+ * With CONFIG_ZELOS_UDS_OBD the server is also an OBD-II responder (SAE
+ * J1979 / ISO 15031-5) on the same identifiers: services 0x01 (PIDs 0x00,
+ * 0x01, 0x1C and the node's), 0x02 (freeze frame 0 = snapshot record 0x01
+ * of the first confirmed DTC), 0x03/0x07/0x0A (confirmed, pending, permanent
+ * DTCs, 2 bytes each), 0x04 (= ClearDTC of every DTC) and 0x09 (0x02 VIN
+ * from DID 0xF190, 0x04 CALID, 0x06 CVN, 0x0A ECU name). J1979 never
+ * answers negatively: an unsupported service, PID or infotype gets nothing,
+ * physically or functionally. OBDonUDS (SAE J1979-2): DIDs 0xF400 + PID with
+ * the PID's bytes (0xF400/0xF420/0xF440 bitmaps), 0xF501 = PID 0x01, 0xF802
+ * VIN, 0xF804 CALID, 0xF806 CVN, 0xF80A ECU name (17/16/4/20 bytes, no
+ * count); ReadDTCInformation 0x42 (functional group 0x33, status mask,
+ * severity 0x00 and ignored, DTC format 0x04), 0x55 (permanent, same
+ * records) and 0x56 (readiness group echoed, no DTCs: no monitors);
+ * ClearDTC group 0xFFFF33 clears every DTC, as 0xFFFFFF does.
  *
  * NRC order: 0x11, 0x7F, 0x13 (minimum length), 0x12, 0x7E, 0x13, 0x22, 0x24,
  * 0x31 (identifier, address, parameter), 0x33, then data value checks (0x31)
@@ -129,8 +147,23 @@ struct zelos_uds_memory {
 	bool writable;
 };
 
+/*
+ * A J1979 PID (service 0x01) the node supports, as a formula over one of its
+ * DIDs. Service 0x02 reports it from snapshot record 0x01 when the DID is in
+ * it. PIDs 0x01 and 0x1C, and the bitmaps, are the core's.
+ */
+struct zelos_uds_pid {
+	uint8_t pid;
+	uint8_t size;
+	uint16_t did;
+	/* Encode the DID's value (its size bytes) as the PID's size bytes. */
+	void (*encode)(const uint8_t *value, uint8_t *out);
+};
+
 #define ZELOS_UDS_DTCS_MAX 16
 #define ZELOS_UDS_SNAPSHOT_MAX 32
+#define ZELOS_UDS_CALID_LEN 16
+#define ZELOS_UDS_ECU_NAME_LEN 20
 
 struct zelos_uds_config {
 	const struct zelos_uds_did *dids;
@@ -152,6 +185,11 @@ struct zelos_uds_config {
 	 * shares with another writer of the same memory. NULL: stored directly.
 	 */
 	void (*write)(void *dst, const void *src, size_t len);
+	/* OBD-II (CONFIG_ZELOS_UDS_OBD): the PIDs, CALID (<= 16) and ECU name (<= 20). */
+	const struct zelos_uds_pid *pids;
+	size_t pid_count;
+	const char *calid;
+	const char *ecu_name;
 };
 
 #if defined(CONFIG_ZELOS_UDS)
@@ -202,6 +240,9 @@ struct zelos_uds_dtc_record {
 	uint8_t status;
 	uint8_t occurrences;
 	uint8_t aging;
+	/* Permanent (OBD 0x0A), and the passed cycles since towards its release. */
+	bool permanent;
+	uint8_t passed_cycles;
 	bool snapshot_stored;
 	uint8_t snapshot[ZELOS_UDS_SNAPSHOT_MAX];
 };
