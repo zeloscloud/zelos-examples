@@ -43,10 +43,13 @@
  *   0x46 ambient air temperature = temperature, A-40 degC
  *   0x5B hybrid battery pack remaining life = pack voltage from 250 V (0 %)
  *        to 400 V (100 %), A*100/255 %; 0 while unknown
- * plus the core's 0x01 (MIL = any confirmed DTC, count; no monitors) and
- * 0x1C (0x01, OBD-II CARB). Service 0x09: VIN = 0xF190, CALID "DCDC-1.0.0",
- * CVN = CRC-32 of the download window, ECU name "DCDC". OBDonUDS (J1979-2)
- * DIDs 0xF400 + PID, 0xF501, 0xF802/0xF804/0xF806/0xF80A.
+ * plus the core's 0x01 (MIL, confirmed count, comprehensive components
+ * supported and complete) and 0x1C (0x01, OBD-II CARB). Service 0x09: VIN =
+ * 0xF190, CALID "DCDC-1.0.0", CVN = CRC-32 of the download window, ECU name
+ * "DCDC". OBDonUDS (J1979-2) DIDs 0xF810, 0xF400 + PID, 0xF501,
+ * 0xF802/0xF804/0xF806/0xF80A. DTC lifecycle (two-cycle confirmation, MIL,
+ * aging, permanent DTCs in flash): include/zelos/uds.h; one operation cycle
+ * is one boot, so an ECUReset ends it.
  */
 
 #include "uds.h"

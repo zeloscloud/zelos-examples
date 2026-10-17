@@ -45,6 +45,40 @@ config ZELOS_UDS_OBD
 	  0x42/0x55/0x56. Needs a VIN DID 0xF190 and the node's PID table.
 	  See include/zelos/uds.h.
 
+config ZELOS_UDS_OBD_VIN
+	bool "Report the VIN"
+	default y
+	depends on ZELOS_UDS_OBD
+	help
+	  Service 0x09 infotype 0x02 and DID 0xF802. Only one ECU of a vehicle
+	  reports the VIN (13 CCR 1968.2 (g)(4.8.1)): say n where the node is
+	  not that ECU.
+
+config ZELOS_UDS_DTC_CONFIRM_CYCLES
+	int "Failed operation cycles before a DTC is confirmed"
+	range 1 255
+	default 2
+	help
+	  Consecutive cycles in which the test ran and failed. 2: pending at
+	  the first, confirmed with the MIL at the second, as US OBD-II
+	  requires (13 CCR 1968.2 (d)(2.2.2)).
+
+config ZELOS_UDS_DTC_HEALING_CYCLES
+	int "Passed operation cycles before the MIL goes off"
+	range 1 255
+	default 3
+	help
+	  Consecutive cycles in which the test ran and never failed (13 CCR
+	  1968.2 (d)(2.3.2)).
+
+config ZELOS_UDS_DTC_AGING_CYCLES
+	int "Operation cycles with the MIL off before confirmedDTC is erased"
+	range 1 255
+	default 40
+	help
+	  Consecutive cycles without a failure. One operation cycle counts as
+	  one warm-up cycle on this bench (13 CCR 1968.2 (d)(2.4)).
+
 config ZELOS_UDS_BUF_SIZE
 	int "Largest request or response, bytes"
 	range 64 4095

@@ -27,6 +27,9 @@ enum {
 #define WIR BIT(7)
 #define DTC_AVAILABILITY 0xFF
 #define SNAPSHOT_RECORD 0x01
+/* OBDonUDS snapshot records: first frame, second (latest) frame. */
+#define UDS_RECORD_FIRST 0x00
+#define UDS_RECORD_LATEST 0xF0
 
 /* A response under construction; never beyond CONFIG_ZELOS_UDS_BUF_SIZE. */
 struct rsp {
@@ -79,7 +82,7 @@ const struct zelos_uds_did *uds_find_did(const struct zelos_uds_config *cfg, uin
 /* DTC i as ISO 14229-1 reports it: 3 bytes and its status. */
 bool uds_put_dtc(struct zelos_uds_core *uds, size_t i, struct rsp *r);
 
-/* Clear a DTC (ClearDTC, OBD 0x04): never tested since; permanent stays. */
+/* Clear a DTC (ClearDTC, OBD 0x04): erased, never tested since; permanent stays. */
 void uds_clear_record(struct zelos_uds_dtc_record *d);
 
 /* Offset of a DID's value in snapshot record 0x01, or -1 if not captured. */
@@ -93,6 +96,11 @@ bool uds_obd_read_did(struct zelos_uds_core *uds, uint16_t id, struct rsp *r, bo
 /* ReadDTCInformation 0x42, 0x55, 0x56. @return NRC, 0 on success. */
 uint8_t uds_obd_read_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t len,
 			 struct rsp *r);
+/* An OBDonUDS request: never 0x13, never 0x21 (CCR 1968.2 (g)(3.4.2)). */
+bool uds_obd_relevant(const uint8_t *req, size_t len);
+/* Snapshot record 0x00 or 0xF0 from a snapshot: DIDs 0xF400 + PID. */
+void uds_obd_put_frame(struct zelos_uds_core *uds, const uint8_t *snapshot, uint8_t record,
+		       struct rsp *r);
 #endif
 
 #endif /* ZELOS_UDS_CORE_H_ */

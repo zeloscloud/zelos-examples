@@ -99,31 +99,38 @@ def bms(bus, no_bms):
 
 
 def test_dtcs_follow_the_model_over_operation_cycles(ecu, bus, no_bms):
+    if frames.SIMULATED:
+        pytest.skip("Renode zeroes RAM on a reset: every reset there is a power loss")
     # BMS_Limits missing: the node's own test fails, with a snapshot.
     with Periodic(bus, BmsLimits(aux=20.0), LIMITS_PERIOD_S):
         cycles(bus, 4)
         ecu.client.clear_dtc(0xFFFFFF)
         cycles(bus, 2)
         assert dtcs(ecu, TF | CDTC).get(DTC_BMS_LOST) is None
-    wait_until(lambda: dtcs(ecu, TF).get(DTC_BMS_LOST) == TF | TFTOC | PDTC | CDTC | TFSLC | WIR, 2.0)
-    assert ecu.raw(b"\x19\x03") == b"\x59\x03\xc1\x11\x00\x01"
+    # The first failed cycle: pending, not yet confirmed (OBD-II two-cycle confirmation).
+    wait_until(lambda: dtcs(ecu, TF).get(DTC_BMS_LOST) == TF | TFTOC | PDTC | TFSLC, 2.0)
+    # Snapshot records: OBD-II's first frame, the node's DIDs, OBD-II's second frame.
+    assert ecu.raw(b"\x19\x03") == b"\x59\x03" + b"".join(b"\xc1\x11\x00" + bytes([r]) for r in (0x00, 0x01, 0xF0))
     snapshot = ecu.client.get_dtc_snapshot_by_dtc_number(DTC_BMS_LOST, 1).service_data.dtcs[0].snapshots[0]
     assert snapshot.record_number == 1 and snapshot.did in SNAPSHOT_DIDS
     assert ecu.raw(b"\x19\x06\xc1\x11\x00\x01")[6:] == b"\x01\x01"
+    # A reset is a new operation cycle; the memory survives it. Failed again: confirmed, MIL on.
+    reset(ecu)
+    wait_until(lambda: dtcs(ecu, TF).get(DTC_BMS_LOST) == TF | TFTOC | PDTC | CDTC | TFSLC | WIR, 2.0)
+    assert ecu.raw(b"\x19\x06\xc1\x11\x00\x01")[6:] == b"\x01\x02"
 
     with Periodic(bus, BmsLimits(aux=20.0), LIMITS_PERIOD_S):
-        # Healed this cycle: confirmed and pending stay.
-        wait_until(lambda: dtcs(ecu).get(DTC_BMS_LOST) == TFTOC | PDTC | CDTC | TFSLC, 2.0)
-        # A reset is a new operation cycle; the memory survives it.
+        # Healed this cycle: confirmed, pending and the MIL stay.
+        wait_until(lambda: dtcs(ecu).get(DTC_BMS_LOST) == TFTOC | PDTC | CDTC | TFSLC | WIR, 2.0)
         reset(ecu)
         cycles(bus, 4)
-        assert dtcs(ecu).get(DTC_BMS_LOST) == PDTC | CDTC | TFSLC
-        # Passing a whole cycle clears pending; three age confirmed out.
-        for status in (CDTC | TFSLC, CDTC | TFSLC, TFSLC):
+        assert dtcs(ecu).get(DTC_BMS_LOST) == PDTC | CDTC | TFSLC | WIR
+        # Passing a whole cycle clears pending; three turn the MIL off; confirmed stays (40 to age).
+        for status in (CDTC | TFSLC | WIR, CDTC | TFSLC | WIR, CDTC | TFSLC):
             reset(ecu)
             cycles(bus, 4)
             assert dtcs(ecu).get(DTC_BMS_LOST) == status
-    assert ecu.raw(b"\x19\x06\xc1\x11\x00\x01")[6:] == b"\x01\x01"  # one cycle failed
+    assert ecu.raw(b"\x19\x06\xc1\x11\x00\x01")[6:] == b"\x01\x02"  # two cycles failed
 
 
 def test_dtc_setting_off_freezes_status(ecu, bus, no_bms):

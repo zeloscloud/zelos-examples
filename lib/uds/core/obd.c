@@ -41,6 +41,12 @@ enum {
 #define DID_MONITOR 0xF500
 #define DID_INFO 0xF800
 #define DID_MIL_COUNT 0xF501
+/* ISO 15765-4:2021 6.1.1: OBDonUDS protocol identification, 0x01 J1979-2. */
+#define DID_PROTOCOL 0xF810
+#define PROTOCOL_J1979_2 0x01
+#define DID_PIDS_HI 0xF4
+#define DID_INFO_HI 0xF8
+#define DID_DTR_HI 0xE0
 
 /* ReadDTCInformation 0x42, 0x55, 0x56 (ISO 14229-1:2020). */
 #define REPORT_WWH_BY_MASK 0x42
@@ -49,7 +55,20 @@ enum {
 #define GROUP_EMISSIONS 0x33
 /* SAE J2012-DA DTCFormat_04: 3-byte DTCs, as J1979-2 reports them. */
 #define DTC_FORMAT_J2012_DA_04 0x04
+/* DTC severity class 1 (bits 0-4, GTR 5 class A), as testers ask with mask 0x02. Convention. */
+#define SEVERITY_CLASS_1 0x02
 #define NRC_SUBFUNCTION_NOT_SUPPORTED 0x12
+#define SID_CLEAR_DTC 0x14
+#define SID_READ_DTC 0x19
+#define SID_READ_DID 0x22
+#define REPORT_SNAPSHOT 0x04
+#define GROUP_EMISSIONS_24 0xFFFF33
+/* Legacy request limits on CAN: 6 PIDs, 3 freeze frame pairs, one data infotype. */
+#define MAX_PIDS 6
+#define MAX_FRAME_PAIRS 3
+#define MAX_INFOTYPES 6
+/* PID 0x01 byte B: comprehensive components supported (bit 2), complete (bit 6 clear). */
+#define CCM_SUPPORTED BIT(2)
 
 static const struct zelos_uds_pid *find_pid(const struct zelos_uds_config *cfg, uint8_t pid)
 {
@@ -70,7 +89,8 @@ static bool supported(const struct zelos_uds_config *cfg, uint8_t id, enum scope
 
 	switch (scope) {
 	case SCOPE_INFO:
-		return id == INFO_VIN || id == INFO_CALID || id == INFO_CVN || id == INFO_ECU_NAME;
+		return (IS_ENABLED(CONFIG_ZELOS_UDS_OBD_VIN) && id == INFO_VIN) || id == INFO_CALID ||
+		       id == INFO_CVN || id == INFO_ECU_NAME;
 	case SCOPE_FROZEN:
 		if (id == PID_FREEZE_DTC) {
 			return true;
@@ -104,29 +124,50 @@ static bool is_bitmap(uint8_t id)
 	return (id & 0x1F) == 0;
 }
 
-/* MIL (any confirmed DTC) and the confirmed count; no monitors supported. */
+/*
+ * MIL (any warningIndicatorRequested), the confirmed count, and the
+ * comprehensive component monitor (every DTC's test), always complete.
+ */
 static void monitor_status(struct zelos_uds_core *uds, uint8_t *out)
 {
 	uint8_t count = 0;
+	bool mil = false;
 
 	for (size_t i = 0; i < uds->config->dtc_count; i++) {
 		count += (uds->memory->dtc[i].status & CDTC) != 0;
+		mil |= (uds->memory->dtc[i].status & WIR) != 0;
 	}
-	out[0] = (count > 0 ? MIL : 0) | MIN(count, 0x7F);
-	out[1] = out[2] = out[3] = 0;
+	out[0] = (mil ? MIL : 0) | MIN(count, 0x7F);
+	out[1] = uds->config->dtc_count > 0 ? CCM_SUPPORTED : 0;
+	out[2] = out[3] = 0;
 }
 
-/* The first confirmed DTC with a snapshot: the freeze frame's, or -1. */
+/* The DTC whose frame was stored first: freeze frame 0's, or -1 (CCR (g)(4.3.1)(D)). */
 static int frozen_dtc(struct zelos_uds_core *uds)
 {
+	int owner = -1;
+
 	for (size_t i = 0; i < uds->config->dtc_count; i++) {
 		const struct zelos_uds_dtc_record *d = &uds->memory->dtc[i];
 
-		if ((d->status & CDTC) != 0 && d->snapshot_stored) {
-			return (int)i;
+		if (d->snapshot_stored &&
+		    (owner < 0 || d->stored_at < uds->memory->dtc[owner].stored_at)) {
+			owner = (int)i;
 		}
 	}
-	return -1;
+	return owner;
+}
+
+/* Availability ids and data ids in one request: the tester's error, ignored (SWS_Dcm_00943/00972). */
+static bool mixed(const uint8_t *ids, size_t n, size_t step)
+{
+	size_t bitmaps = 0, items = 0;
+
+	for (size_t i = 0; i < n; i += step) {
+		bitmaps += is_bitmap(ids[i]);
+		items++;
+	}
+	return bitmaps != 0 && bitmaps < items;
 }
 
 /* A PID's bytes from its DID's current value, or from a snapshot when given. */
@@ -202,6 +243,9 @@ static bool current_data(struct zelos_uds_core *uds, const uint8_t *pids, size_t
 {
 	bool any = false;
 
+	if (n > MAX_PIDS || mixed(pids, n, 1)) {
+		return false;
+	}
 	for (size_t i = 0; i < n; i++) {
 		if (is_bitmap(pids[i])) {
 			uint32_t bits = bitmap(uds->config, pids[i], SCOPE_LIVE);
@@ -222,6 +266,9 @@ static bool freeze_frame(struct zelos_uds_core *uds, const uint8_t *req, size_t 
 	int dtc = frozen_dtc(uds);
 	bool any = false;
 
+	if (n % 2 != 0 || n / 2 > MAX_FRAME_PAIRS || mixed(req, n, 2)) {
+		return false;
+	}
 	for (size_t i = 0; i + 1 < n; i += 2) {
 		uint8_t pid = req[i], frame = req[i + 1];
 
@@ -273,16 +320,31 @@ static void dtc_list(struct zelos_uds_core *uds, uint8_t sid, struct rsp *r)
 	r->buf[1] = (uint8_t)count;
 }
 
-/* 0x09: `infotype count data`, one infotype per request. */
-static bool vehicle_info(struct zelos_uds_core *uds, uint8_t info, struct rsp *r)
+/* 0x09: `infotype count data` for one data infotype, or up to 6 bitmaps. */
+static bool vehicle_info(struct zelos_uds_core *uds, const uint8_t *info, size_t n, struct rsp *r)
 {
-	if (is_bitmap(info)) {
-		uint32_t bits = bitmap(uds->config, info, SCOPE_INFO);
+	bool any = false;
 
-		return (bits != 0 || info == 0) && put_u8(r, info) && put_be32(r, bits);
+	if (n == 1 && !is_bitmap(info[0])) {
+		return supported(uds->config, info[0], SCOPE_INFO) && put_u8(r, info[0]) &&
+		       put_u8(r, 1) && put_info(uds, info[0], r);
 	}
-	return supported(uds->config, info, SCOPE_INFO) && put_u8(r, info) && put_u8(r, 1) &&
-	       put_info(uds, info, r);
+	if (n > MAX_INFOTYPES) {
+		return false;
+	}
+	/* Bitmaps only: a data infotype among them is ignored with the rest. */
+	for (size_t i = 0; i < n; i++) {
+		uint32_t bits;
+
+		if (!is_bitmap(info[i])) {
+			return false;
+		}
+		bits = bitmap(uds->config, info[i], SCOPE_INFO);
+		if (bits != 0 || info[i] == 0) {
+			any |= put_u8(r, info[i]) && put_be32(r, bits);
+		}
+	}
+	return any;
 }
 
 size_t uds_obd_request(struct zelos_uds_core *uds, const uint8_t *req, size_t len, uint8_t *rsp)
@@ -313,7 +375,7 @@ size_t uds_obd_request(struct zelos_uds_core *uds, const uint8_t *req, size_t le
 		}
 		break;
 	case SID_VEHICLE_INFO:
-		ok = len == 2 && vehicle_info(uds, req[1], &r);
+		ok = len >= 2 && vehicle_info(uds, &req[1], len - 1, &r);
 		break;
 	default:
 		ok = false;
@@ -329,6 +391,9 @@ bool uds_obd_read_did(struct zelos_uds_core *uds, uint16_t id, struct rsp *r, bo
 	uint8_t out[4];
 
 	*found = true;
+	if (id == DID_PROTOCOL) {
+		return put_be16(r, id) && put_u8(r, PROTOCOL_J1979_2);
+	}
 	if (base == DID_PIDS || base == DID_INFO) {
 		enum scope sc = base == DID_PIDS ? SCOPE_LIVE : SCOPE_INFO;
 
@@ -352,17 +417,21 @@ bool uds_obd_read_did(struct zelos_uds_core *uds, uint16_t id, struct rsp *r, bo
 	return true;
 }
 
-/* 0x42, 0x55: severity (none), DTC, status for each DTC selected. */
-static bool put_wwh_records(struct zelos_uds_core *uds, uint8_t mask, bool permanent,
-			    struct rsp *r)
+/*
+ * 0x42: severity, DTC, status of each DTC both masks select; 0x55: DTC and
+ * status of each permanent DTC (DTCAndStatusRecord, SWS_Dcm_01659).
+ */
+static bool put_wwh_records(struct zelos_uds_core *uds, const uint8_t *req, struct rsp *r)
 {
 	const struct zelos_uds_config *cfg = uds->config;
+	bool permanent = req[1] == REPORT_WWH_PERMANENT;
 
 	for (size_t i = 0; i < cfg->dtc_count; i++) {
 		const struct zelos_uds_dtc_record *d = &uds->memory->dtc[i];
+		bool selected = permanent ? d->permanent
+					  : (d->status & req[3]) != 0 && (SEVERITY_CLASS_1 & req[4]) != 0;
 
-		if ((permanent ? d->permanent : (d->status & mask) != 0) &&
-		    !(put_u8(r, 0x00) && uds_put_dtc(uds, i, r))) {
+		if (selected && !((permanent || put_u8(r, SEVERITY_CLASS_1)) && uds_put_dtc(uds, i, r))) {
 			return false;
 		}
 	}
@@ -391,25 +460,57 @@ uint8_t uds_obd_read_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t 
 	if (len != want) {
 		return NRC_INCORRECT_LENGTH;
 	}
-	if (req[2] != GROUP_EMISSIONS) {
+	/* No DTC of this node belongs to a readiness group (SWS_Dcm_01612). */
+	if (req[2] != GROUP_EMISSIONS || type == REPORT_WWH_READINESS) {
 		return NRC_OUT_OF_RANGE;
 	}
 	put_u8(r, type);
 	put_u8(r, GROUP_EMISSIONS);
 	put_u8(r, DTC_AVAILABILITY);
 	if (type == REPORT_WWH_BY_MASK) {
-		/* Severity: none available, so the severity mask selects nothing on its own. */
-		put_u8(r, 0x00);
+		put_u8(r, SEVERITY_CLASS_1);
 	}
 	put_u8(r, DTC_FORMAT_J2012_DA_04);
-	switch (type) {
-	case REPORT_WWH_BY_MASK:
-		return put_wwh_records(uds, req[3], false, r) ? 0 : NRC_RESPONSE_TOO_LONG;
-	case REPORT_WWH_PERMANENT:
-		return put_wwh_records(uds, 0, true, r) ? 0 : NRC_RESPONSE_TOO_LONG;
+	return put_wwh_records(uds, req, r) ? 0 : NRC_RESPONSE_TOO_LONG;
+}
+
+bool uds_obd_relevant(const uint8_t *req, size_t len)
+{
+	switch (req[0]) {
+	case SID_READ_DID:
+		return len >= 2 && ((req[1] >= DID_PIDS_HI && req[1] <= DID_INFO_HI) ||
+				    req[1] == DID_DTR_HI);
+	case SID_READ_DTC:
+		return len >= 2 &&
+		       (req[1] == REPORT_WWH_BY_MASK || req[1] == REPORT_WWH_PERMANENT ||
+			req[1] == REPORT_WWH_READINESS ||
+			(req[1] == REPORT_SNAPSHOT && len == 6 &&
+			 (req[5] == UDS_RECORD_FIRST || req[5] == UDS_RECORD_LATEST)));
+	case SID_CLEAR_DTC:
+		return len >= 4 && sys_get_be24(&req[1]) == GROUP_EMISSIONS_24;
 	default:
-		/* No monitor belongs to any readiness group: the group, no DTCs. */
-		put_u8(r, req[3]);
-		return 0;
+		return false;
+	}
+}
+
+void uds_obd_put_frame(struct zelos_uds_core *uds, const uint8_t *snapshot, uint8_t record,
+		       struct rsp *r)
+{
+	const struct zelos_uds_config *cfg = uds->config;
+	size_t at = r->len + 1;
+	uint8_t count = 0;
+
+	put_u8(r, record);
+	put_u8(r, 0);
+	for (size_t i = 0; i < cfg->pid_count; i++) {
+		uint8_t pid = cfg->pids[i].pid;
+
+		if (supported(cfg, pid, SCOPE_FROZEN) && put_be16(r, DID_PIDS + pid) &&
+		    put_pid(uds, pid, snapshot, r)) {
+			count++;
+		}
+	}
+	if (at < CONFIG_ZELOS_UDS_BUF_SIZE) {
+		r->buf[at] = count;
 	}
 }
