@@ -1335,12 +1335,15 @@ static void capture_snapshot(struct zelos_uds_core *uds, uint8_t *p)
 void zelos_uds_core_dtc(struct zelos_uds_core *uds, size_t index, bool failed)
 {
 	struct zelos_uds_dtc_record *d;
+	uint8_t confirm;
 	bool first;
 
 	if (index >= uds->config->dtc_count || !uds->dtc_setting) {
 		return;
 	}
 	d = &uds->memory->dtc[index];
+	/* The store's DTC at once: its pending state would not outlive a power loss. */
+	confirm = uds->config->dtcs[index] == ZELOS_UDS_DTC_NV_ERROR ? 1 : CONFIRM_CYCLES;
 	if (!failed) {
 		d->status &= ~(TF | TNCTOC | TNCSLC);
 		return;
@@ -1365,7 +1368,7 @@ void zelos_uds_core_dtc(struct zelos_uds_core *uds, size_t index, bool failed)
 	if (first && d->failed_cycles < UINT8_MAX) {
 		d->failed_cycles++;
 	}
-	if (d->failed_cycles >= CONFIRM_CYCLES) {
+	if (d->failed_cycles >= confirm) {
 		/* Confirmed, the MIL on, and permanent while it is (CCR (d)(2.2.5)). */
 		d->status |= CDTC | WIR;
 		d->permanent = true;
@@ -1380,6 +1383,26 @@ uint32_t zelos_uds_core_permanent(const struct zelos_uds_core *uds)
 		mask |= uds->memory->dtc[i].permanent ? BIT(i) : 0;
 	}
 	return mask;
+}
+
+bool zelos_uds_core_kept(const struct zelos_uds_dtc_memory *memory, size_t index)
+{
+	const struct zelos_uds_dtc_record *d;
+
+	if (index >= ZELOS_UDS_DTCS_MAX || memory->magic != MEMORY_MAGIC ||
+	    memory->crc != memory_crc(memory)) {
+		return false;
+	}
+	d = &memory->dtc[index];
+	return (d->status & (PDTC | CDTC | WIR)) != 0 || d->permanent;
+}
+
+void zelos_uds_core_extend(struct zelos_uds_core *uds, const struct zelos_uds_config *config)
+{
+	for (size_t i = uds->config->dtc_count; i < config->dtc_count; i++) {
+		erase_record(&uds->memory->dtc[i]);
+	}
+	uds->config = config;
 }
 
 void zelos_uds_core_persist(struct zelos_uds_core *uds)

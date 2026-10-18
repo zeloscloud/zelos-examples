@@ -665,6 +665,50 @@ static void expect_info(uint8_t info, const char *text, size_t n)
 	zassert_mem_equal(&rsp[3], &want[3], n);
 }
 
+/*
+ * The flash store failed (mount or write): the glue appends its DTC, P062F, and
+ * reports the failure through the normal path. CCR 1968.2 (g)(4.4.6)(C).
+ */
+ZTEST(uds, test_store_failure_dtc)
+{
+	static const uint32_t nv_dtcs[] = {0x0A9400, 0xC11100, ZELOS_UDS_DTC_NV_ERROR};
+	static struct zelos_uds_config nv;
+
+	nv = config;
+	nv.dtcs = nv_dtcs;
+	nv.dtc_count = ARRAY_SIZE(nv_dtcs);
+
+	zelos_uds_core_dtc(&uds, 0, true);
+	zelos_uds_core_extend(&uds, &nv);
+	zassert_equal(status(2), 0x50); /* appended cleared */
+	zassert_equal(status(0), 0x27); /* the node's DTCs keep their memory */
+	zelos_uds_core_dtc(&uds, 2, true);
+
+	/* Confirmed with the MIL at the first failure; P0A94 still only pending. */
+	zassert_equal(status(2), 0xAF);
+	zassert_equal(status(0), 0x27);
+	DTCS2(0x03, 0x06, 0x2F);
+	DTCS2(0x07, 0x0A, 0x94, 0x06, 0x2F);
+	DTCS2(0x0A, 0x06, 0x2F); /* permanent in RAM; the glue never writes it */
+	EXPECT((0x41, 0x01, 0x81, 0x04, 0x00, 0x00), 0x01, 0x01); /* MIL on, 1 */
+	EXPECT((0x59, 0x42, 0x33, 0xFF, 0x02, 0x04, 0x02, 0x06, 0x2F, 0x00, 0xAF), 0x19, 0x42,
+	       0x33, 0x08, 0x02);
+	zassert_equal(zelos_uds_core_permanent(&uds), BIT(2));
+
+	/* A reset keeps it; the store mounting again passes it, the MIL stays (healing). */
+	zelos_uds_core_persist(&uds);
+	zassert_true(zelos_uds_core_kept(&memory, 2));
+	zassert_ok(zelos_uds_core_init(&uds, &nv, fixed_seed, &memory, 0, now));
+	zelos_uds_core_dtc(&uds, 2, false);
+	zassert_equal(status(2), 0xAC);
+
+	/* A power loss with a working store: nothing kept, the node's DTCs alone. */
+	memset(&memory, 0xA5, sizeof(memory));
+	zassert_false(zelos_uds_core_kept(&memory, 2));
+	boot();
+	EXPECT((0x59, 0x0A, 0xFF, 0x0A, 0x94, 0x00, 0x50, 0xC1, 0x11, 0x00, 0x50), 0x19, 0x0A);
+}
+
 ZTEST(uds, test_obd_vehicle_info)
 {
 	uint32_t cvn = crc32_ieee(uds.download, sizeof(uds.download));
