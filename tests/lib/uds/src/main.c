@@ -665,6 +665,21 @@ static void expect_info(uint8_t info, const char *text, size_t n)
 	zassert_mem_equal(&rsp[3], &want[3], n);
 }
 
+/* Flash's permanent DTCs, read after start, apply only where a power loss cleared RAM. */
+ZTEST(uds, test_permanent_dtcs_restored_after_the_mount)
+{
+	/* Power-on: none until the mount; then flash's. */
+	CLEARED(0x0A);
+	zelos_uds_core_restore(&uds, BIT(1));
+	DTCS2(0x0A, 0xC1, 0x11);
+	zassert_equal(status(1), 0x50); /* permanent only: not pending, not confirmed */
+
+	/* A reset keeps RAM's set: flash's is not applied over it. */
+	reset();
+	zelos_uds_core_restore(&uds, BIT(0));
+	DTCS2(0x0A, 0xC1, 0x11);
+}
+
 /*
  * The flash store failed (mount or write): the glue appends its DTC, P062F, and
  * reports the failure through the normal path. CCR 1968.2 (g)(4.4.6)(C).

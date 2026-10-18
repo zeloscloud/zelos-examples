@@ -1196,6 +1196,7 @@ int zelos_uds_core_init(struct zelos_uds_core *uds, const struct zelos_uds_confi
 	uds->lockout_until[1] = now + SECURITY_DELAY_MS;
 
 	kept = memory->magic == MEMORY_MAGIC && memory->crc == memory_crc(memory);
+	uds->cleared = !kept;
 	memory->magic = 0;
 	if (!kept) {
 		memory->stored = 0;
@@ -1383,6 +1384,13 @@ uint32_t zelos_uds_core_permanent(const struct zelos_uds_core *uds)
 		mask |= uds->memory->dtc[i].permanent ? BIT(i) : 0;
 	}
 	return mask;
+}
+
+void zelos_uds_core_restore(struct zelos_uds_core *uds, uint32_t permanent)
+{
+	for (size_t i = 0; uds->cleared && i < uds->config->dtc_count; i++) {
+		uds->memory->dtc[i].permanent |= (permanent & BIT(i)) != 0;
+	}
 }
 
 bool zelos_uds_core_kept(const struct zelos_uds_dtc_memory *memory, size_t index)

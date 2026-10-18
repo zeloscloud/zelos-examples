@@ -46,7 +46,11 @@
  * (d)(2.5.2)(A); this node's tests are treated as ratio-style monitors).
  * The DTC memory survives a reboot (it lives in RAM the startup code does not
  * clear); a power loss erases it as a clear does, except the permanent DTCs,
- * which CONFIG_ZELOS_UDS_NVS keeps in flash (CCR (g)(4.4.6)(C)).
+ * which CONFIG_ZELOS_UDS_NVS keeps in flash (CCR (g)(4.4.6)(C)). The flash
+ * store mounts after start, on the store's low-priority thread (a blank
+ * partition's first mount erases a sector): the node starts at once, requests
+ * are answered meanwhile from RAM, and flash's permanent DTCs join when it has
+ * mounted.
  * With CONFIG_ZELOS_UDS_NVS, a flash store that does not mount, or a write to
  * it that fails, is DTC ZELOS_UDS_DTC_NV_ERROR (P062F-00, internal control
  * module EEPROM error), the server's own, after the node's: confirmed with
@@ -322,6 +326,8 @@ struct zelos_uds_core {
 	/* A random 32-bit value; the core retries a zero. */
 	uint32_t (*random)(void);
 	struct zelos_uds_dtc_memory *memory;
+	/* The memory started cleared (a power loss): flash's permanent DTCs apply. */
+	bool cleared;
 
 	uint8_t session;
 	int64_t s3_deadline;
@@ -407,6 +413,12 @@ void zelos_uds_core_dtc(struct zelos_uds_core *uds, size_t index, bool failed);
 
 /* Bit i: DTC i is permanent now. What non-volatile memory must hold. */
 uint32_t zelos_uds_core_permanent(const struct zelos_uds_core *uds);
+
+/**
+ * Set DTCs permanent as non-volatile memory has them, once it is read: only if
+ * the memory started cleared, as zelos_uds_core_init()'s `permanent`.
+ */
+void zelos_uds_core_restore(struct zelos_uds_core *uds, uint32_t permanent);
 
 /**
  * Whether memory, before zelos_uds_core_init(), is kept from before a reset
