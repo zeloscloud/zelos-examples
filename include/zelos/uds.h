@@ -47,6 +47,14 @@
  * The DTC memory survives a reboot (it lives in RAM the startup code does not
  * clear); a power loss erases it as a clear does, except the permanent DTCs,
  * which CONFIG_ZELOS_UDS_NVS keeps in flash (CCR (g)(4.4.6)(C)).
+ * With CONFIG_ZELOS_UDS_NVS, a flash store that does not mount, or a write to
+ * it that fails, is DTC ZELOS_UDS_DTC_NV_ERROR (P062F-00, internal control
+ * module EEPROM error), the server's own, after the node's: confirmed with
+ * the MIL at its first failure (pending could not outlive a power loss with
+ * no store), passed when the store mounts or a write succeeds, and otherwise
+ * as above. It is never written to flash; the permanent DTCs stay in RAM and
+ * the node runs on. It is in the DTC memory only from its first failure
+ * until it ages out or is cleared: while the store works, nothing changes.
  *
  * With CONFIG_ZELOS_UDS_OBD the server is also an OBD-II responder (SAE
  * J1979 / ISO 15031-5) on the same identifiers: services 0x01 (PIDs 0x00,
@@ -198,6 +206,8 @@ struct zelos_uds_pid {
 };
 
 #define ZELOS_UDS_DTCS_MAX 16
+/* P062F-00, the flash store's DTC (CONFIG_ZELOS_UDS_NVS); the node's take the others. */
+#define ZELOS_UDS_DTC_NV_ERROR 0x062F00
 #define ZELOS_UDS_SNAPSHOT_MAX 32
 #define ZELOS_UDS_CALID_LEN 16
 #define ZELOS_UDS_ECU_NAME_LEN 20
@@ -397,6 +407,18 @@ void zelos_uds_core_dtc(struct zelos_uds_core *uds, size_t index, bool failed);
 
 /* Bit i: DTC i is permanent now. What non-volatile memory must hold. */
 uint32_t zelos_uds_core_permanent(const struct zelos_uds_core *uds);
+
+/**
+ * Whether memory, before zelos_uds_core_init(), is kept from before a reset
+ * and holds DTC index pending, confirmed, with the MIL or permanent.
+ */
+bool zelos_uds_core_kept(const struct zelos_uds_dtc_memory *memory, size_t index);
+
+/**
+ * Switch to config: the current configuration with DTCs appended, which start
+ * cleared. The node's DTCs keep their memory.
+ */
+void zelos_uds_core_extend(struct zelos_uds_core *uds, const struct zelos_uds_config *config);
 
 /* Seal the DTC memory for the next boot. Call right before an orderly reset. */
 void zelos_uds_core_persist(struct zelos_uds_core *uds);

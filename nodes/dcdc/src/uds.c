@@ -34,6 +34,8 @@
  *   3 0xC11100 U0111 lost communication with the battery energy control
  *              module: BMS_Limits missing for 500 ms (untested while 0x28
  *              disables Rx)
+ *   4 0x062F00 P062F internal control module EEPROM error: the permanent-DTC
+ *              store failed (the server's, include/zelos/uds.h; only once set)
  * Snapshot record 0x01: 0x0101, 0x0102, 0x0103, 0x0104, 0x0105.
  *
  * OBD-II (SAE J1979), on the same identifiers. PIDs, each from a DID above so
