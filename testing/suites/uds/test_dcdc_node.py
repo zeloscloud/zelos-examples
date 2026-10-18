@@ -8,6 +8,7 @@ where no DC-DC is on the bus. The server contract is test_uds_conformance.py.
 import struct
 import time
 
+import can
 import pytest
 from pyxcp.types import XcpTimeoutError
 from udsoncan.services import ECUReset
@@ -28,11 +29,14 @@ from zelos_testing.uds import (
     DTC_OVERTEMPERATURE,
     DTC_UNDERVOLTAGE,
     EXTENDED,
+    IDENTIFICATION,
     INPUT_V,
     LEVEL_EXTENDED,
     MARGIN,
     OUTPUT,
     PDTC,
+    PHYSICAL,
+    RESPONSE,
     S3_S,
     SELF_TEST,
     SETPOINT,
@@ -65,8 +69,6 @@ def cycles(bus, n: int):
 @pytest.fixture(scope="session")
 def dcdc_node(pytestconfig, uds_server):
     """The DC-DC node itself is on the bus: its DCDC_Status frames are."""
-    import can
-
     with can.Bus(interface=pytestconfig.getoption("interface"), channel=pytestconfig.getoption("channel")) as b:
         if not collect(b, bound(0.5), ids=[STATUS.frame_id]):
             pytest.skip("no DCDC_Status on the bus: not the DC-DC node")
@@ -156,8 +158,6 @@ def test_undervoltage_overcurrent_and_overtemperature(ecu, bus, bms):
 
 
 def _frame(message, signals):
-    import can
-
     return can.Message(arbitration_id=message.frame_id, data=message.encode(signals), is_extended_id=False)
 
 
@@ -255,3 +255,70 @@ def test_xcp_and_uds_share_the_ecu(pytestconfig, ecu, bus):
         assert xcp.epk() == xcp.a2l["epk"]["string"]
         # The calibration was RAM: the reset restored the build's.
         assert xcp.read("DEMAND_A") == pytest.approx(original)
+
+
+# VIN, part number, hardware version in one read: a first frame and 7 CFs.
+IDENTIFIERS = can.Message(arbitration_id=PHYSICAL, is_extended_id=False, data=bytes.fromhex("0722F190F187F191"))
+
+
+def flow_control(bs: int, padded: bool = True) -> can.Message:
+    data = bytes([0x30, bs, 0x00]) + (b"\xcc" * 5 if padded else b"")
+    return can.Message(arbitration_id=PHYSICAL, is_extended_id=False, data=data)
+
+
+def read_by_hand(bus, stray: can.Message | None, request: can.Message = IDENTIFIERS) -> bytes:
+    """request's response, flow-controlled one CF per block; request and each FC followed by stray."""
+    bus.send(request)
+    if stray is not None:
+        bus.send(stray)
+    payload, size, sn = b"", None, 1
+    end = time.monotonic() + bound(2.0)
+    while (left := end - time.monotonic()) > 0 and (msg := bus.recv(left)) is not None:
+        if msg.arbitration_id != RESPONSE or not msg.is_rx:
+            continue
+        pci = msg.data[0] >> 4
+        if pci == 1 and size is None:
+            size, payload = (msg.data[0] & 0xF) << 8 | msg.data[1], bytes(msg.data[2:])
+        elif pci == 2 and size is not None:
+            assert msg.data[0] & 0xF == sn, f"CF {msg.data[0] & 0xF:X} where {sn:X} was due, after {len(payload)} of {size} bytes"
+            sn, payload = (sn + 1) & 0xF, payload + bytes(msg.data[1:])
+        else:
+            continue
+        if len(payload) >= size:
+            return payload[:size]
+        bus.send(flow_control(1))
+        if stray is not None:
+            bus.send(stray)
+    pytest.fail(f"response cut short: {len(payload)} of {size} bytes")
+
+
+def test_a_second_testers_flow_control_is_ignored(bus):
+    """A flow control the node is not waiting for is ignored (ISO 15765-2), and its CFs stay in order.
+
+    A second tester on the same identifiers flow-controls the node's responses
+    too. Its FC, right behind ours, reaches the node while the CF ours released
+    still waits for the bus. Taken as the next block's, it would release a CF
+    while one is pending, and the controller's priority queue sends the two in
+    either order. Unpadded (DLC 3) and block size 0, as such a tester's: any other
+    content collides with that tester's own FC on a bench that has one.
+    """
+    clean = read_by_hand(bus, None)
+    stray = flow_control(0, padded=False)
+    for _ in range(500):
+        assert read_by_hand(bus, stray) == clean
+
+
+def test_a_request_survives_a_second_testers_flow_control(bus):
+    """A receiver ignores flow control (ISO 15765-2): one between a request's frames, or right after them, loses nothing.
+
+    Such an FC is a second tester's, answering the node's previous response late.
+    """
+    # IDENTIFIERS and the software version: a first frame and one CF.
+    first, last = (can.Message(arbitration_id=PHYSICAL, is_extended_id=False, data=bytes.fromhex(d)) for d in ("100922F190F187F1", "2191F195CCCCCCCC"))
+    want = read_by_hand(bus, None) + bytes.fromhex("F195") + IDENTIFICATION[0xF195].encode()
+    stray = flow_control(0, padded=False)
+    for _ in range(50):
+        bus.send(first)
+        until(bus, lambda f: f[-1].data[0] >> 4 == 3, ids=[RESPONSE])
+        bus.send(stray)
+        assert read_by_hand(bus, stray, last) == want
