@@ -13,7 +13,7 @@ import pytest
 from pyxcp.types import XcpTimeoutError
 from udsoncan.services import ECUReset
 
-from zelos_testing import frames
+from zelos_testing import frames, renode
 from zelos_testing.bench_plugin import find_a2l
 from zelos_testing.dcdc import DB, LIMITS, LIMITS_PERIOD_S, STATUS, BmsLimits
 from zelos_testing.frames import Periodic, bound, collect, count, until, wait_until
@@ -34,6 +34,8 @@ from zelos_testing.uds import (
     MARGIN,
     OUTPUT,
     PDTC,
+    PHYSICAL,
+    RESPONSE,
     S3_S,
     SELF_TEST,
     SETPOINT,
@@ -254,3 +256,41 @@ def test_xcp_and_uds_share_the_ecu(pytestconfig, ecu, bus):
         assert xcp.epk() == xcp.a2l["epk"]["string"]
         # The calibration was RAM: the reset restored the build's.
         assert xcp.read("DEMAND_A") == pytest.approx(original)
+
+
+# VIN, part number, hardware version in one read: a first frame and 7 CFs.
+IDENTIFIERS = can.Message(arbitration_id=PHYSICAL, is_extended_id=False, data=bytes.fromhex("0722F190F187F191"))
+# Flow control: no block limit, a CF per 127 ms, the largest STmin.
+SLOWEST = can.Message(arbitration_id=PHYSICAL, is_extended_id=False, data=bytes.fromhex("30007FCCCCCCCCCC"))
+
+
+def test_a_tester_gone_mid_response_releases_the_output(ecu, bus):
+    """Nothing acknowledges the node's frames: the tester unplugged mid-response, the node alone on its bus.
+
+    Its controller holds a frame it retransmits for ever, so the response cannot
+    end. The node gives it up within N_As and a restart of the controller, and
+    S3 then ends the session, returning the output the tester overrode (2F) to
+    the ECU. Renode only: the bench takes the node off its CAN hub.
+    """
+    monitor = renode.monitor()
+    if monitor is None:
+        pytest.skip("takes the node off the bus through the Renode bench's monitor")
+    machine = next((m for m in ("full", "dcdc") if m in monitor.machines()), None)
+    if machine is None:
+        pytest.skip("no DC-DC machine on this Renode bench")
+    ecu.enter(EXTENDED)
+    ecu.unlock(LEVEL_EXTENDED)
+    ecu.client.io_control(OUTPUT, control_param=ADJUST, values=[15.0])
+    wait_until(lambda: 14.0 < status(bus)["OutputVoltage"] <= 15.0, 1.0)
+    with ecu.by_hand():
+        bus.send(IDENTIFIERS)
+        until(bus, lambda f: f[-1].data[0] >> 4 == 1, ids=[RESPONSE])
+        bus.send(SLOWEST)
+        until(bus, lambda f: f[-1].data[0] >> 4 == 2, ids=[RESPONSE])
+        with monitor.off_the_bus(machine):
+            # S3 from the request. Then the most the node takes: a CF's N_As, its next
+            # check (N_As), lib/can's frame leaving the driver (1 s), the restart's N_Bs + 127 ms.
+            monitor.sleep_virtual(S3_S + 3 * 1.0 + 1.127 + 0.5)
+    # Back on the bus: the node answers at once, the session over and the output the ECU's.
+    assert ecu.session() == DEFAULT
+    wait_until(lambda: 13.0 < status(bus)["OutputVoltage"] <= SETPOINT_V, 1.0)

@@ -5,11 +5,14 @@
  *
  * ISO-TP sends straight to the driver, not through lib/can's queue: its state
  * machine runs on each frame's own completion callback, which the queue does
- * not carry. The controller's TX buffers are a priority queue (M_CAN queue
- * mode), so 0x7E8 still yields to every lower identifier, as it would in the
- * queue; it only waits on the driver for a free buffer like the queue's
- * thread, up to ISO-TP's N_As (CONFIG_ISOTP_A_TIMEOUT). Its frames are not in
+ * not carry. It waits on the driver for the controller's one TX buffer like
+ * the queue's thread, up to ISO-TP's N_As (CONFIG_ISOTP_A_TIMEOUT), so a lower
+ * identifier waits behind at most one of its frames. Its frames are not in
  * zelos_can_stats().
+ *
+ * Zephyr's ISO-TP, used as is, cannot abort a send, and with nothing on the
+ * bus to acknowledge a frame it never ends one: send() bounds the wait and
+ * restarts the controller, so the thread goes on and S3 ends the session.
  *
  * With CONFIG_ZELOS_UDS_NVS the permanent DTCs, as their 3-byte numbers, are
  * one entry of Zephyr Memory Storage (ZMS) on the storage partition, mounted
@@ -21,6 +24,7 @@
  * core then runs on nv_config, the node's DTCs and that one after them.
  */
 
+#include <zelos/can.h>
 #include <zelos/reboot.h>
 #include <zelos/uds.h>
 
@@ -307,6 +311,16 @@ static void bind_phys(k_timeout_t timeout)
 static K_SEM_DEFINE(sent_sem, 0, 1);
 static int sent_err;
 
+/* ISO 15765-2: the longest message a classic first frame announces; the largest STmin. */
+#define ISOTP_MAX_LEN 4095
+#define STMIN_MAX_MS  127
+/* Above the slowest send the spec allows: CFs at STmin max, N_WFTmax waits + FC at N_Bs, N_As. */
+#define SEND_BACKSTOP_MS                                                                           \
+	(DIV_ROUND_UP(ISOTP_MAX_LEN - 6, 7) * STMIN_MAX_MS +                                       \
+	 (CONFIG_ISOTP_WFTMAX + 1) * CONFIG_ISOTP_BS_TIMEOUT + CONFIG_ISOTP_A_TIMEOUT)
+/* With the controller stopped every frame fails, so a send ends within N_Bs, its longest timer. */
+#define DRAIN_MS (CONFIG_ISOTP_BS_TIMEOUT + STMIN_MAX_MS)
+
 /*
  * In the system workqueue, right after the response's last frame went out and
  * isotp_send() removed its flow control filter: the request context takes the
@@ -319,6 +333,49 @@ static void sent(int err, void *rebind)
 	}
 	sent_err = err;
 	k_sem_give(&sent_sem);
+}
+
+/*
+ * Drops the controller's frames; their callbacks have run once it returns.
+ * ISO-TP is not waiting in can_send() for a buffer then: each caller's send
+ * already failed or ended, or its frame is in the controller.
+ */
+static void restart(k_timeout_t off)
+{
+	struct k_work_sync sync;
+
+	(void)zelos_can_restart(off);
+	(void)k_work_flush(&send_ctx.work, &sync);
+}
+
+/*
+ * Whether the send ended, through sent(), before the backstop. ISO-TP's CF
+ * path records an error and then never runs again: no end either.
+ */
+static bool wait_sent(void)
+{
+	for (int waited = 0; waited < SEND_BACKSTOP_MS; waited += CONFIG_ISOTP_A_TIMEOUT) {
+		if (k_sem_take(&sent_sem, K_MSEC(CONFIG_ISOTP_A_TIMEOUT)) == 0) {
+			return true;
+		}
+		if (send_ctx.error_nr != ISOTP_N_OK) {
+			/* An error's end runs at once, in the higher-priority workqueue. */
+			return k_sem_take(&sent_sem, K_NO_WAIT) == 0;
+		}
+	}
+	return false;
+}
+
+/* A send with no end: stopped, every frame fails, so it ends or stays where it failed. */
+static void abort_send(bool multi)
+{
+	LOG_ERR("response 0x%02x: no end (%d), restarting CAN", rsp[0], (int)send_ctx.error_nr);
+	restart(K_MSEC(DRAIN_MS));
+	if (k_sem_take(&sent_sem, K_NO_WAIT) != 0 && multi) {
+		/* Its flow control filter still holds the physical identifier. */
+		can_remove_rx_filter(can_dev, send_ctx.filter_id);
+		bind_phys(K_NO_WAIT);
+	}
 }
 
 static void send(size_t len)
@@ -346,13 +403,19 @@ static void send(size_t len)
 	err = isotp_send(&send_ctx, can_dev, rsp, len, &resp_addr, &phys_addr, sent,
 			 multi ? &phys_ctx : NULL);
 	if (err == ISOTP_N_OK) {
-		/* ISO-TP's own timeouts bound the wait. */
-		k_sem_take(&sent_sem, K_FOREVER);
+		if (!wait_sent()) {
+			abort_send(multi);
+			return;
+		}
 		err = sent_err;
 	} else if (multi) {
 		bind_phys(K_NO_WAIT);
 	}
-	if (err != ISOTP_N_OK) {
+	if (err == ISOTP_N_TIMEOUT_A || err == ISOTP_N_TIMEOUT_BS) {
+		/* The frame nothing acknowledged may still be in the controller. */
+		LOG_ERR("response 0x%02x: %d, restarting CAN", rsp[0], err);
+		restart(K_NO_WAIT);
+	} else if (err != ISOTP_N_OK) {
 		LOG_WRN("response 0x%02x: %d", rsp[0], err);
 	}
 }

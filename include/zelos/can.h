@@ -1,13 +1,13 @@
 /*
  * Shared CAN plumbing for the nodes.
  *
- * lib/can owns the controller: it sets the bitrate and starts it once, and
- * nothing else stops, restarts or reconfigures it. Every protocol sends
- * through one queue, ordered as the bus arbitrates (lowest identifier first,
- * first in first out within one identifier), which one thread feeds to the
- * controller. The _ext variants carry 29-bit identifiers, for protocols such
- * as J1939. One exception: Zephyr's ISO-TP (lib/uds) sends to the driver
- * directly; see lib/uds/zephyr/uds.c.
+ * lib/can owns the controller: it sets the bitrate and starts it, nothing
+ * else reconfigures it, and zelos_can_restart() is the one way to stop it.
+ * Every protocol sends through one queue, ordered as the bus arbitrates
+ * (lowest identifier first, first in first out within one identifier), which
+ * one thread feeds to the controller. The _ext variants carry 29-bit
+ * identifiers, for protocols such as J1939. One exception: Zephyr's ISO-TP
+ * (lib/uds) sends to the driver directly; see lib/uds/zephyr/uds.c.
  *
  * Receive filters: the STM32 M_CAN hands a frame to the first matching filter
  * only, so two subsystems must never filter one identifier. lib/canopen holds
@@ -124,6 +124,16 @@ int zelos_can_send_ext(uint32_t id, const uint8_t *data, uint8_t len);
  * @return Filter id (>= 0) on success, negative errno otherwise.
  */
 int zelos_can_subscribe_ext(uint32_t id, uint32_t mask, struct k_msgq *msgq);
+
+/**
+ * Stop the controller, wait `off`, start it again. Stopping drops the frames
+ * the controller holds, failing each to its sender with -ENETDOWN: with nothing
+ * on the bus to acknowledge a frame, the controller retransmits it for ever.
+ * The bitrate and filters stay. Waits first for the queue's thread to leave
+ * the driver, up to CONFIG_ZELOS_CAN_TX_MAX_AGE_MS. A sender outside lib/can
+ * must not be waiting in can_send() meanwhile (see can.c).
+ */
+int zelos_can_restart(k_timeout_t off);
 
 /** Transmit counters, e.g. to expose over a diagnostic service. */
 struct zelos_can_stats zelos_can_stats(void);

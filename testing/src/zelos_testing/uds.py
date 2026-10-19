@@ -233,6 +233,15 @@ class UdsEcu:
         finally:
             client.close()
 
+    @contextlib.contextmanager
+    def by_hand(self):
+        """No client for the block, so only the suite flow-controls the ECU's responses."""
+        self.client.close()
+        try:
+            yield
+        finally:
+            self.client = self._client(PHYSICAL)
+
     def raw(self, payload: bytes, functional: bool = False, timeout_s: float | None = None) -> bytes | None:
         """Send payload as is; the response, or None if there is none in timeout_s."""
         with self.functional() if functional else contextlib.nullcontext(self.client) as client:
