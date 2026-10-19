@@ -2,7 +2,7 @@
 # the workspace (justfile, _west).
 patches:
   - path: zephyr/isotp-stray-fc.patch
-    sha256sum: 5cb6e229cd16e0279e8583d1c4177806c8aef055d2d01202332a10f31e3ed376
+    sha256sum: ad56b4ae062df89003c5fc7a91a61ccaa84fa870156163f3419f8d78b4dd7e4d
     module: zephyr
     author: Taylor Keairns
     email: taylor@zeloscloud.io
@@ -13,5 +13,6 @@ patches:
       is ignored). Sender: an FC before the FF or the block's last CF went out
       was taken as the one due and released a CF while a frame was pending,
       which the M_CAN priority queue could send first; now ignored, and one
-      frame is in flight at a time. Receiver: an FC aborted a request being received, or
-      discarded one just received; now ignored.
+      frame is in flight at a time, counted before can_send() so a completion
+      that beats its return is not lost. Receiver: an FC aborted a request
+      being received, or discarded one just received; now ignored.

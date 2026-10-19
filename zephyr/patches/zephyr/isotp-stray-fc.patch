@@ -1,5 +1,5 @@
 diff --git a/subsys/canbus/isotp/isotp.c b/subsys/canbus/isotp/isotp.c
-index b2a8401..3388aa8 100644
+index b2a8401..73d0d8c 100644
 --- a/subsys/canbus/isotp/isotp.c
 +++ b/subsys/canbus/isotp/isotp.c
 @@ -551,6 +551,14 @@ static void process_cf(struct isotp_recv_ctx *rctx, struct can_frame *frame)
@@ -48,19 +48,41 @@ index b2a8401..3388aa8 100644
  	} else {
  		LOG_ERR("Got unexpected PDU");
  		send_report_error(sctx, ISOTP_N_UNEXP_PDU);
-@@ -983,6 +1004,11 @@ static inline int send_ff(struct isotp_send_ctx *sctx)
+@@ -982,7 +1003,16 @@ static inline int send_ff(struct isotp_send_ctx *sctx)
+ 	pull_send_ctx_data(sctx, sctx->tx_addr.dl - index);
  	memcpy(&frame.data[index], data, sctx->tx_addr.dl - index);
  
++	/*
++	 * Pending like a CF: no FC is due before it went out. Counted before
++	 * can_send(), whose callback may run before it returns.
++	 */
++	sctx->tx_backlog++;
  	ret = can_send(sctx->can_dev, &frame, K_MSEC(ISOTP_A_TIMEOUT_MS), send_can_tx_cb, sctx);
-+	if (ret == 0) {
-+		/* Pending like a CF: no FC is due before it went out. */
-+		sctx->tx_backlog++;
++	if (ret != 0) {
++		sctx->tx_backlog--;
 +	}
 +
  	return ret;
  }
  
-@@ -1098,6 +1124,15 @@ static void send_state_machine(struct isotp_send_ctx *sctx)
+@@ -1024,12 +1054,15 @@ static inline int send_cf(struct isotp_send_ctx *sctx)
+ 		frame.dlc = can_bytes_to_dlc(len + index);
+ 	}
+ 
++	/* Before can_send(), as in send_ff(). */
++	sctx->tx_backlog++;
+ 	ret = can_send(sctx->can_dev, &frame, K_MSEC(ISOTP_A_TIMEOUT_MS), send_can_tx_cb, sctx);
+ 	if (ret == 0) {
+ 		sctx->sn++;
+ 		pull_send_ctx_data(sctx, len);
+ 		sctx->bs--;
+-		sctx->tx_backlog++;
++	} else {
++		sctx->tx_backlog--;
+ 	}
+ 
+ 	ret = ret ? ret : rem_len;
+@@ -1098,6 +1131,15 @@ static void send_state_machine(struct isotp_send_ctx *sctx)
  		LOG_DBG("SM send CF");
  		k_timer_stop(&sctx->timer);
  		do {
@@ -76,7 +98,7 @@ index b2a8401..3388aa8 100644
  			ret = send_cf(sctx);
  			if (!ret) {
  				sctx->state = ISOTP_TX_WAIT_BACKLOG;
-@@ -1121,9 +1156,6 @@ static void send_state_machine(struct isotp_send_ctx *sctx)
+@@ -1121,9 +1163,6 @@ static void send_state_machine(struct isotp_send_ctx *sctx)
  				sctx->state = ISOTP_TX_WAIT_ST;
  				break;
  			}
@@ -86,3 +108,11 @@ index b2a8401..3388aa8 100644
  		} while (ret > 0);
  
  		break;
+@@ -1223,6 +1262,7 @@ static int send(struct isotp_send_ctx *sctx, const struct device *can_dev,
+ 	}
+ 
+ 	k_sem_init(&sctx->tx_sem, 0, 1);
++	sctx->tx_backlog = 0;
+ 	sctx->can_dev = can_dev;
+ 	sctx->tx_addr = *tx_addr;
+ 	sctx->rx_addr = *rx_addr;
