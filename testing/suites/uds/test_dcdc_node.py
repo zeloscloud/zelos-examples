@@ -274,7 +274,8 @@ def read_by_hand(bus, stray: can.Message | None, request: can.Message = IDENTIFI
     payload, size, sn = b"", None, 1
     end = time.monotonic() + bound(2.0)
     while (left := end - time.monotonic()) > 0 and (msg := bus.recv(left)) is not None:
-        if msg.arbitration_id != RESPONSE or not msg.is_rx:
+        # By id alone: on vcan the node's frames are local too, so not is_rx.
+        if msg.arbitration_id != RESPONSE:
             continue
         pci = msg.data[0] >> 4
         if pci == 1 and size is None:
