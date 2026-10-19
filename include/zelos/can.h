@@ -96,6 +96,22 @@ int zelos_can_send(uint32_t id, const uint8_t *data, uint8_t len);
  */
 int zelos_can_subscribe(uint32_t id, struct k_msgq *msgq);
 
+/**
+ * Told when one frame left: acknowledged (error 0), failed, dropped as stale,
+ * or never queued. Called from the controller's ISR or the sender's thread.
+ * Embed it in the sender's state: it must outlive the frame.
+ */
+struct zelos_can_done {
+	void (*fn)(struct zelos_can_done *done, int error);
+};
+
+/**
+ * zelos_can_send() that reports the frame's fate to done, for a sender that
+ * keeps at most one frame in flight so it cannot fill the controller's
+ * buffers. done is also called, with the error, when queueing fails.
+ */
+int zelos_can_send_done(uint32_t id, const uint8_t *data, uint8_t len, struct zelos_can_done *done);
+
 /** zelos_can_send() with an extended (29-bit) identifier. */
 int zelos_can_send_ext(uint32_t id, const uint8_t *data, uint8_t len);
 

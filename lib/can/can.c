@@ -22,6 +22,7 @@ static struct {
 	uint32_t key;
 	uint32_t queued_ms;
 	struct can_frame frame;
+	struct zelos_can_done *done;
 } queue[DEPTH];
 static size_t queued;
 static uint32_t peak;
@@ -54,7 +55,8 @@ static uint32_t arbitration_key(const struct can_frame *frame)
 	return (frame->id << 21) | (rtr << 20);
 }
 
-static int queue_frame(const struct can_frame *frame, k_timeout_t timeout, atomic_t *refusals)
+static int queue_frame(const struct can_frame *frame, k_timeout_t timeout, atomic_t *refusals,
+		       struct zelos_can_done *done)
 {
 	const uint32_t key = arbitration_key(frame);
 	k_spinlock_key_t lock;
@@ -73,6 +75,7 @@ static int queue_frame(const struct can_frame *frame, k_timeout_t timeout, atomi
 	queue[i].key = key;
 	queue[i].queued_ms = k_uptime_get_32();
 	queue[i].frame = *frame;
+	queue[i].done = done;
 	queued++;
 	peak = MAX(peak, queued);
 	k_spin_unlock(&queue_lock, lock);
@@ -84,12 +87,12 @@ static int queue_frame(const struct can_frame *frame, k_timeout_t timeout, atomi
 
 int zelos_can_queue(const struct can_frame *frame, k_timeout_t timeout)
 {
-	return queue_frame(frame, timeout, &overflow);
+	return queue_frame(frame, timeout, &overflow, NULL);
 }
 
 int zelos_can_try_queue(const struct can_frame *frame)
 {
-	return queue_frame(frame, K_NO_WAIT, &deferred);
+	return queue_frame(frame, K_NO_WAIT, &deferred, NULL);
 }
 
 void zelos_can_dropped(void)
@@ -99,10 +102,14 @@ void zelos_can_dropped(void)
 
 static void tx_done(const struct device *dev, int error, void *user_data)
 {
+	struct zelos_can_done *done = user_data;
+
 	ARG_UNUSED(dev);
-	ARG_UNUSED(user_data);
 
 	atomic_inc(error == 0 ? &sent : &tx_error);
+	if (done != NULL) {
+		done->fn(done, error);
+	}
 }
 
 static void tx_thread(void *p1, void *p2, void *p3)
@@ -113,6 +120,7 @@ static void tx_thread(void *p1, void *p2, void *p3)
 
 	for (;;) {
 		struct can_frame frame;
+		struct zelos_can_done *done;
 		k_spinlock_key_t lock;
 		uint32_t age;
 		int err;
@@ -120,6 +128,7 @@ static void tx_thread(void *p1, void *p2, void *p3)
 		(void)k_sem_take(&queue_frames, K_FOREVER);
 		lock = k_spin_lock(&queue_lock);
 		frame = queue[--queued].frame;
+		done = queue[queued].done;
 		age = k_uptime_get_32() - queue[queued].queued_ms;
 		k_spin_unlock(&queue_lock, lock);
 		k_sem_give(&queue_room);
@@ -131,10 +140,13 @@ static void tx_thread(void *p1, void *p2, void *p3)
 		 * inverted by at most one frame; among the frames already in its
 		 * buffers the controller sends the lowest id first.
 		 */
-		err = age < MAX_AGE_MS ? can_send(can_dev, &frame, K_MSEC(MAX_AGE_MS - age), tx_done, NULL)
+		err = age < MAX_AGE_MS ? can_send(can_dev, &frame, K_MSEC(MAX_AGE_MS - age), tx_done, done)
 				       : -EAGAIN;
 		if (err != 0) {
 			atomic_inc(&tx_error);
+			if (done != NULL) {
+				done->fn(done, err);
+			}
 			/* Every frame fails under bus-off: one line per interval, then a skip count. */
 			LOG_WRN_RATELIMIT("send of 0x%03x: %d", frame.id, err);
 		}
@@ -172,7 +184,8 @@ int zelos_can_init(void)
 	return 0;
 }
 
-static int send_frame(uint32_t id, uint8_t flags, const uint8_t *data, uint8_t len)
+static int send_frame(uint32_t id, uint8_t flags, const uint8_t *data, uint8_t len,
+		      struct zelos_can_done *done)
 {
 	struct can_frame frame = {.id = id, .flags = flags};
 	int err;
@@ -184,7 +197,7 @@ static int send_frame(uint32_t id, uint8_t flags, const uint8_t *data, uint8_t l
 	frame.dlc = can_bytes_to_dlc(len);
 	memcpy(frame.data, data, len);
 
-	err = zelos_can_queue(&frame, K_MSEC(10));
+	err = queue_frame(&frame, K_MSEC(10), &overflow, done);
 	if (err != 0) {
 		/* A full queue fails every caller alike: rate-limited as well. */
 		LOG_WRN_RATELIMIT("send of 0x%03x: %d", id, err);
@@ -195,12 +208,23 @@ static int send_frame(uint32_t id, uint8_t flags, const uint8_t *data, uint8_t l
 
 int zelos_can_send(uint32_t id, const uint8_t *data, uint8_t len)
 {
-	return send_frame(id, 0, data, len);
+	return send_frame(id, 0, data, len, NULL);
+}
+
+int zelos_can_send_done(uint32_t id, const uint8_t *data, uint8_t len, struct zelos_can_done *done)
+{
+	const int err = send_frame(id, 0, data, len, done);
+
+	if (err != 0) {
+		done->fn(done, err);
+	}
+
+	return err;
 }
 
 int zelos_can_send_ext(uint32_t id, const uint8_t *data, uint8_t len)
 {
-	return send_frame(id, CAN_FRAME_IDE, data, len);
+	return send_frame(id, CAN_FRAME_IDE, data, len, NULL);
 }
 
 int zelos_can_subscribe(uint32_t id, struct k_msgq *msgq)
