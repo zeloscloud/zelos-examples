@@ -21,7 +21,7 @@ rather than copying them.
 |---|---|
 | `west.yml` | The Zephyr workspace every node builds in, pinned to one tag |
 | `zephyr/`, `CMakeLists.txt`, `Kconfig` | This repository as a Zephyr module, contributing `lib/` |
-| `nodes/` | Zephyr applications, one per node, each reusable by any bench: `vcu`, `bms`, `dcdc`, `genset`, `pdu`, `console`, `motor`; `full` runs the DC-DC, genset and PDU in one image |
+| `nodes/` | Zephyr applications, one per node, each reusable by any bench: `vcu`, `bms`, `dcdc`, `pdu`, `console`, `motor`; `full` runs the DC-DC, the genset (its sources in `genset`, built only into `full`) and the PDU in one image |
 | `lib/`, `include/zelos/` | Code the nodes share, each piece off until a node's `prj.conf` enables it. `lib/can` owns the controller: every protocol sends through its one queue, lowest id first |
 | `snippets/` | Protocols any node can build with, e.g. `-S xcp`, `-S uds` |
 | `dbc/` | Wire formats of the shared nodes; `lib/codec_bench/` is generated from `bench.dbc` |

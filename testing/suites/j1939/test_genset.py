@@ -1,4 +1,5 @@
-"""The genset node over J1939: address claim, requests, periods and DM1 by BAM.
+"""The genset node over J1939: address claim, requests, periods, DM1 by BAM and
+software identification by RTS/CTS or BAM.
 
 Frames are checked directly, and BAM is reassembled by python-can-j1939, an
 independent J1939 stack. Each test finds the node's address by requesting
@@ -34,6 +35,7 @@ VCU_COMMAND = dbc.load("bench").get_message_by_name("VCU_Command")
 PGN = j1939.ParameterGroupNumber.PGN
 PGN_EEC1 = 61444
 PGN_ET1 = 65262
+PGN_SOFT = 65242
 TP_BAM = 32
 NULL = j1939.ParameterGroupNumber.Address.NULL
 GLOBAL = j1939.ParameterGroupNumber.Address.GLOBAL
@@ -266,3 +268,44 @@ def test_dm1_by_bam_when_hot(bus, node):
         for d in (data[i : i + 4] for i in range(2, len(data), 4))
     }
     assert HOT_DTCS <= dtcs, dtcs
+
+
+def software_id(data):
+    """The fields of a J1939-71 Software Identification: count byte, then '*'-terminated ASCII."""
+    fields = bytes(data[1:]).split(b"*")
+    assert fields[-1] == b"" and len(fields) - 1 == data[0], bytes(data)
+    return [f.decode("ascii") for f in fields[:-1]]
+
+
+def test_software_id_by_rts_cts_to_the_requester(bus, node):
+    """A request addressed to the genset gets SOFT by RTS/CTS, to us alone, in the windows we grant."""
+    sa, _ = node
+    request(bus, PGN_SOFT, da=sa)
+    rts = first(bus, lambda m: is_from(PGN.TP_CM, sa)(m) and parse(m)[1] == TESTER)[-1]
+    assert rts.data[0] == 16 and int.from_bytes(rts.data[5:8], "little") == PGN_SOFT
+    size, packets = int.from_bytes(rts.data[1:3], "little"), rts.data[3]
+
+    def cm(*head):
+        send(bus, 7, PGN.TP_CM, bytes([*head, 0xFF, 0xFF][:5]) + rts.data[5:8], da=sa)
+
+    # Two windows: one packet, then the rest.
+    data = {}
+    for n, nxt in ((1, 1), (packets - 1, 2)):
+        cm(17, n, nxt)
+        dts = gather(bus, lambda got: sum(is_from(PGN.DATATRANSFER, sa)(m) for m in got) == n)
+        data |= {m.data[0]: bytes(m.data[1:]) for m in dts if is_from(PGN.DATATRANSFER, sa)(m)}
+    cm(19, size & 0xFF, size >> 8, packets)
+    assert sorted(data) == list(range(1, packets + 1))
+    fields = software_id(b"".join(data[k] for k in sorted(data))[:size])
+    assert fields[0] == "ZELOS-GENSET", fields
+
+
+def test_software_id_by_bam_to_everyone(bus, node):
+    """A global request gets SOFT by BAM."""
+    sa, _ = node
+    request(bus, PGN_SOFT)
+    cm = first(bus, lambda m: is_from(PGN.TP_CM, sa)(m) and m.data[0] == TP_BAM)[-1]
+    packets = cm.data[3]
+    dts = gather(bus, lambda got: sum(is_from(PGN.DATATRANSFER, sa)(m) for m in got) == packets)
+    payload = b"".join(bytes(m.data[1:]) for m in dts if is_from(PGN.DATATRANSFER, sa)(m))
+    assert software_id(payload[: int.from_bytes(cm.data[1:3], "little")])[0] == "ZELOS-GENSET"

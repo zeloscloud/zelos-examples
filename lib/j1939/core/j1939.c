@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include <zephyr/sys/byteorder.h>
+#include <zephyr/sys/util.h>
 
 #define PF(pgn)  (((pgn) >> 8) & 0xFFU)
 #define PDU1(pgn) (PF(pgn) < 240U)
@@ -15,7 +16,11 @@
 #define PRIO_CLAIM 6U
 #define PRIO_TP    7U
 
-#define TP_CM_BAM 32U
+#define TP_CM_RTS   16U
+#define TP_CM_CTS   17U
+#define TP_CM_EOMA  19U
+#define TP_CM_BAM   32U
+#define TP_CM_ABORT 255U
 #define ACK_NACK  1U
 
 /* Where an arbitrary-address-capable node looks when it loses its address. */
@@ -37,16 +42,22 @@ static uint32_t make_id(uint8_t prio, uint32_t pgn, uint8_t da, uint8_t sa)
 	return ((uint32_t)(prio & 7U) << 26) | ((pgn & 0x3FFFFU) << 8) | sa;
 }
 
-static void emit(struct zelos_j1939 *j, uint8_t prio, uint32_t pgn, const uint8_t *data,
-		 uint8_t len)
+static void emit_to(struct zelos_j1939 *j, uint8_t prio, uint32_t pgn, uint8_t da,
+		    const uint8_t *data, uint8_t len)
 {
 	struct zelos_j1939_frame f = {
-		.id = make_id(prio, pgn, ZELOS_J1939_ADDR_GLOBAL, j->address),
+		.id = make_id(prio, pgn, da, j->address),
 		.len = len,
 	};
 
 	memcpy(f.data, data, len);
 	j->send(&f, j->user);
+}
+
+static void emit(struct zelos_j1939 *j, uint8_t prio, uint32_t pgn, const uint8_t *data,
+		 uint8_t len)
+{
+	emit_to(j, prio, pgn, ZELOS_J1939_ADDR_GLOBAL, data, len);
 }
 
 /*
@@ -68,6 +79,8 @@ static void claim(struct zelos_j1939 *j, enum zelos_j1939_state state, uint8_t a
 	j->claim_started = false;
 	j->claim_due_ms = now_ms;
 	j->bam.active = false;
+	j->rts.state = ZELOS_J1939_RTS_IDLE;
+	j->rts.abort = 0U;
 }
 
 static void lose(struct zelos_j1939 *j, uint32_t now_ms)
@@ -97,6 +110,7 @@ int zelos_j1939_init(struct zelos_j1939 *j, uint32_t now_ms)
 			return -EINVAL;
 		}
 		j->msgs[i].requested = false;
+		j->msgs[i].requester = ZELOS_J1939_ADDR_GLOBAL;
 	}
 	j->tried = DYNAMIC(j->preferred) ? 1U : 0U;
 	j->nack_pending = false;
@@ -149,8 +163,17 @@ static void on_request(struct zelos_j1939 *j, uint8_t da, uint8_t sa,
 	}
 
 	for (size_t i = 0; i < j->n_msgs; i++) {
-		if (j->msgs[i].pgn == pgn) {
-			j->msgs[i].requested = true;
+		struct zelos_j1939_msg *m = &j->msgs[i];
+		/* The null address cannot take a connection: answer everyone. */
+		uint8_t to = da == ZELOS_J1939_ADDR_GLOBAL || sa >= ZELOS_J1939_ADDR_NULL
+				     ? ZELOS_J1939_ADDR_GLOBAL
+				     : sa;
+
+		if (m->pgn == pgn) {
+			/* Two requesters before it goes out: one BAM answers both. */
+			m->requester = m->requested && m->requester != to ? ZELOS_J1939_ADDR_GLOBAL
+									  : to;
+			m->requested = true;
 			return;
 		}
 	}
@@ -160,6 +183,45 @@ static void on_request(struct zelos_j1939 *j, uint8_t da, uint8_t sa,
 		j->nack_pending = true;
 		j->nack_to = sa;
 		j->nack_pgn = pgn;
+	}
+}
+
+/* The receiver's side of our RTS/CTS session: CTS, EOMA or Abort. */
+static void on_tp_cm(struct zelos_j1939 *j, uint8_t da, uint8_t sa,
+		     const struct zelos_j1939_frame *f, uint32_t now_ms)
+{
+	uint8_t n;
+	uint8_t next;
+
+	if (f->len < 8U || da != j->address || j->rts.state == ZELOS_J1939_RTS_IDLE ||
+	    j->rts.abort != 0U || sa != j->rts.da || sys_get_le24(&f->data[5]) != j->rts.pgn) {
+		return;
+	}
+
+	switch (f->data[0]) {
+	case TP_CM_CTS:
+		n = f->data[1];
+		next = f->data[2];
+		if (j->rts.state == ZELOS_J1939_RTS_SEND) {
+			j->rts.abort = ZELOS_J1939_ABORT_CTS_IN_DT;
+		} else if (n == 0U) {
+			/* Hold: the receiver repeats it, each one restarting T4. */
+			j->rts.due_ms = now_ms + ZELOS_J1939_T4_MS;
+		} else if (next == 0U || next > j->rts.packets) {
+			j->rts.abort = ZELOS_J1939_ABORT_OTHER;
+		} else {
+			/* An earlier `next` than we reached asks for those again. */
+			j->rts.state = ZELOS_J1939_RTS_SEND;
+			j->rts.next = next;
+			j->rts.last = (uint8_t)MIN((unsigned int)next + n - 1U, j->rts.packets);
+		}
+		break;
+	case TP_CM_EOMA:
+	case TP_CM_ABORT:
+		j->rts.state = ZELOS_J1939_RTS_IDLE;
+		break;
+	default:
+		break;
 	}
 }
 
@@ -179,6 +241,8 @@ void zelos_j1939_on_frame(struct zelos_j1939 *j, const struct zelos_j1939_frame 
 		on_claim(j, sa, frame, now_ms);
 	} else if (pgn == ZELOS_J1939_PGN_REQUEST) {
 		on_request(j, da, sa, frame, now_ms);
+	} else if (pgn == ZELOS_J1939_PGN_TP_CM) {
+		on_tp_cm(j, da, sa, frame, now_ms);
 	}
 }
 
@@ -246,19 +310,89 @@ static void bam_step(struct zelos_j1939 *j, uint32_t now_ms)
 	j->bam.active = j->bam.seq++ < j->bam.packets;
 }
 
+/* A TP.CM of the session to its receiver; bytes 6-8 are the PGN. */
+static void rts_cm(struct zelos_j1939 *j, uint8_t cm[8])
+{
+	sys_put_le24(j->rts.pgn, &cm[5]);
+	emit_to(j, PRIO_TP, ZELOS_J1939_PGN_TP_CM, j->rts.da, cm, 8U);
+}
+
+static void rts_start(struct zelos_j1939 *j, const struct zelos_j1939_msg *m, uint32_t now_ms)
+{
+	uint8_t cm[8] = {TP_CM_RTS};
+
+	j->rts.state = ZELOS_J1939_RTS_WAIT;
+	j->rts.da = m->requester;
+	j->rts.pgn = m->pgn;
+	j->rts.len = m->len;
+	j->rts.packets = (uint8_t)((m->len + 6U) / 7U);
+	j->rts.due_ms = now_ms + ZELOS_J1939_T3_MS;
+	memcpy(j->rts.buf, m->data, m->len);
+
+	sys_put_le16(m->len, &cm[1]);
+	cm[3] = j->rts.packets;
+	cm[4] = 0xFF; /* no limit on packets per CTS */
+	rts_cm(j, cm);
+}
+
+/* One frame per call at most: an abort, or the next packet of the window. */
+static void rts_step(struct zelos_j1939 *j, uint32_t now_ms)
+{
+	uint8_t dt[8];
+	size_t off;
+	size_t n;
+
+	if (j->rts.state == ZELOS_J1939_RTS_WAIT && reached(now_ms, j->rts.due_ms)) {
+		j->rts.abort = ZELOS_J1939_ABORT_TIMEOUT;
+	}
+	if (j->rts.abort != 0U) {
+		uint8_t cm[8] = {TP_CM_ABORT, j->rts.abort, 0xFF, 0xFF, 0xFF};
+
+		rts_cm(j, cm);
+		j->rts.abort = 0U;
+		j->rts.state = ZELOS_J1939_RTS_IDLE;
+		return;
+	}
+	if (j->rts.state != ZELOS_J1939_RTS_SEND) {
+		return;
+	}
+
+	off = (size_t)(j->rts.next - 1U) * 7U;
+	n = j->rts.len - off < 7U ? j->rts.len - off : 7U;
+	memset(dt, 0xFF, sizeof(dt));
+	dt[0] = j->rts.next;
+	memcpy(&dt[1], &j->rts.buf[off], n);
+	emit_to(j, PRIO_TP, ZELOS_J1939_PGN_TP_DT, j->rts.da, dt, sizeof(dt));
+
+	if (j->rts.next++ == j->rts.last) {
+		j->rts.state = ZELOS_J1939_RTS_WAIT;
+		j->rts.due_ms = now_ms + ZELOS_J1939_T3_MS;
+	}
+}
+
 static void send_msgs(struct zelos_j1939 *j, uint32_t now_ms)
 {
 	for (size_t i = 0; i < j->n_msgs; i++) {
 		struct zelos_j1939_msg *m = &j->msgs[i];
 		bool periodic = m->period_ms != 0U && reached(now_ms, m->due_ms);
+		/* A periodic send answers a pending request too: it goes to everyone. */
+		bool to_one = !periodic && m->requester != ZELOS_J1939_ADDR_GLOBAL;
 
 		if (!periodic && !m->requested) {
 			continue;
 		}
 
-		if (m->len > 8U) {
+		if (m->len > ZELOS_J1939_MAX_LEN) {
+			continue;
+		} else if (m->len > 8U && to_one) {
+			/* One session at a time; this one waits its turn. */
+			if (j->rts.state != ZELOS_J1939_RTS_IDLE || j->rts.abort != 0U) {
+				continue;
+			}
+			rts_start(j, m, now_ms);
+		} else if (m->len > 8U) {
 			/* One BAM at a time per sender; this one waits its turn. */
-			if (j->bam.active || m->len > ZELOS_J1939_MAX_LEN) {
+			if (j->bam.active) {
 				continue;
 			}
 			bam_start(j, m, now_ms);
@@ -267,6 +401,7 @@ static void send_msgs(struct zelos_j1939 *j, uint32_t now_ms)
 		}
 
 		m->requested = false;
+		m->requester = ZELOS_J1939_ADDR_GLOBAL;
 		if (periodic) {
 			/* Keep the phase, but after a stall resume rather than burst. */
 			m->due_ms += m->period_ms;
@@ -299,5 +434,6 @@ void zelos_j1939_poll(struct zelos_j1939 *j, uint32_t now_ms)
 		send_nack(j);
 	}
 	bam_step(j, now_ms);
+	rts_step(j, now_ms);
 	send_msgs(j, now_ms);
 }

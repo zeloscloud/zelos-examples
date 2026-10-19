@@ -65,15 +65,16 @@ the PDU alone, without a reboot. Every protocol sends through one queue in
 XCP writes the calibration without seed and key while UDS asks level 0x01 for
 the same memory: this is a development ECU.
 
-The single-node images still build, for focused work: `just build
-dcdc-xcp-uds genset pdu`.
+The DC-DC and PDU single-node images still build, for focused work: `just build
+dcdc-xcp-uds pdu`. The genset runs only in `full`.
 
 The VCU's command sits at `0x101`, not CANopen's TIME id `0x100`: CiA 301 keeps
 CANopen devices out of `0x101`-`0x180`, so no CANopen node can collide with it.
 
 The genset follows the VCU's mode: it runs hard while driving, idles in standby
 and stops while charging. Under load its coolant runs hot, and it raises two
-DTCs in DM1, sent by BAM. The PDU switches eight outputs on command, reports
+DTCs in DM1, sent by BAM. Asked for its software identification (SOFT, 48
+bytes), it answers the requester by RTS/CTS, or everyone by BAM. The PDU switches eight outputs on command, reports
 inputs and per-channel current, and trips channel 8, which is shorted.
 
 ## What the suites prove
@@ -82,7 +83,7 @@ inputs and per-channel current, and trips channel 8, which is shorted.
 |---|---|---|
 | `../testing/suites/xcp` | DC-DC | Used as a bench uses its ECU: zelos-can opens the bus, pyxcp is the master, the A2L names everything, and `check` asserts on the Zelos trace. The EPK matches the A2L's; a measurement read over XCP matches the broadcast frame; DAQ on the A2L's event at its period, by the ECU's own timestamps; the node follows the BMS allowance; a calibration takes effect and is restored; measurements are read-only. Protocol conformance is covered by the ztests in `../tests/lib/xcp` |
 | `../testing/suites/uds` | DC-DC | A conformance suite for any UDS server on any python-can bus: this node, or the UDS extension's demo ECU in-process. Used as a tester uses an ECU: zelos-can opens the bus, can-isotp carries, udsoncan asks. Every Tier A service with its NRCs and their ISO 14229-1 order, physical and functional; sessions, S3, P2; both security levels, lockout and power-up delay; memory by address; erase, download, check, upload of 64 KiB. `test_dcdc_node.py`, against the node itself: 0x28 stops DCDC_Status, the setpoint drives the output, DTCs follow the model through operation cycles, a reset is a fresh boot, XCP and UDS share the ECU. Core conformance: ztests in `../tests/lib/uds` |
-| `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; requests answered; periods; DM1 by BAM, reassembled by python-can-j1939 |
+| `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; requests answered; periods; DM1 by BAM, reassembled by python-can-j1939; SOFT by RTS/CTS in the windows the requester grants, and by BAM to a global request. Originator conformance (windows, retransmit, abort, T3/T4): ztests in `../tests/lib/j1939` |
 | `../testing/suites/canopen` | PDU | Boot-up and heartbeat; NMT start, stop and pre-operational; SDO identity and downloads; RPDO commands reflected in TPDOs; an overcurrent trip raises EMCY and recovers; SYNC answered by the synchronous TPDO |
 | `../testing/suites/full` | all three | Every protocol at once for `--soak-s` (120 s here, 10 s on hardware): XCP DAQ, a UDS 64 KiB download and upload loop, CANopen operational with SYNC every 10 ms and RPDO1, J1939 and DCDC_Status. No EMCY, no DAQ sample lost, periods kept, and the node's counters (UDS DID `0x0110`) show no TX queue overflow, TX error or RX FIFO overrun |
 

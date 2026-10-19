@@ -260,4 +260,152 @@ ZTEST(j1939, test_wraparound)
 	assert_bam();
 }
 
+/* RTS/CTS of DM1 to the tester: TP.CM and TP.DT carry the tester as DA. */
+#define CM_TO_TESTER ID(7, 0xEC00U | TESTER, SA)
+#define DT_TO_TESTER ID(7, 0xEB00U | TESTER, SA)
+
+/* A TP.CM from the tester to us about DM1. */
+static void inject_cm(uint8_t control, uint8_t b1, uint8_t b2)
+{
+	const uint8_t d[8] = {control, b1, b2, 0xFF, 0xFF, 0xCA, 0xFE, 0x00};
+
+	inject(ID(7, 0xEC00U | SA, TESTER), d, sizeof(d));
+}
+
+/* Claimed, asked for DM1 by the tester alone, and the RTS sent. */
+static int rts_started(void)
+{
+	const uint8_t rts[8] = {16, sizeof(dm1), 0, 3, 0xFF, 0xCA, 0xFE, 0x00};
+	int at;
+
+	start(FIXED);
+	run_until(500);
+	inject_request(SA, PGN_DM1);
+	run_until(510);
+	at = find(CM_TO_TESTER, 0);
+	zassert_true(at >= 0);
+	zassert_equal(sent[at].frame.len, 8);
+	zassert_mem_equal(sent[at].frame.data, rts, 8);
+	/* Nothing to everyone: no BAM. */
+	zassert_equal(find(ID(7, 0xECFFU, SA), 0), -1);
+	return at;
+}
+
+/* The DTs sent from `from` on, as sequence numbers, each checked against dm1. */
+static int dts(int from, uint8_t *seqs)
+{
+	int n = 0;
+
+	for (int i = find(DT_TO_TESTER, from); i >= 0; i = find(DT_TO_TESTER, i + 1)) {
+		uint8_t seq = sent[i].frame.data[0];
+		uint8_t expect[8];
+
+		memset(expect, 0xFF, sizeof(expect));
+		expect[0] = seq;
+		memcpy(&expect[1], &dm1[(seq - 1) * 7], MIN(7, sizeof(dm1) - (seq - 1) * 7));
+		zassert_equal(sent[i].frame.len, 8);
+		zassert_mem_equal(sent[i].frame.data, expect, 8);
+		seqs[n++] = seq;
+	}
+	return n;
+}
+
+ZTEST(j1939, test_rts_cts_windows)
+{
+	uint8_t seqs[8];
+	int from = rts_started();
+
+	/* No packet before the receiver's CTS. */
+	run_until(1000);
+	zassert_equal(dts(from, seqs), 0);
+
+	inject_cm(17, 2, 1);
+	run_until(1100);
+	zassert_equal(dts(from, seqs), 2);
+	zassert_mem_equal(seqs, "\x01\x02", 2);
+
+	inject_cm(17, 2, 3);
+	run_until(1200);
+	zassert_equal(dts(from, seqs), 3);
+	zassert_equal(seqs[2], 3);
+
+	inject_cm(19, sizeof(dm1), 0);
+	from = n_sent;
+	run_until(4000);
+	/* Done: no abort, no packet, a fresh request starts afresh. */
+	zassert_equal(find(CM_TO_TESTER, from), -1);
+	inject_request(SA, PGN_DM1);
+	run_until(4010);
+	zassert_equal(sent[find(CM_TO_TESTER, from)].frame.data[0], 16);
+}
+
+ZTEST(j1939, test_rts_cts_retransmit)
+{
+	uint8_t seqs[8];
+	int from = rts_started();
+
+	inject_cm(17, 3, 1);
+	run_until(600);
+	/* Packet 2 lost: the receiver asks for it again, then for 3. */
+	inject_cm(17, 1, 2);
+	run_until(700);
+	inject_cm(17, 1, 3);
+	run_until(800);
+	zassert_equal(dts(from, seqs), 5);
+	zassert_mem_equal(seqs, "\x01\x02\x03\x02\x03", 5);
+}
+
+ZTEST(j1939, test_rts_cts_receiver_abort)
+{
+	uint8_t seqs[8];
+	int from = rts_started();
+
+	inject_cm(255, 1, 0xFF);
+	run_until(4000);
+	/* Over: no packet, no abort back, the session is free. */
+	zassert_equal(dts(from, seqs), 0);
+	zassert_equal(find(CM_TO_TESTER, from + 1), -1);
+	inject_request(SA, PGN_DM1);
+	run_until(4010);
+	zassert_equal(sent[find(CM_TO_TESTER, from + 1)].frame.data[0], 16);
+}
+
+/* The session's abort: reason 3, sent `wait` ms after `since`. */
+static void assert_timeout_abort(int from, uint32_t since, uint32_t wait)
+{
+	const uint8_t abort[8] = {255, 3, 0xFF, 0xFF, 0xFF, 0xCA, 0xFE, 0x00};
+	int at = find(CM_TO_TESTER, from);
+
+	zassert_true(at >= 0);
+	zassert_equal(sent[at].frame.len, 8);
+	zassert_mem_equal(sent[at].frame.data, abort, 8);
+	zassert_between_inclusive(sent[at].at - since, wait, wait + TICK_MS);
+	zassert_equal(find(CM_TO_TESTER, at + 1), -1);
+}
+
+ZTEST(j1939, test_rts_cts_timeouts)
+{
+	uint8_t seqs[8];
+	int from = rts_started();
+
+	/* T3 after the RTS. */
+	run_until(4000);
+	assert_timeout_abort(from + 1, sent[from].at, ZELOS_J1939_T3_MS);
+
+	/* T3 after a window's last packet. */
+	from = rts_started();
+	inject_cm(17, 1, 1);
+	run_until(1000);
+	zassert_equal(dts(from, seqs), 1);
+	run_until(4000);
+	assert_timeout_abort(from + 1, sent[find(DT_TO_TESTER, from)].at, ZELOS_J1939_T3_MS);
+
+	/* T4 after a hold. */
+	from = rts_started();
+	run_until(1000);
+	inject_cm(17, 0, 0xFF);
+	run_until(4000);
+	assert_timeout_abort(from + 1, 1000, ZELOS_J1939_T4_MS);
+}
+
 ZTEST_SUITE(j1939, NULL, NULL, NULL, NULL, NULL);
