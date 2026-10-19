@@ -390,6 +390,8 @@ def test_dtc_reports(ecu):
 def test_self_test_answers_pending_then_its_result(ecu, bus):
     ecu.enter(EXTENDED)
     assert nrc(ecu.client.stop_routine, SELF_TEST) == 0x24
+    # Unread for the whole routine: filter in the kernel, or other traffic fills the socket.
+    bus.set_filters([{"can_id": RESPONSE, "can_mask": 0x7FF}])
     started_at = time.time()
     # udsoncan waits out the pending response; the bus shows what the server sent.
     result = ecu.client.start_routine(SELF_TEST).service_data.routine_status_record
