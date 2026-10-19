@@ -349,8 +349,10 @@ static void restart(k_timeout_t off)
 }
 
 /*
- * Whether the send ended, through sent(), before the backstop. ISO-TP's CF
- * path records an error and then never runs again: no end either.
+ * Whether the send ended, through sent(), before the backstop. When a CF's
+ * can_send() fails, ISO-TP's CF path records N_As or N_ERROR and never runs
+ * again: no end either. Any other error ends the send through ISO-TP, the CF
+ * loop first if it runs (a request mid-response: N_UNEXP_PDU).
  */
 static bool wait_sent(void)
 {
@@ -358,8 +360,8 @@ static bool wait_sent(void)
 		if (k_sem_take(&sent_sem, K_MSEC(CONFIG_ISOTP_A_TIMEOUT)) == 0) {
 			return true;
 		}
-		if (send_ctx.error_nr != ISOTP_N_OK) {
-			/* An error's end runs at once, in the higher-priority workqueue. */
+		if (send_ctx.error_nr == ISOTP_N_TIMEOUT_A || send_ctx.error_nr == ISOTP_N_ERROR) {
+			/* Unless it ended meanwhile: an end runs in the higher-priority workqueue. */
 			return k_sem_take(&sent_sem, K_NO_WAIT) == 0;
 		}
 	}

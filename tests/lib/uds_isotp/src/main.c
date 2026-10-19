@@ -271,6 +271,32 @@ ZTEST(uds_isotp, test_cf_without_a_buffer)
 	recovered();
 }
 
+/* A request mid-response is an error ISO-TP ends itself, after its CF loop: no restart. */
+ZTEST(uds_isotp, test_request_mid_response)
+{
+	struct sent s;
+
+	request_vin();
+	(void)first_frame();
+	unacked = true;
+	continue_to_send();
+	/* The CF loop waits on the first CF, which the bus holds. */
+	k_sleep(K_MSEC(10));
+	zassert_equal(held_count, 1);
+	/* On the physical identifier the send's FC filter holds: N_UNEXP_PDU. */
+	deliver(CONFIG_ZELOS_UDS_PHYS_ID, (uint8_t[]){0x02, 0x3E, 0x00}, 3);
+	k_sleep(K_MSEC(CONFIG_ISOTP_A_TIMEOUT + 100));
+	zassert_equal(fake_can_stop_fake.call_count, 0, "restarted a send that ends");
+	/* The bus takes the CF: the CF loop goes on, and the send ends. */
+	unacked = false;
+	s = held[--held_count];
+	zassert_ok(k_msgq_put(&sent_q, &s, K_NO_WAIT));
+	k_sleep(K_MSEC(100));
+	k_msgq_purge(&tester_q);
+	recovered();
+	zassert_equal(fake_can_stop_fake.call_count, 0);
+}
+
 /* A CF never leaves: ISO-TP waits for it for ever, so only the backstop ends the send. */
 ZTEST(uds_isotp, test_unacknowledged_cf)
 {
