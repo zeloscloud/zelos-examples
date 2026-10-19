@@ -30,7 +30,7 @@ from udsoncan.exceptions import NegativeResponseException
 from zelos_testing import arxml, dbc, uds_keys
 from zelos_testing.dcdc import LIMITS, LIMITS_PERIOD_S, STATUS, BmsLimits
 from zelos_testing.frames import assert_period, bound, collect, count, play_unless_present, recording, until
-from zelos_testing.uds import DIDS
+from zelos_testing.uds import DIDS, keep_session
 
 DB = arxml.load()
 BENCH = dbc.load("bench")
@@ -299,11 +299,12 @@ def test_communication_control_silences_the_pdus(pytestconfig, socketcan):
                     if e.response.code != 0x37 or time.monotonic() > end:
                         raise
                     time.sleep(0.5)
-            client.communication_control(0x01, 0x01)
-            off = time.time()
-            time.sleep(bound(0.5))
-            client.communication_control(0x00, 0x01)
-            on = time.time()
+            with can.Bus(interface=pytestconfig.getoption("interface"), channel=pytestconfig.getoption("channel")) as bus, keep_session(bus):
+                client.communication_control(0x01, 0x01)
+                off = time.time()
+                time.sleep(bound(0.5))
+                client.communication_control(0x00, 0x01)
+                on = time.time()
         finally:
             client.change_session(0x01)
         # The node's time: five P05 cycles after the PDUs resume.

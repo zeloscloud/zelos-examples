@@ -49,6 +49,7 @@ from zelos_testing.uds import (
     VOLTAGE,
     WIR,
     dtcs,
+    keep_session,
     location,
     reset,
 )
@@ -203,13 +204,14 @@ def test_communication_control_stops_the_broadcast(ecu, bus):
     confirmed = set(dtcs(ecu, CDTC))
     ecu.enter(EXTENDED)
     ecu.unlock(LEVEL_EXTENDED)
-    ecu.client.communication_control(0x01, 0x01)
-    sent_at = time.time()
-    assert ecu.read(ACTIVE_SESSION) == EXTENDED  # diagnostics still answer
-    # One frame may already be on its way: allow a cycle.
-    quiet = [m for m in collect(bus, bound(0.5), ids=[STATUS.frame_id]) if m.timestamp > sent_at + bound(STATUS.cycle_time / 1000)]
-    assert quiet == [], "DCDC_Status sent with transmission disabled"
-    ecu.client.communication_control(0x00, 0x01)
+    with keep_session(bus):
+        ecu.client.communication_control(0x01, 0x01)
+        sent_at = time.time()
+        assert ecu.read(ACTIVE_SESSION) == EXTENDED  # diagnostics still answer
+        # One frame may already be on its way: allow a cycle.
+        quiet = [m for m in collect(bus, bound(0.5), ids=[STATUS.frame_id]) if m.timestamp > sent_at + bound(STATUS.cycle_time / 1000)]
+        assert quiet == [], "DCDC_Status sent with transmission disabled"
+        ecu.client.communication_control(0x00, 0x01)
     status(bus)
     # Left alone, S3 ends the session and restores it.
     ecu.client.communication_control(0x03, 0x01)
