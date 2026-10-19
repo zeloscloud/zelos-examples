@@ -106,7 +106,8 @@ def test_live_values_are_typed(ecu):
     elapsed_ms = ecu.read(UPTIME) - first
     assert elapsed_ms > 0
     if not frames.SIMULATED:
-        assert elapsed_ms == pytest.approx(1000, rel=MARGIN, abs=20)
+        # The DID is the model's sample: it steps once per 50 ms cycle.
+        assert elapsed_ms == pytest.approx(1000, rel=MARGIN, abs=20 + 50)
 
 
 def test_unknown_identifiers_are_left_out_of_the_read(ecu):
