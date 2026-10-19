@@ -11,6 +11,7 @@
 #include "waveform.h"
 
 #include <zephyr/kernel.h>
+#include <zephyr/sys/atomic.h>
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(waveform, LOG_LEVEL_INF);
@@ -40,6 +41,17 @@ static void build_table(void)
 	}
 }
 
+static atomic_t in_flight;
+
+static void left(struct zelos_can_done *done, int error)
+{
+	ARG_UNUSED(done);
+	ARG_UNUSED(error);
+	atomic_clear(&in_flight);
+}
+
+static struct zelos_can_done sent = {.fn = left};
+
 static void run(void *p1, void *p2, void *p3)
 {
 	const float dt_s = (float)PERIOD_MS / 1000.0f;
@@ -68,8 +80,15 @@ static void run(void *p1, void *p2, void *p3)
 		msg.square = frac < 0.5f ? 1000 : -1000;
 		msg.sawtooth = (int16_t)(2000.0f * frac - 1000.0f);
 
-		if (bench_waveform_pack(buf, &msg, sizeof(buf)) == (int)sizeof(buf)) {
-			(void)zelos_can_send(BENCH_WAVEFORM_FRAME_ID, buf, sizeof(buf));
+		/* One frame in flight at most, else under load Waveform fills the
+		 * controller's 3 TX buffers and higher-priority frames wait on it.
+		 * A busy bus costs samples, not the other nodes' periods. */
+		if (atomic_cas(&in_flight, 0, 1)) {
+			if (bench_waveform_pack(buf, &msg, sizeof(buf)) == (int)sizeof(buf)) {
+				(void)zelos_can_send_done(BENCH_WAVEFORM_FRAME_ID, buf, sizeof(buf), &sent);
+			} else {
+				atomic_clear(&in_flight);
+			}
 		}
 
 		phase += (uint32_t)(f_hz * dt_s * 4294967296.0f);
