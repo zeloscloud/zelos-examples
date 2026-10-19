@@ -282,7 +282,9 @@ def test_a_tester_gone_mid_response_releases_the_output(ecu, bus):
     ecu.unlock(LEVEL_EXTENDED)
     ecu.client.io_control(OUTPUT, control_param=ADJUST, values=[15.0])
     wait_until(lambda: 14.0 < status(bus)["OutputVoltage"] <= 15.0, 1.0)
-    with ecu.by_hand():
+    # The suite's client would flow-control the response too: closed meanwhile.
+    ecu.client.close()
+    try:
         bus.send(IDENTIFIERS)
         until(bus, lambda f: f[-1].data[0] >> 4 == 1, ids=[RESPONSE])
         bus.send(SLOWEST)
@@ -291,6 +293,8 @@ def test_a_tester_gone_mid_response_releases_the_output(ecu, bus):
             # S3 from the request. Then the most the node takes: a CF's N_As, its next
             # check (N_As), lib/can's frame leaving the driver (1 s), the restart's N_Bs + 127 ms.
             monitor.sleep_virtual(S3_S + 3 * 1.0 + 1.127 + 0.5)
+    finally:
+        ecu.client.open()
     # Back on the bus: the node answers at once, the session over and the output the ECU's.
     assert ecu.session() == DEFAULT
     wait_until(lambda: 13.0 < status(bus)["OutputVoltage"] <= SETPOINT_V, 1.0)
