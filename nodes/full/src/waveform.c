@@ -81,7 +81,7 @@ static void run(void *p1, void *p2, void *p3)
 		msg.sawtooth = (int16_t)(2000.0f * frac - 1000.0f);
 
 		/* One frame in flight at most, else under load Waveform fills the
-		 * controller's 3 TX buffers and higher-priority frames wait on it.
+		 * controller's TX buffer and higher-priority frames wait on it.
 		 * A busy bus costs samples, not the other nodes' periods. */
 		if (atomic_cas(&in_flight, 0, 1)) {
 			if (bench_waveform_pack(buf, &msg, sizeof(buf)) == (int)sizeof(buf)) {

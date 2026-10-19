@@ -166,20 +166,19 @@ _toolchain:
     docker image inspect {{ TOOLCHAIN }} > /dev/null 2>&1 || \
         docker build -q --build-arg ZEPHYR_VERSION={{ ZEPHYR }} -f toolchain/Dockerfile -t {{ TOOLCHAIN }} toolchain/ > /dev/null
 
-# Create the pinned west workspace with zephyr/patches.yml applied, and bring it
-# up to date when either changes. Cached in a Docker volume.
+# Create the pinned west workspace, and bring it up to date when west.yml
+# changes. Cached in a Docker volume.
 _west:
     #!/usr/bin/env bash
     set -euo pipefail
-    manifest=$(cat west.yml zephyr/patches.yml zephyr/patches/*/*.patch | sha256sum | cut -d' ' -f1)
+    manifest=$(sha256sum west.yml | cut -d' ' -f1)
     # Docker creates the volume, or the host directory, on first use.
     if [ "$(docker run --rm -v {{ WORKSPACE }}:/w alpine cat /w/.manifest 2>/dev/null)" = "$manifest" ]; then
         exit 0
     fi
-    echo "==> updating the pinned Zephyr workspace to west.yml and zephyr/patches.yml"
+    echo "==> updating the pinned Zephyr workspace to west.yml"
     docker run --rm --user root -v {{ WORKSPACE }}:/workspace -v "$PWD:/workspace/zelos-examples:ro" \
         {{ TOOLCHAIN }} bash -c \
         "cd /workspace && { [ -d .west ] || west init -l zelos-examples; } \
-         && { [ ! -d zephyr ] || west patch clean; } \
-         && west update --narrow -o=--depth=1 && west patch apply && west zephyr-export \
+         && west update --narrow -o=--depth=1 && west zephyr-export \
          && echo $manifest > .manifest"

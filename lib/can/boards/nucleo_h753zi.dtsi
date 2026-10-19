@@ -5,20 +5,28 @@
  * Zephyr's M_CAN driver sizes every RX and TX element for CAN FD, 72 bytes,
  * whatever the frames, and puts each filter's frames in FIFO0 or FIFO1 by the
  * filter's index (even, odd), so both FIFOs take any protocol and are sized
- * alike. The stock 3-deep FIFOs and 3 TX buffers fill within a UDS download
- * burst or a SYNC with its TPDOs. The TX event FIFO matches the TX buffers,
- * one event per frame sent.
+ * alike. The stock 3-deep FIFOs fill within a UDS download burst or a SYNC
+ * with its TPDOs.
  *
- *   28 std filters x 4 + 8 ext x 8 + (32 + 32) RX x 72 + 16 events x 8
- *   + 16 TX x 72 = 6064 bytes (0x17B0) of the 10 KiB message RAM.
+ * One TX buffer, so one frame in flight. The driver runs its TX buffers as a
+ * priority queue (TFQM), which sends equal identifiers by buffer index, not in
+ * the order queued: Zephyr's ISO-TP can release a CF while the one before it
+ * is still pending, and the two then left out of order. lib/can's queue already
+ * orders frames as the bus arbitrates, so a frame waits behind at most one
+ * frame of a higher identifier. Two TX events, so the event FIFO is never
+ * full: Renode's model reads a full one as empty, and the driver then never
+ * hears the frame went out.
  *
- * FDCAN2 shares that RAM and starts after FDCAN1, keeping its stock layout
+ *   28 std filters x 4 + 8 ext x 8 + (32 + 32) RX x 72 + 2 events x 8
+ *   + 1 TX x 72 = 4872 bytes (0x1308) of the 10 KiB message RAM.
+ *
+ * FDCAN2 shares that RAM and starts at 0x17B0, keeping its stock layout
  * (0x350 bytes), so enabling it later cannot overlap.
  */
 
 &fdcan1 {
-	reg = <0x4000a000 0x400>, <0x4000ac00 0x17b0>;
-	bosch,mram-cfg = <0x0 28 8 32 32 0 16 16>;
+	reg = <0x4000a000 0x400>, <0x4000ac00 0x1308>;
+	bosch,mram-cfg = <0x0 28 8 32 32 0 2 1>;
 };
 
 &fdcan2 {
