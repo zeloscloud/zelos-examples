@@ -260,6 +260,8 @@ def test_xcp_and_uds_share_the_ecu(pytestconfig, ecu, bus):
 
 # VIN, part number, hardware version in one read: a first frame and 7 CFs.
 IDENTIFIERS = can.Message(arbitration_id=PHYSICAL, is_extended_id=False, data=bytes.fromhex("0722F190F187F191"))
+# lib/uds: the slowest send ISO 15765-2 allows, plus N_As.
+SEND_BACKSTOP_S = (585 * 127 + 11 * 1000 + 1000) / 1000
 # Flow control: no block limit, a CF per 127 ms, the largest STmin.
 SLOWEST = can.Message(arbitration_id=PHYSICAL, is_extended_id=False, data=bytes.fromhex("30007FCCCCCCCCCC"))
 
@@ -267,10 +269,11 @@ SLOWEST = can.Message(arbitration_id=PHYSICAL, is_extended_id=False, data=bytes.
 def test_a_tester_gone_mid_response_releases_the_output(ecu, bus):
     """Nothing acknowledges the node's frames: the tester unplugged mid-response, the node alone on its bus.
 
-    Its controller holds a frame it retransmits for ever, so the response cannot
-    end. The node gives it up within N_As and a restart of the controller, and
-    S3 then ends the session, returning the output the tester overrode (2F) to
-    the ECU. Renode only: the bench takes the node off its CAN hub.
+    Its controller holds the frames it retransmits for ever, so the response
+    cannot end. The node gives it up, within N_As when a CF finds no free
+    buffer, at the backstop when the CF itself is held, and restarts the
+    controller; S3 then ends the session, returning the output the tester
+    overrode (2F) to the ECU. Renode only: the bench takes the node off its CAN hub.
     """
     monitor = renode.monitor()
     if monitor is None:
@@ -290,9 +293,10 @@ def test_a_tester_gone_mid_response_releases_the_output(ecu, bus):
         bus.send(SLOWEST)
         until(bus, lambda f: f[-1].data[0] >> 4 == 2, ids=[RESPONSE])
         with monitor.off_the_bus(machine):
-            # S3 from the request. Then the most the node takes: a CF's N_As, its next
-            # check (N_As), lib/can's frame leaving the driver (1 s), the restart's N_Bs + 127 ms.
-            monitor.sleep_virtual(S3_S + 3 * 1.0 + 1.127 + 0.5)
+            # S3 from the request, then the most the node takes: a CF the controller holds
+            # ends only at the backstop (86.3 s, checked each N_As), then lib/can's frame
+            # leaves the driver (1 s) and the restart drains (N_Bs + 127 ms).
+            monitor.sleep_virtual(S3_S + SEND_BACKSTOP_S + 1.0 + 1.0 + 1.127 + 0.5)
     finally:
         ecu.client.open()
     # Back on the bus: the node answers at once, the session over and the output the ECU's.

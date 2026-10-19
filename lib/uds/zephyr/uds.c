@@ -5,9 +5,10 @@
  *
  * ISO-TP sends straight to the driver, not through lib/can's queue: its state
  * machine runs on each frame's own completion callback, which the queue does
- * not carry. It waits on the driver for the controller's one TX buffer like
- * the queue's thread, up to ISO-TP's N_As (CONFIG_ISOTP_A_TIMEOUT), so a lower
- * identifier waits behind at most one of its frames. Its frames are not in
+ * not carry. The controller's TX buffers are a priority queue (M_CAN queue
+ * mode), so 0x7E8 still yields to every lower identifier, as it would in the
+ * queue; it only waits on the driver for a free buffer like the queue's
+ * thread, up to ISO-TP's N_As (CONFIG_ISOTP_A_TIMEOUT). Its frames are not in
  * zelos_can_stats().
  *
  * Zephyr's ISO-TP, used as is, cannot abort a send, and with nothing on the
