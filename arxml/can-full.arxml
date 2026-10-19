@@ -39,6 +39,10 @@
           <SHORT-NAME>s</SHORT-NAME>
           <DISPLAY-NAME>s</DISPLAY-NAME>
         </UNIT>
+        <UNIT>
+          <SHORT-NAME>Hz</SHORT-NAME>
+          <DISPLAY-NAME>Hz</DISPLAY-NAME>
+        </UNIT>
       </ELEMENTS>
     </AR-PACKAGE>
     <AR-PACKAGE>
@@ -446,6 +450,57 @@
               <I-SIGNAL-REF DEST="I-SIGNAL">/Signals/DCDC_Status/Counter</I-SIGNAL-REF>
               <PACKING-BYTE-ORDER>MOST-SIGNIFICANT-BYTE-LAST</PACKING-BYTE-ORDER>
               <START-POSITION>57</START-POSITION>
+              <TRANSFER-PROPERTY>PENDING</TRANSFER-PROPERTY>
+            </I-SIGNAL-TO-I-PDU-MAPPING>
+          </I-SIGNAL-TO-PDU-MAPPINGS>
+          <UNUSED-BIT-PATTERN>0</UNUSED-BIT-PATTERN>
+        </I-SIGNAL-I-PDU>
+        <I-SIGNAL-I-PDU>
+          <SHORT-NAME>Waveform</SHORT-NAME>
+          <DESC>
+            <L-2 L="EN">Signal generator: one phase, chirped 1 to 100 Hz over 20 s, as sine, square and sawtooth. Lowest-priority ID on the bus.</L-2>
+          </DESC>
+          <LENGTH>8</LENGTH>
+          <I-PDU-TIMING-SPECIFICATIONS>
+            <I-PDU-TIMING>
+              <TRANSMISSION-MODE-DECLARATION>
+                <TRANSMISSION-MODE-TRUE-TIMING>
+                  <CYCLIC-TIMING>
+                    <TIME-PERIOD>
+                      <VALUE>0.002</VALUE>
+                    </TIME-PERIOD>
+                  </CYCLIC-TIMING>
+                </TRANSMISSION-MODE-TRUE-TIMING>
+              </TRANSMISSION-MODE-DECLARATION>
+            </I-PDU-TIMING>
+          </I-PDU-TIMING-SPECIFICATIONS>
+          <I-SIGNAL-TO-PDU-MAPPINGS>
+            <I-SIGNAL-TO-I-PDU-MAPPING>
+              <SHORT-NAME>FreqHz</SHORT-NAME>
+              <I-SIGNAL-REF DEST="I-SIGNAL">/Signals/Waveform/FreqHz</I-SIGNAL-REF>
+              <PACKING-BYTE-ORDER>MOST-SIGNIFICANT-BYTE-LAST</PACKING-BYTE-ORDER>
+              <START-POSITION>0</START-POSITION>
+              <TRANSFER-PROPERTY>PENDING</TRANSFER-PROPERTY>
+            </I-SIGNAL-TO-I-PDU-MAPPING>
+            <I-SIGNAL-TO-I-PDU-MAPPING>
+              <SHORT-NAME>Sine</SHORT-NAME>
+              <I-SIGNAL-REF DEST="I-SIGNAL">/Signals/Waveform/Sine</I-SIGNAL-REF>
+              <PACKING-BYTE-ORDER>MOST-SIGNIFICANT-BYTE-LAST</PACKING-BYTE-ORDER>
+              <START-POSITION>16</START-POSITION>
+              <TRANSFER-PROPERTY>PENDING</TRANSFER-PROPERTY>
+            </I-SIGNAL-TO-I-PDU-MAPPING>
+            <I-SIGNAL-TO-I-PDU-MAPPING>
+              <SHORT-NAME>Square</SHORT-NAME>
+              <I-SIGNAL-REF DEST="I-SIGNAL">/Signals/Waveform/Square</I-SIGNAL-REF>
+              <PACKING-BYTE-ORDER>MOST-SIGNIFICANT-BYTE-LAST</PACKING-BYTE-ORDER>
+              <START-POSITION>32</START-POSITION>
+              <TRANSFER-PROPERTY>PENDING</TRANSFER-PROPERTY>
+            </I-SIGNAL-TO-I-PDU-MAPPING>
+            <I-SIGNAL-TO-I-PDU-MAPPING>
+              <SHORT-NAME>Sawtooth</SHORT-NAME>
+              <I-SIGNAL-REF DEST="I-SIGNAL">/Signals/Waveform/Sawtooth</I-SIGNAL-REF>
+              <PACKING-BYTE-ORDER>MOST-SIGNIFICANT-BYTE-LAST</PACKING-BYTE-ORDER>
+              <START-POSITION>48</START-POSITION>
               <TRANSFER-PROPERTY>PENDING</TRANSFER-PROPERTY>
             </I-SIGNAL-TO-I-PDU-MAPPING>
           </I-SIGNAL-TO-PDU-MAPPINGS>
@@ -1413,6 +1468,60 @@
           </ELEMENTS>
         </AR-PACKAGE>
         <AR-PACKAGE>
+          <SHORT-NAME>Waveform</SHORT-NAME>
+          <ELEMENTS>
+            <SYSTEM-SIGNAL>
+              <SHORT-NAME>FreqHz</SHORT-NAME>
+              <DYNAMIC-LENGTH>false</DYNAMIC-LENGTH>
+              <PHYSICAL-PROPS>
+                <SW-DATA-DEF-PROPS-VARIANTS>
+                  <SW-DATA-DEF-PROPS-CONDITIONAL>
+                    <COMPU-METHOD-REF DEST="COMPU-METHOD">/CompuMethods/Hz_0p01_0_0_65535</COMPU-METHOD-REF>
+                    <DATA-CONSTR-REF DEST="DATA-CONSTR">/DataConstrs/Waveform_FreqHz</DATA-CONSTR-REF>
+                    <UNIT-REF DEST="UNIT">/Units/Hz</UNIT-REF>
+                  </SW-DATA-DEF-PROPS-CONDITIONAL>
+                </SW-DATA-DEF-PROPS-VARIANTS>
+              </PHYSICAL-PROPS>
+            </SYSTEM-SIGNAL>
+            <SYSTEM-SIGNAL>
+              <SHORT-NAME>Sine</SHORT-NAME>
+              <DYNAMIC-LENGTH>false</DYNAMIC-LENGTH>
+              <PHYSICAL-PROPS>
+                <SW-DATA-DEF-PROPS-VARIANTS>
+                  <SW-DATA-DEF-PROPS-CONDITIONAL>
+                    <COMPU-METHOD-REF DEST="COMPU-METHOD">/CompuMethods/Raw_0p001_0_m1000_1000</COMPU-METHOD-REF>
+                    <DATA-CONSTR-REF DEST="DATA-CONSTR">/DataConstrs/Waveform_Sine</DATA-CONSTR-REF>
+                  </SW-DATA-DEF-PROPS-CONDITIONAL>
+                </SW-DATA-DEF-PROPS-VARIANTS>
+              </PHYSICAL-PROPS>
+            </SYSTEM-SIGNAL>
+            <SYSTEM-SIGNAL>
+              <SHORT-NAME>Square</SHORT-NAME>
+              <DYNAMIC-LENGTH>false</DYNAMIC-LENGTH>
+              <PHYSICAL-PROPS>
+                <SW-DATA-DEF-PROPS-VARIANTS>
+                  <SW-DATA-DEF-PROPS-CONDITIONAL>
+                    <COMPU-METHOD-REF DEST="COMPU-METHOD">/CompuMethods/Raw_0p001_0_m1000_1000</COMPU-METHOD-REF>
+                    <DATA-CONSTR-REF DEST="DATA-CONSTR">/DataConstrs/Waveform_Square</DATA-CONSTR-REF>
+                  </SW-DATA-DEF-PROPS-CONDITIONAL>
+                </SW-DATA-DEF-PROPS-VARIANTS>
+              </PHYSICAL-PROPS>
+            </SYSTEM-SIGNAL>
+            <SYSTEM-SIGNAL>
+              <SHORT-NAME>Sawtooth</SHORT-NAME>
+              <DYNAMIC-LENGTH>false</DYNAMIC-LENGTH>
+              <PHYSICAL-PROPS>
+                <SW-DATA-DEF-PROPS-VARIANTS>
+                  <SW-DATA-DEF-PROPS-CONDITIONAL>
+                    <COMPU-METHOD-REF DEST="COMPU-METHOD">/CompuMethods/Raw_0p001_0_m1000_1000</COMPU-METHOD-REF>
+                    <DATA-CONSTR-REF DEST="DATA-CONSTR">/DataConstrs/Waveform_Sawtooth</DATA-CONSTR-REF>
+                  </SW-DATA-DEF-PROPS-CONDITIONAL>
+                </SW-DATA-DEF-PROPS-VARIANTS>
+              </PHYSICAL-PROPS>
+            </SYSTEM-SIGNAL>
+          </ELEMENTS>
+        </AR-PACKAGE>
+        <AR-PACKAGE>
           <SHORT-NAME>DcdcOutputP1</SHORT-NAME>
           <ELEMENTS>
             <SYSTEM-SIGNAL>
@@ -2241,6 +2350,49 @@
           </COMPU-INTERNAL-TO-PHYS>
         </COMPU-METHOD>
         <COMPU-METHOD>
+          <SHORT-NAME>Hz_0p01_0_0_65535</SHORT-NAME>
+          <CATEGORY>LINEAR</CATEGORY>
+          <UNIT-REF DEST="UNIT">/Units/Hz</UNIT-REF>
+          <COMPU-INTERNAL-TO-PHYS>
+            <COMPU-SCALES>
+              <COMPU-SCALE>
+                <LOWER-LIMIT INTERVAL-TYPE="CLOSED">0</LOWER-LIMIT>
+                <UPPER-LIMIT INTERVAL-TYPE="CLOSED">65535</UPPER-LIMIT>
+                <COMPU-RATIONAL-COEFFS>
+                  <COMPU-NUMERATOR>
+                    <V>0</V>
+                    <V>0.01</V>
+                  </COMPU-NUMERATOR>
+                  <COMPU-DENOMINATOR>
+                    <V>1</V>
+                  </COMPU-DENOMINATOR>
+                </COMPU-RATIONAL-COEFFS>
+              </COMPU-SCALE>
+            </COMPU-SCALES>
+          </COMPU-INTERNAL-TO-PHYS>
+        </COMPU-METHOD>
+        <COMPU-METHOD>
+          <SHORT-NAME>Raw_0p001_0_m1000_1000</SHORT-NAME>
+          <CATEGORY>LINEAR</CATEGORY>
+          <COMPU-INTERNAL-TO-PHYS>
+            <COMPU-SCALES>
+              <COMPU-SCALE>
+                <LOWER-LIMIT INTERVAL-TYPE="CLOSED">-1000</LOWER-LIMIT>
+                <UPPER-LIMIT INTERVAL-TYPE="CLOSED">1000</UPPER-LIMIT>
+                <COMPU-RATIONAL-COEFFS>
+                  <COMPU-NUMERATOR>
+                    <V>0</V>
+                    <V>0.001</V>
+                  </COMPU-NUMERATOR>
+                  <COMPU-DENOMINATOR>
+                    <V>1</V>
+                  </COMPU-DENOMINATOR>
+                </COMPU-RATIONAL-COEFFS>
+              </COMPU-SCALE>
+            </COMPU-SCALES>
+          </COMPU-INTERNAL-TO-PHYS>
+        </COMPU-METHOD>
+        <COMPU-METHOD>
           <SHORT-NAME>DcdcState</SHORT-NAME>
           <CATEGORY>TEXTTABLE</CATEGORY>
           <COMPU-INTERNAL-TO-PHYS>
@@ -2823,6 +2975,67 @@
                 </SW-DATA-DEF-PROPS-VARIANTS>
               </NETWORK-REPRESENTATION-PROPS>
               <SYSTEM-SIGNAL-REF DEST="SYSTEM-SIGNAL">/SystemSignals/DCDC_Status/Counter</SYSTEM-SIGNAL-REF>
+            </I-SIGNAL>
+          </ELEMENTS>
+        </AR-PACKAGE>
+        <AR-PACKAGE>
+          <SHORT-NAME>Waveform</SHORT-NAME>
+          <ELEMENTS>
+            <I-SIGNAL>
+              <SHORT-NAME>FreqHz</SHORT-NAME>
+              <DATA-TYPE-POLICY>OVERRIDE</DATA-TYPE-POLICY>
+              <I-SIGNAL-TYPE>PRIMITIVE</I-SIGNAL-TYPE>
+              <LENGTH>16</LENGTH>
+              <NETWORK-REPRESENTATION-PROPS>
+                <SW-DATA-DEF-PROPS-VARIANTS>
+                  <SW-DATA-DEF-PROPS-CONDITIONAL>
+                    <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/uint16</BASE-TYPE-REF>
+                  </SW-DATA-DEF-PROPS-CONDITIONAL>
+                </SW-DATA-DEF-PROPS-VARIANTS>
+              </NETWORK-REPRESENTATION-PROPS>
+              <SYSTEM-SIGNAL-REF DEST="SYSTEM-SIGNAL">/SystemSignals/Waveform/FreqHz</SYSTEM-SIGNAL-REF>
+            </I-SIGNAL>
+            <I-SIGNAL>
+              <SHORT-NAME>Sine</SHORT-NAME>
+              <DATA-TYPE-POLICY>OVERRIDE</DATA-TYPE-POLICY>
+              <I-SIGNAL-TYPE>PRIMITIVE</I-SIGNAL-TYPE>
+              <LENGTH>16</LENGTH>
+              <NETWORK-REPRESENTATION-PROPS>
+                <SW-DATA-DEF-PROPS-VARIANTS>
+                  <SW-DATA-DEF-PROPS-CONDITIONAL>
+                    <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/sint16</BASE-TYPE-REF>
+                  </SW-DATA-DEF-PROPS-CONDITIONAL>
+                </SW-DATA-DEF-PROPS-VARIANTS>
+              </NETWORK-REPRESENTATION-PROPS>
+              <SYSTEM-SIGNAL-REF DEST="SYSTEM-SIGNAL">/SystemSignals/Waveform/Sine</SYSTEM-SIGNAL-REF>
+            </I-SIGNAL>
+            <I-SIGNAL>
+              <SHORT-NAME>Square</SHORT-NAME>
+              <DATA-TYPE-POLICY>OVERRIDE</DATA-TYPE-POLICY>
+              <I-SIGNAL-TYPE>PRIMITIVE</I-SIGNAL-TYPE>
+              <LENGTH>16</LENGTH>
+              <NETWORK-REPRESENTATION-PROPS>
+                <SW-DATA-DEF-PROPS-VARIANTS>
+                  <SW-DATA-DEF-PROPS-CONDITIONAL>
+                    <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/sint16</BASE-TYPE-REF>
+                  </SW-DATA-DEF-PROPS-CONDITIONAL>
+                </SW-DATA-DEF-PROPS-VARIANTS>
+              </NETWORK-REPRESENTATION-PROPS>
+              <SYSTEM-SIGNAL-REF DEST="SYSTEM-SIGNAL">/SystemSignals/Waveform/Square</SYSTEM-SIGNAL-REF>
+            </I-SIGNAL>
+            <I-SIGNAL>
+              <SHORT-NAME>Sawtooth</SHORT-NAME>
+              <DATA-TYPE-POLICY>OVERRIDE</DATA-TYPE-POLICY>
+              <I-SIGNAL-TYPE>PRIMITIVE</I-SIGNAL-TYPE>
+              <LENGTH>16</LENGTH>
+              <NETWORK-REPRESENTATION-PROPS>
+                <SW-DATA-DEF-PROPS-VARIANTS>
+                  <SW-DATA-DEF-PROPS-CONDITIONAL>
+                    <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/sint16</BASE-TYPE-REF>
+                  </SW-DATA-DEF-PROPS-CONDITIONAL>
+                </SW-DATA-DEF-PROPS-VARIANTS>
+              </NETWORK-REPRESENTATION-PROPS>
+              <SYSTEM-SIGNAL-REF DEST="SYSTEM-SIGNAL">/SystemSignals/Waveform/Sawtooth</SYSTEM-SIGNAL-REF>
             </I-SIGNAL>
           </ELEMENTS>
         </AR-PACKAGE>
@@ -3696,6 +3909,51 @@
           </DATA-CONSTR-RULES>
         </DATA-CONSTR>
         <DATA-CONSTR>
+          <SHORT-NAME>Waveform_FreqHz</SHORT-NAME>
+          <DATA-CONSTR-RULES>
+            <DATA-CONSTR-RULE>
+              <PHYS-CONSTRS>
+                <LOWER-LIMIT INTERVAL-TYPE="CLOSED">0</LOWER-LIMIT>
+                <UPPER-LIMIT INTERVAL-TYPE="CLOSED">655.35</UPPER-LIMIT>
+                <UNIT-REF DEST="UNIT">/Units/Hz</UNIT-REF>
+              </PHYS-CONSTRS>
+            </DATA-CONSTR-RULE>
+          </DATA-CONSTR-RULES>
+        </DATA-CONSTR>
+        <DATA-CONSTR>
+          <SHORT-NAME>Waveform_Sine</SHORT-NAME>
+          <DATA-CONSTR-RULES>
+            <DATA-CONSTR-RULE>
+              <PHYS-CONSTRS>
+                <LOWER-LIMIT INTERVAL-TYPE="CLOSED">-1</LOWER-LIMIT>
+                <UPPER-LIMIT INTERVAL-TYPE="CLOSED">1</UPPER-LIMIT>
+              </PHYS-CONSTRS>
+            </DATA-CONSTR-RULE>
+          </DATA-CONSTR-RULES>
+        </DATA-CONSTR>
+        <DATA-CONSTR>
+          <SHORT-NAME>Waveform_Square</SHORT-NAME>
+          <DATA-CONSTR-RULES>
+            <DATA-CONSTR-RULE>
+              <PHYS-CONSTRS>
+                <LOWER-LIMIT INTERVAL-TYPE="CLOSED">-1</LOWER-LIMIT>
+                <UPPER-LIMIT INTERVAL-TYPE="CLOSED">1</UPPER-LIMIT>
+              </PHYS-CONSTRS>
+            </DATA-CONSTR-RULE>
+          </DATA-CONSTR-RULES>
+        </DATA-CONSTR>
+        <DATA-CONSTR>
+          <SHORT-NAME>Waveform_Sawtooth</SHORT-NAME>
+          <DATA-CONSTR-RULES>
+            <DATA-CONSTR-RULE>
+              <PHYS-CONSTRS>
+                <LOWER-LIMIT INTERVAL-TYPE="CLOSED">-1</LOWER-LIMIT>
+                <UPPER-LIMIT INTERVAL-TYPE="CLOSED">1</UPPER-LIMIT>
+              </PHYS-CONSTRS>
+            </DATA-CONSTR-RULE>
+          </DATA-CONSTR-RULES>
+        </DATA-CONSTR>
+        <DATA-CONSTR>
           <SHORT-NAME>DcdcOutputP1_OutputVoltage</SHORT-NAME>
           <DATA-CONSTR-RULES>
             <DATA-CONSTR-RULE>
@@ -4028,6 +4286,21 @@
           </PDU-TO-FRAME-MAPPINGS>
         </CAN-FRAME>
         <CAN-FRAME>
+          <SHORT-NAME>Waveform</SHORT-NAME>
+          <DESC>
+            <L-2 L="EN">Signal generator: one phase, chirped 1 to 100 Hz over 20 s, as sine, square and sawtooth. Lowest-priority ID on the bus.</L-2>
+          </DESC>
+          <FRAME-LENGTH>8</FRAME-LENGTH>
+          <PDU-TO-FRAME-MAPPINGS>
+            <PDU-TO-FRAME-MAPPING>
+              <SHORT-NAME>Waveform</SHORT-NAME>
+              <PACKING-BYTE-ORDER>MOST-SIGNIFICANT-BYTE-LAST</PACKING-BYTE-ORDER>
+              <PDU-REF DEST="I-SIGNAL-I-PDU">/Pdus/Waveform</PDU-REF>
+              <START-POSITION>0</START-POSITION>
+            </PDU-TO-FRAME-MAPPING>
+          </PDU-TO-FRAME-MAPPINGS>
+        </CAN-FRAME>
+        <CAN-FRAME>
           <SHORT-NAME>DcdcOutputP1</SHORT-NAME>
           <DESC>
             <L-2 L="EN">Rail output and pack current, E2E profile 1.</L-2>
@@ -4279,6 +4552,15 @@
           </I-SIGNAL-I-PDUS>
         </I-SIGNAL-I-PDU-GROUP>
         <I-SIGNAL-I-PDU-GROUP>
+          <SHORT-NAME>SIG_Tx</SHORT-NAME>
+          <COMMUNICATION-DIRECTION>OUT</COMMUNICATION-DIRECTION>
+          <I-SIGNAL-I-PDUS>
+            <I-SIGNAL-I-PDU-REF-CONDITIONAL>
+              <I-SIGNAL-I-PDU-REF DEST="I-SIGNAL-I-PDU">/Pdus/Waveform</I-SIGNAL-I-PDU-REF>
+            </I-SIGNAL-I-PDU-REF-CONDITIONAL>
+          </I-SIGNAL-I-PDUS>
+        </I-SIGNAL-I-PDU-GROUP>
+        <I-SIGNAL-I-PDU-GROUP>
           <SHORT-NAME>Tester_Rx</SHORT-NAME>
           <COMMUNICATION-DIRECTION>IN</COMMUNICATION-DIRECTION>
           <I-SIGNAL-I-PDUS>
@@ -4329,6 +4611,9 @@
             </I-SIGNAL-I-PDU-REF-CONDITIONAL>
             <I-SIGNAL-I-PDU-REF-CONDITIONAL>
               <I-SIGNAL-I-PDU-REF DEST="I-SIGNAL-I-PDU">/Pdus/DCDC_Status</I-SIGNAL-I-PDU-REF>
+            </I-SIGNAL-I-PDU-REF-CONDITIONAL>
+            <I-SIGNAL-I-PDU-REF-CONDITIONAL>
+              <I-SIGNAL-I-PDU-REF DEST="I-SIGNAL-I-PDU">/Pdus/Waveform</I-SIGNAL-I-PDU-REF>
             </I-SIGNAL-I-PDU-REF-CONDITIONAL>
           </I-SIGNAL-I-PDUS>
         </I-SIGNAL-I-PDU-GROUP>
@@ -4385,6 +4670,10 @@
                   <SHORT-NAME>FP_DCDC_Status_IN</SHORT-NAME>
                   <COMMUNICATION-DIRECTION>IN</COMMUNICATION-DIRECTION>
                 </FRAME-PORT>
+                <FRAME-PORT>
+                  <SHORT-NAME>FP_Waveform_IN</SHORT-NAME>
+                  <COMMUNICATION-DIRECTION>IN</COMMUNICATION-DIRECTION>
+                </FRAME-PORT>
                 <I-PDU-PORT>
                   <SHORT-NAME>PP_VCU_Command_OUT</SHORT-NAME>
                   <COMMUNICATION-DIRECTION>OUT</COMMUNICATION-DIRECTION>
@@ -4403,6 +4692,10 @@
                 </I-PDU-PORT>
                 <I-PDU-PORT>
                   <SHORT-NAME>PP_DCDC_Status_IN</SHORT-NAME>
+                  <COMMUNICATION-DIRECTION>IN</COMMUNICATION-DIRECTION>
+                </I-PDU-PORT>
+                <I-PDU-PORT>
+                  <SHORT-NAME>PP_Waveform_IN</SHORT-NAME>
                   <COMMUNICATION-DIRECTION>IN</COMMUNICATION-DIRECTION>
                 </I-PDU-PORT>
               </ECU-COMM-PORT-INSTANCES>
@@ -4656,6 +4949,33 @@
           </CONNECTORS>
         </ECU-INSTANCE>
         <ECU-INSTANCE>
+          <SHORT-NAME>SIG</SHORT-NAME>
+          <ASSOCIATED-COM-I-PDU-GROUP-REFS>
+            <ASSOCIATED-COM-I-PDU-GROUP-REF DEST="I-SIGNAL-I-PDU-GROUP">/PduGroups/SIG_Tx</ASSOCIATED-COM-I-PDU-GROUP-REF>
+          </ASSOCIATED-COM-I-PDU-GROUP-REFS>
+          <COMM-CONTROLLERS>
+            <CAN-COMMUNICATION-CONTROLLER>
+              <SHORT-NAME>SIG_CanController</SHORT-NAME>
+            </CAN-COMMUNICATION-CONTROLLER>
+          </COMM-CONTROLLERS>
+          <CONNECTORS>
+            <CAN-COMMUNICATION-CONNECTOR>
+              <SHORT-NAME>SIG_CanConnector</SHORT-NAME>
+              <COMM-CONTROLLER-REF DEST="CAN-COMMUNICATION-CONTROLLER">/Ecus/SIG/SIG_CanController</COMM-CONTROLLER-REF>
+              <ECU-COMM-PORT-INSTANCES>
+                <FRAME-PORT>
+                  <SHORT-NAME>FP_Waveform_OUT</SHORT-NAME>
+                  <COMMUNICATION-DIRECTION>OUT</COMMUNICATION-DIRECTION>
+                </FRAME-PORT>
+                <I-PDU-PORT>
+                  <SHORT-NAME>PP_Waveform_OUT</SHORT-NAME>
+                  <COMMUNICATION-DIRECTION>OUT</COMMUNICATION-DIRECTION>
+                </I-PDU-PORT>
+              </ECU-COMM-PORT-INSTANCES>
+            </CAN-COMMUNICATION-CONNECTOR>
+          </CONNECTORS>
+        </ECU-INSTANCE>
+        <ECU-INSTANCE>
           <SHORT-NAME>Tester</SHORT-NAME>
           <DESC>
             <L-2 L="EN">Diagnostic tester, XCP master and logger on the bus.</L-2>
@@ -4832,6 +5152,9 @@
                       <COMMUNICATION-CONNECTOR-REF DEST="CAN-COMMUNICATION-CONNECTOR">/Ecus/DCDC/DCDC_CanConnector</COMMUNICATION-CONNECTOR-REF>
                     </COMMUNICATION-CONNECTOR-REF-CONDITIONAL>
                     <COMMUNICATION-CONNECTOR-REF-CONDITIONAL>
+                      <COMMUNICATION-CONNECTOR-REF DEST="CAN-COMMUNICATION-CONNECTOR">/Ecus/SIG/SIG_CanConnector</COMMUNICATION-CONNECTOR-REF>
+                    </COMMUNICATION-CONNECTOR-REF-CONDITIONAL>
+                    <COMMUNICATION-CONNECTOR-REF-CONDITIONAL>
                       <COMMUNICATION-CONNECTOR-REF DEST="CAN-COMMUNICATION-CONNECTOR">/Ecus/Tester/Tester_CanConnector</COMMUNICATION-CONNECTOR-REF>
                     </COMMUNICATION-CONNECTOR-REF-CONDITIONAL>
                   </COMM-CONNECTORS>
@@ -4924,6 +5247,23 @@
                       <CAN-FRAME-RX-BEHAVIOR>CAN-20</CAN-FRAME-RX-BEHAVIOR>
                       <CAN-FRAME-TX-BEHAVIOR>CAN-20</CAN-FRAME-TX-BEHAVIOR>
                       <IDENTIFIER>768</IDENTIFIER>
+                    </CAN-FRAME-TRIGGERING>
+                    <CAN-FRAME-TRIGGERING>
+                      <SHORT-NAME>FT_Waveform</SHORT-NAME>
+                      <FRAME-PORT-REFS>
+                        <FRAME-PORT-REF DEST="FRAME-PORT">/Ecus/VCU/VCU_CanConnector/FP_Waveform_IN</FRAME-PORT-REF>
+                        <FRAME-PORT-REF DEST="FRAME-PORT">/Ecus/SIG/SIG_CanConnector/FP_Waveform_OUT</FRAME-PORT-REF>
+                      </FRAME-PORT-REFS>
+                      <FRAME-REF DEST="CAN-FRAME">/Frames/Waveform</FRAME-REF>
+                      <PDU-TRIGGERINGS>
+                        <PDU-TRIGGERING-REF-CONDITIONAL>
+                          <PDU-TRIGGERING-REF DEST="PDU-TRIGGERING">/Communication/CanFull/CanFullChannel/PT_Waveform</PDU-TRIGGERING-REF>
+                        </PDU-TRIGGERING-REF-CONDITIONAL>
+                      </PDU-TRIGGERINGS>
+                      <CAN-ADDRESSING-MODE>STANDARD</CAN-ADDRESSING-MODE>
+                      <CAN-FRAME-RX-BEHAVIOR>CAN-20</CAN-FRAME-RX-BEHAVIOR>
+                      <CAN-FRAME-TX-BEHAVIOR>CAN-20</CAN-FRAME-TX-BEHAVIOR>
+                      <IDENTIFIER>2032</IDENTIFIER>
                     </CAN-FRAME-TRIGGERING>
                     <CAN-FRAME-TRIGGERING>
                       <SHORT-NAME>FT_DcdcOutputP1</SHORT-NAME>
@@ -5207,6 +5547,22 @@
                       <I-SIGNAL-REF DEST="I-SIGNAL">/Signals/DCDC_Status/Counter</I-SIGNAL-REF>
                     </I-SIGNAL-TRIGGERING>
                     <I-SIGNAL-TRIGGERING>
+                      <SHORT-NAME>ST_Waveform_FreqHz</SHORT-NAME>
+                      <I-SIGNAL-REF DEST="I-SIGNAL">/Signals/Waveform/FreqHz</I-SIGNAL-REF>
+                    </I-SIGNAL-TRIGGERING>
+                    <I-SIGNAL-TRIGGERING>
+                      <SHORT-NAME>ST_Waveform_Sine</SHORT-NAME>
+                      <I-SIGNAL-REF DEST="I-SIGNAL">/Signals/Waveform/Sine</I-SIGNAL-REF>
+                    </I-SIGNAL-TRIGGERING>
+                    <I-SIGNAL-TRIGGERING>
+                      <SHORT-NAME>ST_Waveform_Square</SHORT-NAME>
+                      <I-SIGNAL-REF DEST="I-SIGNAL">/Signals/Waveform/Square</I-SIGNAL-REF>
+                    </I-SIGNAL-TRIGGERING>
+                    <I-SIGNAL-TRIGGERING>
+                      <SHORT-NAME>ST_Waveform_Sawtooth</SHORT-NAME>
+                      <I-SIGNAL-REF DEST="I-SIGNAL">/Signals/Waveform/Sawtooth</I-SIGNAL-REF>
+                    </I-SIGNAL-TRIGGERING>
+                    <I-SIGNAL-TRIGGERING>
                       <SHORT-NAME>ST_DcdcOutputP1_CRC</SHORT-NAME>
                       <I-SIGNAL-REF DEST="I-SIGNAL">/Signals/DcdcOutputP1/CRC</I-SIGNAL-REF>
                     </I-SIGNAL-TRIGGERING>
@@ -5468,6 +5824,28 @@
                         </I-SIGNAL-TRIGGERING-REF-CONDITIONAL>
                         <I-SIGNAL-TRIGGERING-REF-CONDITIONAL>
                           <I-SIGNAL-TRIGGERING-REF DEST="I-SIGNAL-TRIGGERING">/Communication/CanFull/CanFullChannel/ST_DCDC_Status_Counter</I-SIGNAL-TRIGGERING-REF>
+                        </I-SIGNAL-TRIGGERING-REF-CONDITIONAL>
+                      </I-SIGNAL-TRIGGERINGS>
+                    </PDU-TRIGGERING>
+                    <PDU-TRIGGERING>
+                      <SHORT-NAME>PT_Waveform</SHORT-NAME>
+                      <I-PDU-PORT-REFS>
+                        <I-PDU-PORT-REF DEST="I-PDU-PORT">/Ecus/VCU/VCU_CanConnector/PP_Waveform_IN</I-PDU-PORT-REF>
+                        <I-PDU-PORT-REF DEST="I-PDU-PORT">/Ecus/SIG/SIG_CanConnector/PP_Waveform_OUT</I-PDU-PORT-REF>
+                      </I-PDU-PORT-REFS>
+                      <I-PDU-REF DEST="I-SIGNAL-I-PDU">/Pdus/Waveform</I-PDU-REF>
+                      <I-SIGNAL-TRIGGERINGS>
+                        <I-SIGNAL-TRIGGERING-REF-CONDITIONAL>
+                          <I-SIGNAL-TRIGGERING-REF DEST="I-SIGNAL-TRIGGERING">/Communication/CanFull/CanFullChannel/ST_Waveform_FreqHz</I-SIGNAL-TRIGGERING-REF>
+                        </I-SIGNAL-TRIGGERING-REF-CONDITIONAL>
+                        <I-SIGNAL-TRIGGERING-REF-CONDITIONAL>
+                          <I-SIGNAL-TRIGGERING-REF DEST="I-SIGNAL-TRIGGERING">/Communication/CanFull/CanFullChannel/ST_Waveform_Sine</I-SIGNAL-TRIGGERING-REF>
+                        </I-SIGNAL-TRIGGERING-REF-CONDITIONAL>
+                        <I-SIGNAL-TRIGGERING-REF-CONDITIONAL>
+                          <I-SIGNAL-TRIGGERING-REF DEST="I-SIGNAL-TRIGGERING">/Communication/CanFull/CanFullChannel/ST_Waveform_Square</I-SIGNAL-TRIGGERING-REF>
+                        </I-SIGNAL-TRIGGERING-REF-CONDITIONAL>
+                        <I-SIGNAL-TRIGGERING-REF-CONDITIONAL>
+                          <I-SIGNAL-TRIGGERING-REF DEST="I-SIGNAL-TRIGGERING">/Communication/CanFull/CanFullChannel/ST_Waveform_Sawtooth</I-SIGNAL-TRIGGERING-REF>
                         </I-SIGNAL-TRIGGERING-REF-CONDITIONAL>
                       </I-SIGNAL-TRIGGERINGS>
                     </PDU-TRIGGERING>
@@ -5977,6 +6355,21 @@
               <FIBEX-ELEMENT-REF DEST="I-SIGNAL">/Signals/DCDC_Status/Counter</FIBEX-ELEMENT-REF>
             </FIBEX-ELEMENT-REF-CONDITIONAL>
             <FIBEX-ELEMENT-REF-CONDITIONAL>
+              <FIBEX-ELEMENT-REF DEST="I-SIGNAL-I-PDU">/Pdus/Waveform</FIBEX-ELEMENT-REF>
+            </FIBEX-ELEMENT-REF-CONDITIONAL>
+            <FIBEX-ELEMENT-REF-CONDITIONAL>
+              <FIBEX-ELEMENT-REF DEST="I-SIGNAL">/Signals/Waveform/FreqHz</FIBEX-ELEMENT-REF>
+            </FIBEX-ELEMENT-REF-CONDITIONAL>
+            <FIBEX-ELEMENT-REF-CONDITIONAL>
+              <FIBEX-ELEMENT-REF DEST="I-SIGNAL">/Signals/Waveform/Sine</FIBEX-ELEMENT-REF>
+            </FIBEX-ELEMENT-REF-CONDITIONAL>
+            <FIBEX-ELEMENT-REF-CONDITIONAL>
+              <FIBEX-ELEMENT-REF DEST="I-SIGNAL">/Signals/Waveform/Square</FIBEX-ELEMENT-REF>
+            </FIBEX-ELEMENT-REF-CONDITIONAL>
+            <FIBEX-ELEMENT-REF-CONDITIONAL>
+              <FIBEX-ELEMENT-REF DEST="I-SIGNAL">/Signals/Waveform/Sawtooth</FIBEX-ELEMENT-REF>
+            </FIBEX-ELEMENT-REF-CONDITIONAL>
+            <FIBEX-ELEMENT-REF-CONDITIONAL>
               <FIBEX-ELEMENT-REF DEST="I-SIGNAL-I-PDU">/Pdus/DcdcOutputP1</FIBEX-ELEMENT-REF>
             </FIBEX-ELEMENT-REF-CONDITIONAL>
             <FIBEX-ELEMENT-REF-CONDITIONAL>
@@ -6160,6 +6553,9 @@
               <FIBEX-ELEMENT-REF DEST="CAN-FRAME">/Frames/DCDC_Status</FIBEX-ELEMENT-REF>
             </FIBEX-ELEMENT-REF-CONDITIONAL>
             <FIBEX-ELEMENT-REF-CONDITIONAL>
+              <FIBEX-ELEMENT-REF DEST="CAN-FRAME">/Frames/Waveform</FIBEX-ELEMENT-REF>
+            </FIBEX-ELEMENT-REF-CONDITIONAL>
+            <FIBEX-ELEMENT-REF-CONDITIONAL>
               <FIBEX-ELEMENT-REF DEST="CAN-FRAME">/Frames/DcdcOutputP1</FIBEX-ELEMENT-REF>
             </FIBEX-ELEMENT-REF-CONDITIONAL>
             <FIBEX-ELEMENT-REF-CONDITIONAL>
@@ -6205,6 +6601,9 @@
               <FIBEX-ELEMENT-REF DEST="I-SIGNAL-I-PDU-GROUP">/PduGroups/DCDC_Tx</FIBEX-ELEMENT-REF>
             </FIBEX-ELEMENT-REF-CONDITIONAL>
             <FIBEX-ELEMENT-REF-CONDITIONAL>
+              <FIBEX-ELEMENT-REF DEST="I-SIGNAL-I-PDU-GROUP">/PduGroups/SIG_Tx</FIBEX-ELEMENT-REF>
+            </FIBEX-ELEMENT-REF-CONDITIONAL>
+            <FIBEX-ELEMENT-REF-CONDITIONAL>
               <FIBEX-ELEMENT-REF DEST="I-SIGNAL-I-PDU-GROUP">/PduGroups/Tester_Rx</FIBEX-ELEMENT-REF>
             </FIBEX-ELEMENT-REF-CONDITIONAL>
             <FIBEX-ELEMENT-REF-CONDITIONAL>
@@ -6221,6 +6620,9 @@
             </FIBEX-ELEMENT-REF-CONDITIONAL>
             <FIBEX-ELEMENT-REF-CONDITIONAL>
               <FIBEX-ELEMENT-REF DEST="ECU-INSTANCE">/Ecus/DCDC</FIBEX-ELEMENT-REF>
+            </FIBEX-ELEMENT-REF-CONDITIONAL>
+            <FIBEX-ELEMENT-REF-CONDITIONAL>
+              <FIBEX-ELEMENT-REF DEST="ECU-INSTANCE">/Ecus/SIG</FIBEX-ELEMENT-REF>
             </FIBEX-ELEMENT-REF-CONDITIONAL>
             <FIBEX-ELEMENT-REF-CONDITIONAL>
               <FIBEX-ELEMENT-REF DEST="ECU-INSTANCE">/Ecus/Tester</FIBEX-ELEMENT-REF>
