@@ -464,11 +464,15 @@ uint8_t uds_obd_read_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t 
 		want = 4;
 		break;
 	case REPORT_SUPPORTED_EXT_DATA:
+		/* ISO 14229-1's NRC order: the length before the record's value. */
+		if (len < 3) {
+			return NRC_INCORRECT_LENGTH;
+		}
 		/*
 		 * No DTC of this node has a ratio or test-result monitor (comprehensive
 		 * components only), so none supports 0x91 / 0x92 (SWS_Dcm_01609).
 		 */
-		if (len < 3 || (req[2] != RECORD_IUMPR && req[2] != RECORD_TEST_RESULTS)) {
+		if (req[2] != RECORD_IUMPR && req[2] != RECORD_TEST_RESULTS) {
 			return NRC_SUBFUNCTION_NOT_SUPPORTED;
 		}
 		return len == 3 ? NRC_OUT_OF_RANGE : NRC_INCORRECT_LENGTH;
