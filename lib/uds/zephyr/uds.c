@@ -246,11 +246,15 @@ static const struct zelos_uds_config *nv_start_config(const struct zelos_uds_con
 	return config;
 }
 
-/* Before core_lock, which the write takes: finish the write queued or running. */
+/*
+ * Before core_lock, which both take: finish the mount, so the memory sealed
+ * holds flash's permanent DTCs, then the write queued or running.
+ */
 static void nvs_flush(void)
 {
 	struct k_work_sync sync;
 
+	(void)k_work_flush(&nvs_mount_work, &sync);
 	(void)k_work_flush(&nvs_work, &sync);
 }
 
