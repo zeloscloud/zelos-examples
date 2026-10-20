@@ -375,8 +375,9 @@ def test_dtc_reports(ecu):
     ecu.client.clear_dtc(0xFFFFFF)
     # Cleared: none failed since. Untested or passed since, by the model.
     assert dtcs(ecu, TF | TFSLC | CDTC | PDTC) == {}
-    count_ = ecu.client.get_number_of_dtc_by_status_mask(0xFF).service_data
-    assert count_.dtc_format == 0x01 and count_.dtc_count == len([s for s in dtcs(ecu).values() if s])
+    # The list's mask: a passing model cycle between the two reads sets none of these bits.
+    count_ = ecu.client.get_number_of_dtc_by_status_mask(TF | TFSLC | CDTC | PDTC).service_data
+    assert count_.dtc_format == 0x01 and count_.dtc_count == 0
     assert nrc(ecu.client.clear_dtc, 0x000001) == 0x31
     ecu.client.clear_dtc(DTC_OVERTEMPERATURE)
     # Extended data 0x01 occurrences, 0x02 aging.
