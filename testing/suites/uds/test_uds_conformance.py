@@ -46,6 +46,7 @@ from zelos_testing.uds import (
     LEVEL_PROGRAMMING,
     MARGIN,
     OUTPUT,
+    P2_STAR_S,
     PDTC,
     PROGRAMMING,
     RESET,
@@ -428,7 +429,7 @@ def test_busy_while_pending(ecu):
         for request_ in (b"\x29\x01", b"\x3e\x80"):
             everyone.conn.send(request_)
         # Nothing for these: the next response is the routine's result.
-        assert everyone.conn.wait_frame(timeout=bound(SELF_TEST_S))[:4] == b"\x71\x01\x02\x01"
+        assert everyone.conn.wait_frame(timeout=bound(P2_STAR_S))[:4] == b"\x71\x01\x02\x01"
 
 
 def test_programming_sequence(ecu):
