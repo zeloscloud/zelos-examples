@@ -381,6 +381,18 @@ static void abort_send(bool multi)
 	}
 }
 
+/*
+ * A frame nothing acknowledges drives the controller error-passive within a
+ * few retransmissions; a tester that only withholds flow control does not.
+ */
+static bool unacknowledged(void)
+{
+	enum can_state state;
+
+	return can_get_state(can_dev, &state, NULL) == 0 &&
+	       (state == CAN_STATE_ERROR_PASSIVE || state == CAN_STATE_BUS_OFF);
+}
+
 static void send(size_t len)
 {
 	/* A first frame and consecutive frames; a single frame needs no flow control. */
@@ -414,7 +426,7 @@ static void send(size_t len)
 	} else if (multi) {
 		bind_phys(K_NO_WAIT);
 	}
-	if (err == ISOTP_N_TIMEOUT_A || err == ISOTP_N_TIMEOUT_BS) {
+	if ((err == ISOTP_N_TIMEOUT_A || err == ISOTP_N_TIMEOUT_BS) && unacknowledged()) {
 		/* The frame nothing acknowledged may still be in the controller. */
 		LOG_ERR("response 0x%02x: %d, restarting CAN", rsp[0], err);
 		restart(K_NO_WAIT);

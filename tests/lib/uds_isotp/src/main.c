@@ -121,6 +121,15 @@ static int stop(const struct device *dev)
 	return 0;
 }
 
+/* No acknowledgement drives M_CAN error-passive; a full buffer here stands for that too. */
+static int get_state(const struct device *dev, enum can_state *state, struct can_bus_err_cnt *cnt)
+{
+	ARG_UNUSED(dev);
+	ARG_UNUSED(cnt);
+	*state = unacked || full ? CAN_STATE_ERROR_PASSIVE : CAN_STATE_ERROR_ACTIVE;
+	return 0;
+}
+
 static int start(const struct device *dev)
 {
 	ARG_UNUSED(dev);
@@ -316,6 +325,16 @@ ZTEST(uds_isotp, test_unacknowledged_cf)
 	recovered();
 }
 
+/* The bus acknowledges the first frame, the tester never flow-controls: N_Bs, no restart. */
+ZTEST(uds_isotp, test_flow_control_never_sent)
+{
+	request_vin();
+	(void)first_frame();
+	k_sleep(K_MSEC(CONFIG_ISOTP_BS_TIMEOUT + 200));
+	zassert_equal(fake_can_stop_fake.call_count, 0, "restarted an acknowledged bus");
+	recovered();
+}
+
 /* The fake controller's own rule resets its fakes before each test. */
 static void before(void *fixture)
 {
@@ -325,6 +344,7 @@ static void before(void *fixture)
 	fake_can_send_fake.custom_fake = send;
 	fake_can_stop_fake.custom_fake = stop;
 	fake_can_start_fake.custom_fake = start;
+	fake_can_get_state_fake.custom_fake = get_state;
 }
 
 static void *setup(void)
