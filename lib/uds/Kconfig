@@ -32,9 +32,65 @@ config ZELOS_UDS_RESP_ID
 	hex "CAN identifier of responses"
 	default 0x7e8
 
+config ZELOS_UDS_NVS
+	bool "Permanent DTCs in flash"
+	default y if ZELOS_UDS_OBD && $(dt_nodelabel_exists,storage_partition)
+	select FLASH
+	select FLASH_MAP
+	select ZMS
+	help
+	  Keeps the permanent DTCs (OBD service 0x0A) in Zephyr Memory
+	  Storage (ZMS) on the storage partition, so a power loss does not
+	  erase them (13 CCR 1968.2 (g)(4.4.6)(C)). Written from a thread of
+	  the lowest application priority whenever the set changes; read at
+	  start.
+
 endif # ZELOS_UDS
 
 if ZELOS_UDS_CORE
+
+config ZELOS_UDS_OBD
+	bool "OBD-II responder (SAE J1979, J1979-2)"
+	default y if ZELOS_UDS
+	help
+	  Answers SAE J1979 services 0x01-0x0A on the same identifiers, and
+	  J1979-2 (OBDonUDS) DIDs 0xF4xx/0xF5xx/0xF8xx and ReadDTCInformation
+	  0x42/0x55/0x56. Needs a VIN DID 0xF190 and the node's PID table.
+	  See include/zelos/uds.h.
+
+config ZELOS_UDS_OBD_VIN
+	bool "Report the VIN"
+	default y
+	depends on ZELOS_UDS_OBD
+	help
+	  Service 0x09 infotype 0x02 and DID 0xF802. Only one ECU of a vehicle
+	  reports the VIN (13 CCR 1968.2 (g)(4.8.1)): say n where the node is
+	  not that ECU.
+
+config ZELOS_UDS_DTC_CONFIRM_CYCLES
+	int "Failed operation cycles before a DTC is confirmed"
+	range 1 255
+	default 2
+	help
+	  Consecutive cycles in which the test ran and failed. 2: pending at
+	  the first, confirmed with the MIL at the second, as US OBD-II
+	  requires (13 CCR 1968.2 (d)(2.2.2)).
+
+config ZELOS_UDS_DTC_HEALING_CYCLES
+	int "Passed operation cycles before the MIL goes off"
+	range 1 255
+	default 3
+	help
+	  Consecutive cycles in which the test ran and never failed (13 CCR
+	  1968.2 (d)(2.3.2)).
+
+config ZELOS_UDS_DTC_AGING_CYCLES
+	int "Operation cycles with the MIL off before confirmedDTC is erased"
+	range 1 255
+	default 40
+	help
+	  Consecutive cycles without a failure. One operation cycle counts as
+	  one warm-up cycle on this bench (13 CCR 1968.2 (d)(2.4)).
 
 config ZELOS_UDS_BUF_SIZE
 	int "Largest request or response, bytes"

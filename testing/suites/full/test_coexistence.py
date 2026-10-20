@@ -19,13 +19,10 @@ The bus is recorded by `candump` (can-utils), which the host needs.
 
 import bisect
 import os
-import re
-import subprocess
 import threading
 import time
 import zlib
 from itertools import pairwise
-from types import SimpleNamespace
 
 import canopen
 import pytest
@@ -71,16 +68,6 @@ pytestmark = pytest.mark.usefixtures("bus_health")
 # overload reports (EV_DAQ_OVERLOAD).
 DTO, ODT0 = 0x6F1, 0x00
 DAQ_OVERLOAD = bytes([0xFD, 0x06])
-CANDUMP = re.compile(r"\((\d+\.\d+)\) \S+ ([0-9A-F]+)#([0-9A-F]*)")
-
-
-def read_candump(path):
-    """Frames from `candump -L`, as the bus carried them: data frames only."""
-    out = []
-    for line in path.read_text().splitlines():
-        if (m := CANDUMP.match(line)) and not m[3].startswith("R"):
-            out.append(SimpleNamespace(timestamp=float(m[1]), arbitration_id=int(m[2], 16), is_extended_id=len(m[2]) > 3, data=bytes.fromhex(m[3])))
-    return out
 
 
 def daq_times(seen):
@@ -169,7 +156,7 @@ def counters(ecu):
     return dict(zip(CAN_STATS, ecu.read(CAN_STATS_DID), strict=True))
 
 
-def test_every_protocol_at_once(pytestconfig, bus, record_property, tmp_path, foreign_managed):
+def test_every_protocol_at_once(pytestconfig, bus, record_property, foreign_managed):
     channel = pytestconfig.getoption("channel")
     a2l = find_a2l(pytestconfig)
     assert a2l is not None, "no A2L: pass --a2l with full.a2l"
@@ -179,13 +166,9 @@ def test_every_protocol_at_once(pytestconfig, bus, record_property, tmp_path, fo
     pdu = network.add_node(PDU, str(EDS))
     pdu.sdo.RESPONSE_TIMEOUT = bound(pdu.sdo.RESPONSE_TIMEOUT)
     network.connect()
-    # The bus record comes from candump, a process of its own: a socket in this
-    # one, busy with every protocol's tester, can overflow and drop frames
-    # silently, which would read as the node's.
-    record = tmp_path / "candump.log"
+    # The bus record: candump's, which fails the test if the host dropped frames.
     with (
-        record.open("w") as log,
-        subprocess.Popen(["candump", "-L", channel], stdout=log, stderr=subprocess.DEVNULL) as candump,
+        frames.recording(channel) as record,
         UdsEcu("zelos-socketcan", channel, timeout_s=bound(2.0), delay_s=bound(11.0)) as ecu,
         XcpEcu(channel, a2l, timeout_s=bound(2.0)) as xcp,
     ):
@@ -226,11 +209,10 @@ def test_every_protocol_at_once(pytestconfig, bus, record_property, tmp_path, fo
             ecu.client.change_session(DEFAULT)
             after = counters(ecu)
         finally:
-            candump.terminate()
             # The bus belongs to its fixture; only stop listening on it.
             network.notifier.stop()
 
-    seen = [m for m in read_candump(record) if soak_from <= m.timestamp <= soak_to]
+    seen = [m for m in record if soak_from <= m.timestamp <= soak_to]
     on_bus = daq_times(seen)
     host_gaps = sum(g >= 1.5 * xcp.event_period_s for g in gaps(samples))
     record_property("host_daq_gaps", host_gaps)

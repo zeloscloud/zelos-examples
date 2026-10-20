@@ -1,0 +1,8 @@
+/*
+ * Permanent DTCs (CONFIG_ZELOS_UDS_NVS) in flash bank 2: a sector erase there
+ * does not stall code running from bank 1, as one in the board's default
+ * storage partition (bank 1) would, for up to seconds.
+ */
+&storage_partition {
+	reg = <0x00100000 DT_SIZE_K(256)>;
+};

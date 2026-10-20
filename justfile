@@ -73,6 +73,11 @@ canopen-od NODE:
          && chown --reference=/od/{{ NODE }}.eds /od/CO_OD.c /od/CO_OD.h'
     @echo "nodes/{{ NODE }}/od/ regenerated from {{ NODE }}.eds"
 
+# Regenerate the DC-DC's AUTOSAR tables, nodes/dcdc/src/autosar_pdus.{c,h},
+# from arxml/can-full.arxml. Deterministic; CI fails if they differ.
+arxml:
+    uv run --quiet tools/arxml2c.py arxml/can-full.arxml DCDC nodes/dcdc/src/autosar_pdus
+
 # Build every node variant for the board and run every ztest suite. Reports go
 # to twister-out/.
 #

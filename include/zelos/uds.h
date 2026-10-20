@@ -19,8 +19,74 @@
  * big-endian. A third wrong key at a level answers 0x36 and that level's seeds
  * 0x37 for 10 s; the delay is also armed for 10 s at power-up.
  *
- * DTC memory survives ECUReset (it lives in RAM the startup code does not
- * clear) and is lost at power-off. Each boot is a new operation cycle.
+ * DTCs (ISO 14229-1 Annex D status, one memory for UDS and OBD-II). An
+ * operation cycle is one boot: power-on, ECUReset of any type, or any other
+ * orderly reboot ends a cycle and starts the next. On this bench one cycle is
+ * also the driving cycle and the warm-up cycle of 13 CCR 1968.2 (no engine, no
+ * coolant). The node reports each test's result (zelos_uds_dtc()); per DTC:
+ *   - a failure sets testFailed, pendingDTC and the first freeze frame
+ *     (snapshot records 0x00 and 0x01) if none is stored; the second frame
+ *     (record 0xF0) is replaced at the first failure of every later cycle;
+ *   - confirmedDTC, warningIndicatorRequested (the MIL) and permanent are set
+ *     when it fails in CONFIG_ZELOS_UDS_DTC_CONFIRM_CYCLES consecutive cycles
+ *     in which it was tested (default 2: pending at the first, confirmed at
+ *     the second, CCR (d)(2.2.2));
+ *   - a cycle in which it was tested and never failed clears pendingDTC (and
+ *     the frames, if not confirmed), and counts towards healing: the MIL goes
+ *     off after CONFIG_ZELOS_UDS_DTC_HEALING_CYCLES such cycles in a row
+ *     (default 3, CCR (d)(2.3.2)), and the permanent DTC with it ((d)(2.5.1));
+ *   - once the MIL is off, confirmedDTC and the frames are erased after
+ *     CONFIG_ZELOS_UDS_DTC_AGING_CYCLES cycles without a failure (default 40,
+ *     CCR (d)(2.4)); ReadDTCInformation extended data 0x02 counts them;
+ *   - an untested cycle neither counts towards confirmation or healing nor
+ *     resets them; a failure resets healing and aging.
+ * ClearDTC and OBD 0x04 erase everything but the permanent DTCs. A permanent
+ * DTC whose MIL is off (after a clear, or a power loss) is released at the end
+ * of the first cycle in which its test ran and never failed (CCR
+ * (d)(2.5.2)(A); this node's tests are treated as ratio-style monitors).
+ * The DTC memory survives a reboot (it lives in RAM the startup code does not
+ * clear); a power loss erases it as a clear does, except the permanent DTCs,
+ * which CONFIG_ZELOS_UDS_NVS keeps in flash (CCR (g)(4.4.6)(C)). The flash
+ * store mounts after start, on the store's low-priority thread (a blank
+ * partition's first mount erases a sector): the node starts at once, requests
+ * are answered meanwhile from RAM, and flash's permanent DTCs join when it has
+ * mounted.
+ * With CONFIG_ZELOS_UDS_NVS, a flash store that does not mount, or a write to
+ * it that fails, is DTC ZELOS_UDS_DTC_NV_ERROR (P062F-00, internal control
+ * module EEPROM error), the server's own, after the node's: confirmed with
+ * the MIL at its first failure (pending could not outlive a power loss with
+ * no store), passed when the store mounts or a write succeeds, and otherwise
+ * as above. It is never written to flash; the permanent DTCs stay in RAM and
+ * the node runs on. It is in the DTC memory only from its first failure
+ * until it ages out or is cleared: while the store works, nothing changes.
+ *
+ * With CONFIG_ZELOS_UDS_OBD the server is also an OBD-II responder (SAE
+ * J1979 / ISO 15031-5) on the same identifiers: services 0x01 (PIDs 0x00,
+ * 0x01, 0x1C and the node's), 0x02 (freeze frame 0: the first frame of the
+ * DTC stored first since the clear), 0x03/0x07/0x0A (confirmed, pending,
+ * permanent DTCs, 2 bytes each), 0x04 (= ClearDTC of every DTC) and 0x09
+ * (0x02 VIN from DID 0xF190 if CONFIG_ZELOS_UDS_OBD_VIN, 0x04 CALID, 0x06 CVN,
+ * 0x0A ECU name). PID 0x01: MIL = any warningIndicatorRequested, the count of
+ * confirmed DTCs, and comprehensive components supported and complete (each
+ * DTC's test is one; no other monitor). J1979 never answers negatively: an
+ * unsupported service, PID or infotype gets nothing, physically or
+ * functionally, and so does a request mixing availability and data PIDs
+ * (0x01, 0x02, 0x09), one with more than 6 PIDs or 3 freeze frame pairs, or
+ * more than one data infotype (up to 6 availability infotypes are answered).
+ * OBDonUDS (SAE J1979-2): DID 0xF810 protocol identification = 0x01, DIDs
+ * 0xF400 + PID with the PID's bytes (0xF400/0xF420/0xF440 bitmaps), 0xF501 =
+ * PID 0x01, 0xF802 VIN, 0xF804 CALID, 0xF806 CVN, 0xF80A ECU name
+ * (17/16/4/20 bytes, no count); ReadDTCInformation 0x42 (functional group
+ * 0x33; records severity 0x02, DTC, status, selected by status mask and
+ * severity mask; DTC format 0x04), 0x55 (permanent, records DTC and status),
+ * 0x56 (no DTC is in a readiness group: 0x31), and 0x04 records 0x00 (first
+ * frame) and 0xF0 (second frame) holding DIDs 0xF400 + PID of the PIDs the
+ * snapshot covers; ClearDTC group 0xFFFF33 clears every DTC, as 0xFFFFFF
+ * does. A ReadDataByIdentifier of several DIDs answers those supported, and
+ * 0x31 only if none is. OBD requests (0x22 of 0xF4xx-0xF8xx/0xE0xx,
+ * 0x19 0x42/0x55/0x56, 0x19 0x04 of records 0x00/0xF0, 0x14 0xFFFF33) are
+ * never answered 0x13 (a malformed one gets nothing) and never 0x21 (CCR
+ * (g)(3.4.2)): they are served while a routine is pending.
  *
  * NRC order: 0x11, 0x7F, 0x13 (minimum length), 0x12, 0x7E, 0x13, 0x22, 0x24,
  * 0x31 (identifier, address, parameter), 0x33, then data value checks (0x31)
@@ -129,8 +195,26 @@ struct zelos_uds_memory {
 	bool writable;
 };
 
+/*
+ * A J1979 PID (service 0x01) the node supports, as a formula over one of its
+ * DIDs. The freeze frame (service 0x02, ReadDTCInformation 0x04 records 0x00
+ * and 0xF0) reports it from a snapshot when the DID is in it. PIDs 0x01 and
+ * 0x1C, and the bitmaps, are the core's.
+ */
+struct zelos_uds_pid {
+	uint8_t pid;
+	uint8_t size;
+	uint16_t did;
+	/* Encode the DID's value (its size bytes) as the PID's size bytes. */
+	void (*encode)(const uint8_t *value, uint8_t *out);
+};
+
 #define ZELOS_UDS_DTCS_MAX 16
+/* P062F-00, the flash store's DTC (CONFIG_ZELOS_UDS_NVS); the node's take the others. */
+#define ZELOS_UDS_DTC_NV_ERROR 0x062F00
 #define ZELOS_UDS_SNAPSHOT_MAX 32
+#define ZELOS_UDS_CALID_LEN 16
+#define ZELOS_UDS_ECU_NAME_LEN 20
 
 struct zelos_uds_config {
 	const struct zelos_uds_did *dids;
@@ -144,7 +228,7 @@ struct zelos_uds_config {
 	/* 3-byte DTC numbers; zelos_uds_dtc() reports each by index. */
 	const uint32_t *dtcs;
 	size_t dtc_count;
-	/* DIDs a DTC's snapshot record 0x01 captures at its first failure. */
+	/* DIDs a DTC's snapshots capture: its first failure's, and its latest cycle's. */
 	const uint16_t *snapshot_dids;
 	size_t snapshot_did_count;
 	/*
@@ -152,6 +236,11 @@ struct zelos_uds_config {
 	 * shares with another writer of the same memory. NULL: stored directly.
 	 */
 	void (*write)(void *dst, const void *src, size_t len);
+	/* OBD-II (CONFIG_ZELOS_UDS_OBD): the PIDs, CALID (<= 16) and ECU name (<= 20). */
+	const struct zelos_uds_pid *pids;
+	size_t pid_count;
+	const char *calid;
+	const char *ecu_name;
 };
 
 #if defined(CONFIG_ZELOS_UDS)
@@ -197,18 +286,31 @@ enum zelos_uds_reset {
 	ZELOS_UDS_RESET_SOFT,
 };
 
-/* One DTC's memory: Annex D status, counters and snapshot record 0x01. */
+/* One DTC's memory: Annex D status, counters and its two snapshots. */
 struct zelos_uds_dtc_record {
 	uint8_t status;
 	uint8_t occurrences;
+	/* Cycles without a failure since the MIL went off, towards erasing confirmedDTC. */
 	uint8_t aging;
+	/* Consecutive tested cycles with a failure, towards confirmation. */
+	uint8_t failed_cycles;
+	/* Consecutive passed cycles with the MIL on, towards healing. */
+	uint8_t healing;
+	/* Permanent (OBD 0x0A). */
+	bool permanent;
 	bool snapshot_stored;
+	/* When the snapshot was stored: the lowest is OBD freeze frame 0's. */
+	uint32_t stored_at;
+	/* First frame (records 0x00, 0x01) and second frame (record 0xF0). */
 	uint8_t snapshot[ZELOS_UDS_SNAPSHOT_MAX];
+	uint8_t latest[ZELOS_UDS_SNAPSHOT_MAX];
 };
 
 /* What a reset keeps. Valid when magic and crc match; else it starts cleared. */
 struct zelos_uds_dtc_memory {
 	uint32_t magic;
+	/* Snapshots stored so far, for stored_at. */
+	uint32_t stored;
 	struct zelos_uds_dtc_record dtc[ZELOS_UDS_DTCS_MAX];
 	uint32_t crc;
 };
@@ -224,6 +326,8 @@ struct zelos_uds_core {
 	/* A random 32-bit value; the core retries a zero. */
 	uint32_t (*random)(void);
 	struct zelos_uds_dtc_memory *memory;
+	/* The memory started cleared (a power loss): flash's permanent DTCs apply. */
+	bool cleared;
 
 	uint8_t session;
 	int64_t s3_deadline;
@@ -269,6 +373,9 @@ struct zelos_uds_core {
 	uint8_t transfer_bsc;
 	uint32_t transfer_last_len;
 	uint8_t download[CONFIG_ZELOS_UDS_DOWNLOAD_SIZE];
+	/* The window's CRC-32, recomputed on the first read after an erase or download. */
+	uint32_t cvn;
+	bool cvn_stale;
 
 	/* Set by ECUReset: reset once its response, if any, is sent. */
 	uint8_t reset;
@@ -276,12 +383,15 @@ struct zelos_uds_core {
 
 /**
  * Start a power-on: memory kept from before a reset begins a new operation
- * cycle; anything else starts cleared.
+ * cycle; anything else starts cleared, with the permanent DTCs given.
  *
+ * @param permanent Bit i: DTC i is permanent, as non-volatile memory has it.
+ *                  Applied only when the memory starts cleared.
  * @return 0, or -EINVAL if the configuration exceeds the core's limits.
  */
 int zelos_uds_core_init(struct zelos_uds_core *uds, const struct zelos_uds_config *config,
-			uint32_t (*random)(void), struct zelos_uds_dtc_memory *memory, int64_t now);
+			uint32_t (*random)(void), struct zelos_uds_dtc_memory *memory,
+			uint32_t permanent, int64_t now);
 
 /**
  * Handle one request.
@@ -300,6 +410,27 @@ size_t zelos_uds_core_request(struct zelos_uds_core *uds, const uint8_t *req, si
 size_t zelos_uds_core_tick(struct zelos_uds_core *uds, int64_t now, uint8_t *rsp);
 
 void zelos_uds_core_dtc(struct zelos_uds_core *uds, size_t index, bool failed);
+
+/* Bit i: DTC i is permanent now. What non-volatile memory must hold. */
+uint32_t zelos_uds_core_permanent(const struct zelos_uds_core *uds);
+
+/**
+ * Set DTCs permanent as non-volatile memory has them, once it is read: only if
+ * the memory started cleared, as zelos_uds_core_init()'s `permanent`.
+ */
+void zelos_uds_core_restore(struct zelos_uds_core *uds, uint32_t permanent);
+
+/**
+ * Whether memory, before zelos_uds_core_init(), is kept from before a reset
+ * and holds DTC index pending, confirmed, with the MIL or permanent.
+ */
+bool zelos_uds_core_kept(const struct zelos_uds_dtc_memory *memory, size_t index);
+
+/**
+ * Switch to config: the current configuration with DTCs appended, which start
+ * cleared. The node's DTCs keep their memory.
+ */
+void zelos_uds_core_extend(struct zelos_uds_core *uds, const struct zelos_uds_config *config);
 
 /* Seal the DTC memory for the next boot. Call right before an orderly reset. */
 void zelos_uds_core_persist(struct zelos_uds_core *uds);

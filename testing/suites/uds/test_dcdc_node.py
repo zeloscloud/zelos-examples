@@ -8,14 +8,15 @@ where no DC-DC is on the bus. The server contract is test_uds_conformance.py.
 import struct
 import time
 
+import can
 import pytest
 from pyxcp.types import XcpTimeoutError
 from udsoncan.services import ECUReset
 
-from zelos_testing import frames
+from zelos_testing import frames, renode
 from zelos_testing.bench_plugin import find_a2l
 from zelos_testing.dcdc import DB, LIMITS, LIMITS_PERIOD_S, STATUS, BmsLimits
-from zelos_testing.frames import Periodic, bound, collect, count, until
+from zelos_testing.frames import Periodic, bound, collect, count, until, wait_until
 from zelos_testing.uds import (
     ACTIVE_SESSION,
     ADJUST,
@@ -33,6 +34,8 @@ from zelos_testing.uds import (
     MARGIN,
     OUTPUT,
     PDTC,
+    PHYSICAL,
+    RESPONSE,
     S3_S,
     SELF_TEST,
     SETPOINT,
@@ -45,6 +48,7 @@ from zelos_testing.uds import (
     VOLTAGE,
     WIR,
     dtcs,
+    keep_session,
     location,
     reset,
 )
@@ -53,15 +57,6 @@ from zelos_testing.xcp import Ecu as XcpEcu
 BMS_STATUS = DB.get_message_by_name("BMS_Status")
 
 pytestmark = pytest.mark.usefixtures("bus_health", "dcdc_node")
-
-
-def wait_until(done, node_s: float, step_s: float = 0.1):
-    """Poll done() until it holds, within node_s of the server's time."""
-    end = time.monotonic() + bound(node_s)
-    while not done():
-        assert time.monotonic() < end, f"not done within {node_s} s"
-        time.sleep(step_s)
-
 
 
 def cycles(bus, n: int):
@@ -74,8 +69,6 @@ def cycles(bus, n: int):
 @pytest.fixture(scope="session")
 def dcdc_node(pytestconfig, uds_server):
     """The DC-DC node itself is on the bus: its DCDC_Status frames are."""
-    import can
-
     with can.Bus(interface=pytestconfig.getoption("interface"), channel=pytestconfig.getoption("channel")) as b:
         if not collect(b, bound(0.5), ids=[STATUS.frame_id]):
             pytest.skip("no DCDC_Status on the bus: not the DC-DC node")
@@ -105,25 +98,30 @@ def test_dtcs_follow_the_model_over_operation_cycles(ecu, bus, no_bms):
         ecu.client.clear_dtc(0xFFFFFF)
         cycles(bus, 2)
         assert dtcs(ecu, TF | CDTC).get(DTC_BMS_LOST) is None
-    wait_until(lambda: dtcs(ecu, TF).get(DTC_BMS_LOST) == TF | TFTOC | PDTC | CDTC | TFSLC | WIR, 2.0)
-    assert ecu.raw(b"\x19\x03") == b"\x59\x03\xc1\x11\x87\x01"
+    # The first failed cycle: pending, not yet confirmed (OBD-II two-cycle confirmation).
+    wait_until(lambda: dtcs(ecu, TF).get(DTC_BMS_LOST) == TF | TFTOC | PDTC | TFSLC, 2.0)
+    # Snapshot records: OBD-II's first frame, the node's DIDs, OBD-II's second frame.
+    assert ecu.raw(b"\x19\x03") == b"\x59\x03" + b"".join(b"\xc1\x11\x00" + bytes([r]) for r in (0x00, 0x01, 0xF0))
     snapshot = ecu.client.get_dtc_snapshot_by_dtc_number(DTC_BMS_LOST, 1).service_data.dtcs[0].snapshots[0]
     assert snapshot.record_number == 1 and snapshot.did in SNAPSHOT_DIDS
-    assert ecu.raw(b"\x19\x06\xc1\x11\x87\x01")[6:] == b"\x01\x01"
+    assert ecu.raw(b"\x19\x06\xc1\x11\x00\x01")[6:] == b"\x01\x01"
+    # A reset is a new operation cycle; the memory survives it. Failed again: confirmed, MIL on.
+    reset(ecu)
+    wait_until(lambda: dtcs(ecu, TF).get(DTC_BMS_LOST) == TF | TFTOC | PDTC | CDTC | TFSLC | WIR, 2.0)
+    assert ecu.raw(b"\x19\x06\xc1\x11\x00\x01")[6:] == b"\x01\x02"
 
     with Periodic(bus, BmsLimits(aux=20.0), LIMITS_PERIOD_S):
-        # Healed this cycle: confirmed and pending stay.
-        wait_until(lambda: dtcs(ecu).get(DTC_BMS_LOST) == TFTOC | PDTC | CDTC | TFSLC, 2.0)
-        # A reset is a new operation cycle; the memory survives it.
+        # Healed this cycle: confirmed, pending and the MIL stay.
+        wait_until(lambda: dtcs(ecu).get(DTC_BMS_LOST) == TFTOC | PDTC | CDTC | TFSLC | WIR, 2.0)
         reset(ecu)
         cycles(bus, 4)
-        assert dtcs(ecu).get(DTC_BMS_LOST) == PDTC | CDTC | TFSLC
-        # Passing a whole cycle clears pending; three age confirmed out.
-        for status in (CDTC | TFSLC, CDTC | TFSLC, TFSLC):
+        assert dtcs(ecu).get(DTC_BMS_LOST) == PDTC | CDTC | TFSLC | WIR
+        # Passing a whole cycle clears pending; three turn the MIL off; confirmed stays (40 to age).
+        for status in (CDTC | TFSLC | WIR, CDTC | TFSLC | WIR, CDTC | TFSLC):
             reset(ecu)
             cycles(bus, 4)
             assert dtcs(ecu).get(DTC_BMS_LOST) == status
-    assert ecu.raw(b"\x19\x06\xc1\x11\x87\x01")[6:] == b"\x01\x01"  # one cycle failed
+    assert ecu.raw(b"\x19\x06\xc1\x11\x00\x01")[6:] == b"\x01\x02"  # two cycles failed
 
 
 def test_dtc_setting_off_freezes_status(ecu, bus, no_bms):
@@ -160,8 +158,6 @@ def test_undervoltage_overcurrent_and_overtemperature(ecu, bus, bms):
 
 
 def _frame(message, signals):
-    import can
-
     return can.Message(arbitration_id=message.frame_id, data=message.encode(signals), is_extended_id=False)
 
 
@@ -207,13 +203,14 @@ def test_communication_control_stops_the_broadcast(ecu, bus):
     confirmed = set(dtcs(ecu, CDTC))
     ecu.enter(EXTENDED)
     ecu.unlock(LEVEL_EXTENDED)
-    ecu.client.communication_control(0x01, 0x01)
-    sent_at = time.time()
-    assert ecu.read(ACTIVE_SESSION) == EXTENDED  # diagnostics still answer
-    # One frame may already be on its way: allow a cycle.
-    quiet = [m for m in collect(bus, bound(0.5), ids=[STATUS.frame_id]) if m.timestamp > sent_at + bound(STATUS.cycle_time / 1000)]
-    assert quiet == [], "DCDC_Status sent with transmission disabled"
-    ecu.client.communication_control(0x00, 0x01)
+    with keep_session(bus):
+        ecu.client.communication_control(0x01, 0x01)
+        sent_at = time.time()
+        assert ecu.read(ACTIVE_SESSION) == EXTENDED  # diagnostics still answer
+        # One frame may already be on its way: allow a cycle.
+        quiet = [m for m in collect(bus, bound(0.5), ids=[STATUS.frame_id]) if m.timestamp > sent_at + bound(STATUS.cycle_time / 1000)]
+        assert quiet == [], "DCDC_Status sent with transmission disabled"
+        ecu.client.communication_control(0x00, 0x01)
     status(bus)
     # Left alone, S3 ends the session and restores it.
     ecu.client.communication_control(0x03, 0x01)
@@ -259,3 +256,49 @@ def test_xcp_and_uds_share_the_ecu(pytestconfig, ecu, bus):
         assert xcp.epk() == xcp.a2l["epk"]["string"]
         # The calibration was RAM: the reset restored the build's.
         assert xcp.read("DEMAND_A") == pytest.approx(original)
+
+
+# VIN, part number, hardware version in one read: a first frame and 7 CFs.
+IDENTIFIERS = can.Message(arbitration_id=PHYSICAL, is_extended_id=False, data=bytes.fromhex("0722F190F187F191"))
+# lib/uds: the slowest send ISO 15765-2 allows, plus N_As.
+SEND_BACKSTOP_S = (585 * 127 + 11 * 1000 + 1000) / 1000
+# Flow control: no block limit, a CF per 127 ms, the largest STmin.
+SLOWEST = can.Message(arbitration_id=PHYSICAL, is_extended_id=False, data=bytes.fromhex("30007FCCCCCCCCCC"))
+
+
+def test_a_tester_gone_mid_response_releases_the_output(ecu, bus):
+    """Nothing acknowledges the node's frames: the tester unplugged mid-response, the node alone on its bus.
+
+    Its controller holds the frames it retransmits for ever, so the response
+    cannot end. The node gives it up, within N_As when a CF finds no free
+    buffer, at the backstop when the CF itself is held, and restarts the
+    controller; S3 then ends the session, returning the output the tester
+    overrode (2F) to the ECU. Renode only: the bench takes the node off its CAN hub.
+    """
+    monitor = renode.monitor()
+    if monitor is None:
+        pytest.skip("takes the node off the bus through the Renode bench's monitor")
+    machine = next((m for m in ("full", "dcdc") if m in monitor.machines()), None)
+    if machine is None:
+        pytest.skip("no DC-DC machine on this Renode bench")
+    ecu.enter(EXTENDED)
+    ecu.unlock(LEVEL_EXTENDED)
+    ecu.client.io_control(OUTPUT, control_param=ADJUST, values=[15.0])
+    wait_until(lambda: 14.0 < status(bus)["OutputVoltage"] <= 15.0, 1.0)
+    # The suite's client would flow-control the response too: closed meanwhile.
+    ecu.client.close()
+    try:
+        bus.send(IDENTIFIERS)
+        until(bus, lambda f: f[-1].data[0] >> 4 == 1, ids=[RESPONSE])
+        bus.send(SLOWEST)
+        until(bus, lambda f: f[-1].data[0] >> 4 == 2, ids=[RESPONSE])
+        with monitor.off_the_bus(machine):
+            # S3 from the request, then the most the node takes: a CF the controller holds
+            # ends only at the backstop (86.3 s, checked each N_As), then lib/can's frame
+            # leaves the driver (1 s) and the restart drains (N_Bs + 127 ms).
+            monitor.sleep_virtual(S3_S + SEND_BACKSTOP_S + 1.0 + 1.0 + 1.127 + 0.5)
+    finally:
+        ecu.client.open()
+    # Back on the bus: the node answers at once, the session over and the output the ECU's.
+    assert ecu.session() == DEFAULT
+    wait_until(lambda: 13.0 < status(bus)["OutputVoltage"] <= SETPOINT_V, 1.0)

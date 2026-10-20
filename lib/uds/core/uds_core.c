@@ -3,14 +3,11 @@
  * it requests and the clock and sends what it returns.
  */
 
-#include <zelos/uds.h>
+#include "core.h"
 
 #include <errno.h>
-#include <string.h>
 
-#include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/crc.h>
-#include <zephyr/sys/util.h>
 
 enum {
 	SID_SESSION_CONTROL = 0x10,
@@ -40,12 +37,9 @@ enum {
 enum {
 	NRC_SERVICE_NOT_SUPPORTED = 0x11,
 	NRC_SUBFUNCTION_NOT_SUPPORTED = 0x12,
-	NRC_INCORRECT_LENGTH = 0x13,
-	NRC_RESPONSE_TOO_LONG = 0x14,
 	NRC_BUSY_REPEAT = 0x21,
 	NRC_CONDITIONS = 0x22,
 	NRC_SEQUENCE = 0x24,
-	NRC_OUT_OF_RANGE = 0x31,
 	NRC_SECURITY_DENIED = 0x33,
 	NRC_INVALID_KEY = 0x35,
 	NRC_ATTEMPTS_EXCEEDED = 0x36,
@@ -69,27 +63,21 @@ enum {
 #define SECURITY_ATTEMPTS 3
 #define SECURITY_DELAY_MS 10000
 
-/* ISO 14229-1 Annex D status bits; all supported. */
-#define TF BIT(0)
-#define TFTOC BIT(1)
-#define PDTC BIT(2)
-#define CDTC BIT(3)
-#define TNCSLC BIT(4)
-#define TFSLC BIT(5)
-#define TNCTOC BIT(6)
-#define WIR BIT(7)
-#define DTC_AVAILABILITY 0xFF
 #define DTC_CLEARED (TNCSLC | TNCTOC)
 #define DTC_FORMAT_ISO14229 0x01
 #define DTC_GROUP_ALL 0xFFFFFF
-/* Operation cycles without a failure before confirmedDTC ages out. Bench value. */
-#define AGING_CYCLES 3
-#define SNAPSHOT_RECORD 0x01
+/* ISO 14229-1 group of emissions-related DTCs: every DTC here. */
+#define DTC_GROUP_EMISSIONS 0xFFFF33
+#define CONFIRM_CYCLES CONFIG_ZELOS_UDS_DTC_CONFIRM_CYCLES
+#define HEALING_CYCLES CONFIG_ZELOS_UDS_DTC_HEALING_CYCLES
+#define AGING_CYCLES CONFIG_ZELOS_UDS_DTC_AGING_CYCLES
 #define RECORD_OCCURRENCES 0x01
 #define RECORD_AGING 0x02
 #define RECORD_ALL 0xFF
 
-#define MEMORY_MAGIC 0x55445331U /* "UDS1" */
+#define MEMORY_MAGIC 0x55445332U /* "UDS2" */
+
+BUILD_ASSERT(ZELOS_UDS_DTCS_MAX <= 32, "permanent DTCs are a 32-bit mask");
 
 #define ALFID_DEFAULT 0x44
 #define LENGTH_FORMAT 0x20
@@ -100,52 +88,6 @@ enum {
 #define S_EXTENDED BIT(ZELOS_UDS_SESSION_EXTENDED)
 #define S_NON_DEFAULT (S_PROGRAMMING | S_EXTENDED)
 #define S_ANY (S_DEFAULT | S_NON_DEFAULT)
-
-/* A response under construction; never beyond CONFIG_ZELOS_UDS_BUF_SIZE. */
-struct rsp {
-	uint8_t *buf;
-	size_t len;
-	bool suppress;
-};
-
-static bool put(struct rsp *r, const void *data, size_t n)
-{
-	if (n > CONFIG_ZELOS_UDS_BUF_SIZE - r->len) {
-		return false;
-	}
-	memcpy(r->buf + r->len, data, n);
-	r->len += n;
-	return true;
-}
-
-static bool put_u8(struct rsp *r, uint8_t v)
-{
-	return put(r, &v, 1);
-}
-
-static bool put_be16(struct rsp *r, uint16_t v)
-{
-	uint8_t b[2];
-
-	sys_put_be16(v, b);
-	return put(r, b, sizeof(b));
-}
-
-static bool put_be24(struct rsp *r, uint32_t v)
-{
-	uint8_t b[3];
-
-	sys_put_be24(v, b);
-	return put(r, b, sizeof(b));
-}
-
-static bool put_be32(struct rsp *r, uint32_t v)
-{
-	uint8_t b[4];
-
-	sys_put_be32(v, b);
-	return put(r, b, sizeof(b));
-}
 
 static uint32_t get_be(const uint8_t *p, uint8_t n)
 {
@@ -176,7 +118,7 @@ static uint8_t level_session(uint8_t level)
 						    : ZELOS_UDS_SESSION_EXTENDED;
 }
 
-static const struct zelos_uds_did *find_did(const struct zelos_uds_config *cfg, uint16_t id)
+const struct zelos_uds_did *uds_find_did(const struct zelos_uds_config *cfg, uint16_t id)
 {
 	for (size_t i = 0; i < cfg->did_count; i++) {
 		if (cfg->dids[i].id == id) {
@@ -407,7 +349,7 @@ static uint8_t dtc_setting(struct zelos_uds_core *uds, const uint8_t *req, size_
 
 static bool read_one(struct zelos_uds_core *uds, uint16_t id, struct rsp *r, bool *found)
 {
-	const struct zelos_uds_did *did = find_did(uds->config, id);
+	const struct zelos_uds_did *did = uds_find_did(uds->config, id);
 	uint8_t value[UINT8_MAX];
 
 	*found = true;
@@ -415,8 +357,12 @@ static bool read_one(struct zelos_uds_core *uds, uint16_t id, struct rsp *r, boo
 		return put_be16(r, id) && put_u8(r, uds->session);
 	}
 	if (did == NULL) {
+#if defined(CONFIG_ZELOS_UDS_OBD)
+		return uds_obd_read_did(uds, id, r, found);
+#else
 		*found = false;
 		return true;
+#endif
 	}
 	did->read(value);
 	return put_be16(r, id) && put(r, value, did->size);
@@ -425,22 +371,21 @@ static bool read_one(struct zelos_uds_core *uds, uint16_t id, struct rsp *r, boo
 static uint8_t read_did(struct zelos_uds_core *uds, const uint8_t *req, size_t len,
 			struct rsp *r, int64_t now)
 {
-	bool found;
+	bool found, any = false;
 
 	ARG_UNUSED(now);
 
 	if (len < 3 || (len - 1) % 2 != 0) {
 		return NRC_INCORRECT_LENGTH;
 	}
+	/* ISO 14229-1: the DIDs supported, 0x31 only if none is. */
 	for (size_t i = 1; i < len; i += 2) {
 		if (!read_one(uds, sys_get_be16(&req[i]), r, &found)) {
 			return NRC_RESPONSE_TOO_LONG;
 		}
-		if (!found) {
-			return NRC_OUT_OF_RANGE;
-		}
+		any |= found;
 	}
-	return 0;
+	return any ? 0 : NRC_OUT_OF_RANGE;
 }
 
 static uint8_t write_did(struct zelos_uds_core *uds, const uint8_t *req, size_t len,
@@ -456,7 +401,7 @@ static uint8_t write_did(struct zelos_uds_core *uds, const uint8_t *req, size_t 
 		return NRC_INCORRECT_LENGTH;
 	}
 	id = sys_get_be16(&req[1]);
-	did = find_did(uds->config, id);
+	did = uds_find_did(uds->config, id);
 	if (did == NULL || did->write == NULL || uds->session != ZELOS_UDS_SESSION_EXTENDED) {
 		return NRC_OUT_OF_RANGE;
 	}
@@ -565,11 +510,19 @@ static uint8_t write_memory(struct zelos_uds_core *uds, const uint8_t *req, size
 	return 0;
 }
 
-/* Status after a clear: never tested since. */
-static void clear_record(struct zelos_uds_dtc_record *d)
+/* Power-on: nothing stored. */
+static void erase_record(struct zelos_uds_dtc_record *d)
 {
 	memset(d, 0, sizeof(*d));
 	d->status = DTC_CLEARED;
+}
+
+void uds_clear_record(struct zelos_uds_dtc_record *d)
+{
+	bool permanent = d->permanent;
+
+	erase_record(d);
+	d->permanent = permanent;
 }
 
 static uint8_t clear_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t len,
@@ -586,9 +539,10 @@ static uint8_t clear_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t 
 		return NRC_INCORRECT_LENGTH;
 	}
 	group = sys_get_be24(&req[1]);
-	if (group == DTC_GROUP_ALL) {
+	if (group == DTC_GROUP_ALL ||
+	    (IS_ENABLED(CONFIG_ZELOS_UDS_OBD) && group == DTC_GROUP_EMISSIONS)) {
 		for (size_t j = 0; j < cfg->dtc_count; j++) {
-			clear_record(&uds->memory->dtc[j]);
+			uds_clear_record(&uds->memory->dtc[j]);
 		}
 		return 0;
 	}
@@ -596,13 +550,31 @@ static uint8_t clear_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t 
 	if (i < 0) {
 		return NRC_OUT_OF_RANGE;
 	}
-	clear_record(&uds->memory->dtc[i]);
+	uds_clear_record(&uds->memory->dtc[i]);
 	return 0;
 }
 
-static bool put_dtc(struct zelos_uds_core *uds, size_t i, struct rsp *r)
+bool uds_put_dtc(struct zelos_uds_core *uds, size_t i, struct rsp *r)
 {
 	return put_be24(r, uds->config->dtcs[i]) && put_u8(r, uds->memory->dtc[i].status);
+}
+
+int uds_snapshot_offset(const struct zelos_uds_config *cfg, uint16_t id)
+{
+	int n = 0;
+
+	for (size_t i = 0; i < cfg->snapshot_did_count; i++) {
+		const struct zelos_uds_did *did = uds_find_did(cfg, cfg->snapshot_dids[i]);
+
+		if (did == NULL) {
+			continue;
+		}
+		if (did->id == id) {
+			return n;
+		}
+		n += did->size;
+	}
+	return -1;
 }
 
 static uint8_t snapshot_length(const struct zelos_uds_config *cfg)
@@ -610,11 +582,57 @@ static uint8_t snapshot_length(const struct zelos_uds_config *cfg)
 	size_t n = 0;
 
 	for (size_t i = 0; i < cfg->snapshot_did_count; i++) {
-		const struct zelos_uds_did *did = find_did(cfg, cfg->snapshot_dids[i]);
+		const struct zelos_uds_did *did = uds_find_did(cfg, cfg->snapshot_dids[i]);
 
 		n += did != NULL ? did->size : 0;
 	}
 	return (uint8_t)n;
+}
+
+/* Snapshot records, in order: OBD-II first frame, the node's DIDs, OBD-II second frame. */
+static const uint8_t records[] = {
+#if defined(CONFIG_ZELOS_UDS_OBD)
+	UDS_RECORD_FIRST,
+#endif
+	SNAPSHOT_RECORD,
+#if defined(CONFIG_ZELOS_UDS_OBD)
+	UDS_RECORD_LATEST,
+#endif
+};
+
+static bool record_supported(uint8_t record)
+{
+	for (size_t k = 0; k < ARRAY_SIZE(records); k++) {
+		if (records[k] == record) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/* A snapshot record: number, DID count, then each DID and its value. */
+static void put_snapshot(struct zelos_uds_core *uds, const struct zelos_uds_dtc_record *d,
+			 uint8_t record, struct rsp *r)
+{
+	const struct zelos_uds_config *cfg = uds->config;
+	const uint8_t *p = d->snapshot;
+
+#if defined(CONFIG_ZELOS_UDS_OBD)
+	if (record != SNAPSHOT_RECORD) {
+		uds_obd_put_frame(uds, record == UDS_RECORD_FIRST ? d->snapshot : d->latest, record,
+				  r);
+		return;
+	}
+#endif
+	put_u8(r, record);
+	put_u8(r, (uint8_t)cfg->snapshot_did_count);
+	for (size_t j = 0; j < cfg->snapshot_did_count; j++) {
+		const struct zelos_uds_did *did = uds_find_did(cfg, cfg->snapshot_dids[j]);
+
+		put_be16(r, did->id);
+		put(r, p, did->size);
+		p += did->size;
+	}
 }
 
 static uint8_t read_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t len,
@@ -647,7 +665,7 @@ static uint8_t read_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t l
 			return 0;
 		}
 		for (size_t j = 0; j < cfg->dtc_count; j++) {
-			if ((uds->memory->dtc[j].status & req[2]) != 0 && !put_dtc(uds, j, r)) {
+			if ((uds->memory->dtc[j].status & req[2]) != 0 && !uds_put_dtc(uds, j, r)) {
 				return NRC_RESPONSE_TOO_LONG;
 			}
 		}
@@ -663,10 +681,13 @@ static uint8_t read_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t l
 		}
 		for (size_t j = 0; j < cfg->dtc_count; j++) {
 			if (type == 0x0A) {
-				put_dtc(uds, j, r);
-			} else if (uds->memory->dtc[j].snapshot_stored) {
+				uds_put_dtc(uds, j, r);
+				continue;
+			}
+			for (size_t k = 0; uds->memory->dtc[j].snapshot_stored && k < ARRAY_SIZE(records);
+			     k++) {
 				put_be24(r, cfg->dtcs[j]);
-				put_u8(r, SNAPSHOT_RECORD);
+				put_u8(r, records[k]);
 			}
 		}
 		return 0;
@@ -681,23 +702,14 @@ static uint8_t read_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t l
 		}
 		d = &uds->memory->dtc[i];
 		if (type == 0x04) {
-			if (req[5] != SNAPSHOT_RECORD && req[5] != RECORD_ALL) {
+			if (!record_supported(req[5]) && req[5] != RECORD_ALL) {
 				return NRC_OUT_OF_RANGE;
 			}
 			put_u8(r, type);
-			put_dtc(uds, i, r);
-			if (d->snapshot_stored) {
-				const uint8_t *p = d->snapshot;
-
-				put_u8(r, SNAPSHOT_RECORD);
-				put_u8(r, (uint8_t)cfg->snapshot_did_count);
-				for (size_t j = 0; j < cfg->snapshot_did_count; j++) {
-					const struct zelos_uds_did *did =
-						find_did(cfg, cfg->snapshot_dids[j]);
-
-					put_be16(r, did->id);
-					put(r, p, did->size);
-					p += did->size;
+			uds_put_dtc(uds, i, r);
+			for (size_t k = 0; d->snapshot_stored && k < ARRAY_SIZE(records); k++) {
+				if (req[5] == RECORD_ALL || req[5] == records[k]) {
+					put_snapshot(uds, d, records[k], r);
 				}
 			}
 			return 0;
@@ -707,7 +719,7 @@ static uint8_t read_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t l
 			return NRC_OUT_OF_RANGE;
 		}
 		put_u8(r, type);
-		put_dtc(uds, i, r);
+		uds_put_dtc(uds, i, r);
 		if (req[5] != RECORD_AGING) {
 			put_u8(r, RECORD_OCCURRENCES);
 			put_u8(r, d->occurrences);
@@ -718,7 +730,11 @@ static uint8_t read_dtc(struct zelos_uds_core *uds, const uint8_t *req, size_t l
 		}
 		return 0;
 	default:
+#if defined(CONFIG_ZELOS_UDS_OBD)
+		return uds_obd_read_dtc(uds, req, len, r);
+#else
 		return NRC_SUBFUNCTION_NOT_SUPPORTED;
+#endif
 	}
 }
 
@@ -1004,6 +1020,7 @@ static uint8_t transfer_data(struct zelos_uds_core *uds, const uint8_t *req, siz
 			return NRC_TRANSFER_SUSPENDED;
 		}
 		memcpy(at + uds->transfer_done, &req[2], n);
+		uds->cvn_stale = true;
 		uds->transfer_done += n;
 		uds->transfer_bsc++;
 	}
@@ -1107,19 +1124,41 @@ static uint8_t dispatch(struct zelos_uds_core *uds, const uint8_t *req, size_t l
 
 static uint32_t memory_crc(const struct zelos_uds_dtc_memory *m)
 {
-	return crc32_ieee((const uint8_t *)m->dtc, sizeof(m->dtc));
+	return crc32_ieee((const uint8_t *)&m->stored,
+			  offsetof(struct zelos_uds_dtc_memory, crc) -
+				  offsetof(struct zelos_uds_dtc_memory, stored));
 }
 
-/* A new operation cycle: ISO 14229-1 Annex D at its start. */
+/*
+ * The end of an operation cycle, at the start of the next: Annex D, then the
+ * OBD-II lifecycle (CCR 1968.2 (d)(2.2)-(2.5), see include/zelos/uds.h).
+ */
 static void start_cycle(struct zelos_uds_dtc_record *d)
 {
-	bool tested_passed = (d->status & (TFTOC | TNCTOC)) == 0;
+	bool tested = (d->status & TNCTOC) == 0;
+	bool failed = (d->status & TFTOC) != 0;
 
-	if (tested_passed) {
+	if (!failed && (d->status & (CDTC | WIR)) == CDTC && ++d->aging >= AGING_CYCLES) {
+		/* (d)(2.4): AGING_CYCLES warm-up cycles with the MIL off; frames go with it. */
+		d->status &= ~CDTC;
+		d->aging = 0;
+		d->snapshot_stored = false;
+	}
+	if (tested && !failed) {
 		d->status &= ~PDTC;
-		if ((d->status & CDTC) != 0 && ++d->aging >= AGING_CYCLES) {
-			d->status &= ~CDTC;
-			d->aging = 0;
+		d->failed_cycles = 0;
+		if ((d->status & CDTC) == 0) {
+			/* (d)(2.2.7)(B)(i): a pending code erased takes its frames. */
+			d->snapshot_stored = false;
+		}
+		if ((d->status & WIR) == 0) {
+			/* (d)(2.5.2)(A): MIL off (a clear, a power loss), one passed cycle. */
+			d->permanent = false;
+		} else if (++d->healing >= HEALING_CYCLES) {
+			/* (d)(2.3.2), (d)(2.5.1): the MIL goes off, the permanent code with it. */
+			d->status &= ~WIR;
+			d->healing = 0;
+			d->permanent = false;
 		}
 	}
 	d->status &= ~TFTOC;
@@ -1127,7 +1166,8 @@ static void start_cycle(struct zelos_uds_dtc_record *d)
 }
 
 int zelos_uds_core_init(struct zelos_uds_core *uds, const struct zelos_uds_config *config,
-			uint32_t (*random)(void), struct zelos_uds_dtc_memory *memory, int64_t now)
+			uint32_t (*random)(void), struct zelos_uds_dtc_memory *memory,
+			uint32_t permanent, int64_t now)
 {
 	bool kept;
 
@@ -1135,8 +1175,16 @@ int zelos_uds_core_init(struct zelos_uds_core *uds, const struct zelos_uds_confi
 	    snapshot_length(config) > ZELOS_UDS_SNAPSHOT_MAX) {
 		return -EINVAL;
 	}
+	/* Every PID reads a DID of the node's, into at most 4 bytes. */
+	for (size_t i = 0; i < config->pid_count; i++) {
+		if (config->pids[i].size > 4 || uds_find_did(config, config->pids[i].did) == NULL) {
+			return -EINVAL;
+		}
+	}
 
 	memset(uds, 0, sizeof(*uds));
+	/* Here, not on a request: the window changes only in a programming session. */
+	uds->cvn = crc32_ieee(uds->download, sizeof(uds->download));
 	uds->config = config;
 	uds->random = random;
 	uds->memory = memory;
@@ -1148,12 +1196,18 @@ int zelos_uds_core_init(struct zelos_uds_core *uds, const struct zelos_uds_confi
 	uds->lockout_until[1] = now + SECURITY_DELAY_MS;
 
 	kept = memory->magic == MEMORY_MAGIC && memory->crc == memory_crc(memory);
+	uds->cleared = !kept;
 	memory->magic = 0;
+	if (!kept) {
+		memory->stored = 0;
+	}
 	for (size_t i = 0; i < config->dtc_count; i++) {
 		if (kept) {
 			start_cycle(&memory->dtc[i]);
 		} else {
-			clear_record(&memory->dtc[i]);
+			/* A power loss: a clear (CCR (d)(2.5.2)), permanent DTCs from flash. */
+			erase_record(&memory->dtc[i]);
+			memory->dtc[i].permanent = (permanent & BIT(i)) != 0;
 		}
 	}
 	return 0;
@@ -1171,6 +1225,7 @@ size_t zelos_uds_core_request(struct zelos_uds_core *uds, const uint8_t *req, si
 			      bool functional, int64_t now, uint8_t *rsp)
 {
 	struct rsp r = {.buf = rsp, .len = 1};
+	bool obd = false;
 	uint8_t nrc;
 
 	if (len == 0) {
@@ -1180,7 +1235,15 @@ size_t zelos_uds_core_request(struct zelos_uds_core *uds, const uint8_t *req, si
 	/* Every request restarts S3, answered or not. */
 	uds->s3_deadline = now + S3_MS;
 
-	if (uds->pending != 0) {
+#if defined(CONFIG_ZELOS_UDS_OBD)
+	/* J1979 services: any session, never negative, never busy. */
+	if (req[0] >= 0x01 && req[0] <= 0x0A) {
+		return uds_obd_request(uds, req, len, rsp);
+	}
+	obd = uds_obd_relevant(req, len);
+#endif
+
+	if (uds->pending != 0 && !obd) {
 		const struct service *s = find_service(req[0]);
 
 		/* A keep-alive needs no answer; anything else must wait. */
@@ -1204,7 +1267,11 @@ size_t zelos_uds_core_request(struct zelos_uds_core *uds, const uint8_t *req, si
 		return negative(rsp, req[0], nrc);
 	}
 	if (nrc != 0) {
-		return functional && functional_silent(nrc) ? 0 : negative(rsp, req[0], nrc);
+		/* CCR 1968.2 (g)(3.4.2)(A): an OBD request is never answered 0x13. */
+		if ((functional && functional_silent(nrc)) || (obd && nrc == NRC_INCORRECT_LENGTH)) {
+			return 0;
+		}
+		return negative(rsp, req[0], nrc);
 	}
 	return r.suppress ? 0 : r.len;
 }
@@ -1213,6 +1280,7 @@ static void finish_pending(struct zelos_uds_core *uds)
 {
 	if (uds->pending == ZELOS_UDS_ROUTINE_ERASE) {
 		memset(&uds->download[uds->erase_addr - DOWNLOAD_ADDRESS], 0xFF, uds->erase_size);
+		uds->cvn_stale = true;
 		uds->erased_lo = uds->erase_addr;
 		uds->erased_hi = uds->erase_addr + uds->erase_size;
 		uds->downloaded = false;
@@ -1253,43 +1321,96 @@ size_t zelos_uds_core_tick(struct zelos_uds_core *uds, int64_t now, uint8_t *rsp
 	return 0;
 }
 
-static void capture_snapshot(struct zelos_uds_core *uds, struct zelos_uds_dtc_record *d)
+static void capture_snapshot(struct zelos_uds_core *uds, uint8_t *p)
 {
 	const struct zelos_uds_config *cfg = uds->config;
-	uint8_t *p = d->snapshot;
 
 	for (size_t j = 0; j < cfg->snapshot_did_count; j++) {
-		const struct zelos_uds_did *did = find_did(cfg, cfg->snapshot_dids[j]);
+		const struct zelos_uds_did *did = uds_find_did(cfg, cfg->snapshot_dids[j]);
 
 		did->read(p);
 		p += did->size;
 	}
-	d->snapshot_stored = true;
 }
 
 void zelos_uds_core_dtc(struct zelos_uds_core *uds, size_t index, bool failed)
 {
 	struct zelos_uds_dtc_record *d;
+	uint8_t confirm;
+	bool first;
 
 	if (index >= uds->config->dtc_count || !uds->dtc_setting) {
 		return;
 	}
 	d = &uds->memory->dtc[index];
+	/* The store's DTC at once: its pending state would not outlive a power loss. */
+	confirm = uds->config->dtcs[index] == ZELOS_UDS_DTC_NV_ERROR ? 1 : CONFIRM_CYCLES;
 	if (!failed) {
-		d->status &= ~(TF | TNCTOC | TNCSLC | WIR);
+		d->status &= ~(TF | TNCTOC | TNCSLC);
 		return;
 	}
-	if ((d->status & TFTOC) == 0 && d->occurrences < UINT8_MAX) {
+	first = (d->status & TFTOC) == 0;
+	if (first && d->occurrences < UINT8_MAX) {
 		d->occurrences++;
 	}
-	/* Record 0x01: the first failure since the last clear. */
-	if ((d->status & TFSLC) == 0) {
-		capture_snapshot(uds, d);
+	/* Both frames with the pending code; the second again in each later cycle. */
+	if (!d->snapshot_stored) {
+		capture_snapshot(uds, d->snapshot);
+		memcpy(d->latest, d->snapshot, sizeof(d->latest));
+		d->snapshot_stored = true;
+		d->stored_at = ++uds->memory->stored;
+	} else if (first) {
+		capture_snapshot(uds, d->latest);
 	}
-	/* Confirmed at the first failure: confirmation threshold of one cycle. */
-	d->status |= TF | TFTOC | PDTC | CDTC | TFSLC | WIR;
+	d->status |= TF | TFTOC | PDTC | TFSLC;
 	d->status &= ~(TNCTOC | TNCSLC);
 	d->aging = 0;
+	d->healing = 0;
+	if (first && d->failed_cycles < UINT8_MAX) {
+		d->failed_cycles++;
+	}
+	if (d->failed_cycles >= confirm) {
+		/* Confirmed, the MIL on, and permanent while it is (CCR (d)(2.2.5)). */
+		d->status |= CDTC | WIR;
+		d->permanent = true;
+	}
+}
+
+uint32_t zelos_uds_core_permanent(const struct zelos_uds_core *uds)
+{
+	uint32_t mask = 0;
+
+	for (size_t i = 0; i < uds->config->dtc_count; i++) {
+		mask |= uds->memory->dtc[i].permanent ? BIT(i) : 0;
+	}
+	return mask;
+}
+
+void zelos_uds_core_restore(struct zelos_uds_core *uds, uint32_t permanent)
+{
+	for (size_t i = 0; uds->cleared && i < uds->config->dtc_count; i++) {
+		uds->memory->dtc[i].permanent |= (permanent & BIT(i)) != 0;
+	}
+}
+
+bool zelos_uds_core_kept(const struct zelos_uds_dtc_memory *memory, size_t index)
+{
+	const struct zelos_uds_dtc_record *d;
+
+	if (index >= ZELOS_UDS_DTCS_MAX || memory->magic != MEMORY_MAGIC ||
+	    memory->crc != memory_crc(memory)) {
+		return false;
+	}
+	d = &memory->dtc[index];
+	return (d->status & (PDTC | CDTC | WIR)) != 0 || d->permanent;
+}
+
+void zelos_uds_core_extend(struct zelos_uds_core *uds, const struct zelos_uds_config *config)
+{
+	for (size_t i = uds->config->dtc_count; i < config->dtc_count; i++) {
+		erase_record(&uds->memory->dtc[i]);
+	}
+	uds->config = config;
 }
 
 void zelos_uds_core_persist(struct zelos_uds_core *uds)

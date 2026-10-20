@@ -31,6 +31,14 @@ static struct k_spinlock queue_lock;
 static K_SEM_DEFINE(queue_room, DEPTH, DEPTH);
 static K_SEM_DEFINE(queue_frames, 0, DEPTH);
 
+/*
+ * Held by the thread while in can_send(), and by zelos_can_restart(). The
+ * driver checks it is started before it waits for a free buffer, not after:
+ * a sender woken by can_stop() would fill the buffer it freed while stopped,
+ * and that frame never goes out nor completes, taking the buffer for good.
+ */
+static K_MUTEX_DEFINE(tx_gate);
+
 static atomic_t sent;
 static atomic_t overflow;
 static atomic_t deferred;
@@ -140,8 +148,10 @@ static void tx_thread(void *p1, void *p2, void *p3)
 		 * inverted by at most one frame; among the frames already in its
 		 * buffers the controller sends the lowest id first.
 		 */
+		k_mutex_lock(&tx_gate, K_FOREVER);
 		err = age < MAX_AGE_MS ? can_send(can_dev, &frame, K_MSEC(MAX_AGE_MS - age), tx_done, done)
 				       : -EAGAIN;
+		k_mutex_unlock(&tx_gate);
 		if (err != 0) {
 			atomic_inc(&tx_error);
 			if (done != NULL) {
@@ -182,6 +192,24 @@ int zelos_can_init(void)
 	LOG_INF("CAN up at %d bit/s", CONFIG_ZELOS_CAN_BITRATE);
 
 	return 0;
+}
+
+int zelos_can_restart(k_timeout_t off)
+{
+	int err;
+
+	/* Up to the thread's wait for a buffer, MAX_AGE_MS. */
+	k_mutex_lock(&tx_gate, K_FOREVER);
+	err = can_stop(can_dev);
+	if (err == 0 || err == -EALREADY) {
+		k_sleep(off);
+		err = can_start(can_dev);
+	}
+	k_mutex_unlock(&tx_gate);
+	if (err != 0) {
+		LOG_ERR("restart: %d", err);
+	}
+	return err;
 }
 
 static int send_frame(uint32_t id, uint8_t flags, const uint8_t *data, uint8_t len,

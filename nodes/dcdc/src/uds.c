@@ -20,17 +20,38 @@
  * I/O control 0x0300: the same setpoint, overridden: return, reset to 1380,
  * freeze, short-term adjustment (1000..1600).
  * Memory, by address (0x23, 0x3D):
- *   0x00010000, 32 bytes, read-only: struct dcdc_state (src/uds.h), little-endian
+ *   0x00010000, 32 bytes, read-only: struct dcdc_state (src/state.h), little-endian
  *   0x00020000, 8 bytes, writable in extended with level 0x01: demand A and
  *              slew rate A/s, float32 little-endian (struct dcdc_calibration)
  * Routine 0x0201: self-test, extended, about 2 s. Result: one byte, bit n set
  * while DTC n below is failing; 0x00 passed.
- * DTCs, from the model, each tested every 50 ms cycle:
- *   0 0x1A0098 overtemperature: temperature above 70 degC
- *   1 0x1A0116 input undervoltage: pack voltage below 250 V (untested without one)
- *   2 0x1A0219 output overcurrent: output current above 300 A
- *   3 0xC11187 BMS_Limits missing for 500 ms (untested while 0x28 disables Rx)
+ * DTCs, from the model, each tested every 50 ms cycle (SAE J2012 generic
+ * numbers, failure type 00):
+ *   0 0x0A9400 P0A94 DC/DC converter performance: temperature above 70 degC
+ *   1 0x0A0900 P0A09 DC/DC converter status circuit low: pack voltage below
+ *              250 V (untested without one)
+ *   2 0x0A0800 P0A08 DC/DC converter status circuit: output current above 300 A
+ *   3 0xC11100 U0111 lost communication with the battery energy control
+ *              module: BMS_Limits missing for 500 ms (untested while 0x28
+ *              disables Rx)
+ *   4 0x062F00 P062F internal control module EEPROM error: the permanent-DTC
+ *              store failed (the server's, include/zelos/uds.h; only once set)
  * Snapshot record 0x01: 0x0101, 0x0102, 0x0103, 0x0104, 0x0105.
+ *
+ * OBD-II (SAE J1979), on the same identifiers. PIDs, each from a DID above so
+ * the freeze frame (service 0x02) reports it from the snapshot:
+ *   0x1F run time since engine start = uptime, s, uint16 saturating
+ *   0x42 control module voltage = output voltage, ((A*256)+B)/1000 V
+ *   0x46 ambient air temperature = temperature, A-40 degC
+ *   0x5B hybrid battery pack remaining life = pack voltage from 250 V (0 %)
+ *        to 400 V (100 %), A*100/255 %; 0 while unknown
+ * plus the core's 0x01 (MIL, confirmed count, comprehensive components
+ * supported and complete) and 0x1C (0x01, OBD-II CARB). Service 0x09: VIN =
+ * 0xF190, CALID "DCDC-1.0.0", CVN = CRC-32 of the download window, ECU name
+ * "DCDC". OBDonUDS (J1979-2) DIDs 0xF810, 0xF400 + PID, 0xF501,
+ * 0xF802/0xF804/0xF806/0xF80A. DTC lifecycle (two-cycle confirmation, MIL,
+ * aging, permanent DTCs in flash): include/zelos/uds.h; one operation cycle
+ * is one boot, so an ECUReset ends it.
  */
 
 #include "uds.h"
@@ -61,16 +82,19 @@
 #define OVERTEMPERATURE_C 70.0f
 #define UNDERVOLTAGE_V 250.0f
 #define OVERCURRENT_A 300.0f
+/* PID 0x5B: pack life, 0 % at the undervoltage limit, 100 % at a full pack. */
+#define PACK_FULL_V 400.0f
+#define ECU_NAME "DCDC"
 
 #define NRC_OUT_OF_RANGE 0x31
 
 enum { DTC_OVERTEMPERATURE, DTC_UNDERVOLTAGE, DTC_OVERCURRENT, DTC_BMS_LOST, DTC_COUNT };
 
 static const uint32_t dtcs[DTC_COUNT] = {
-	[DTC_OVERTEMPERATURE] = 0x1A0098,
-	[DTC_UNDERVOLTAGE] = 0x1A0116,
-	[DTC_OVERCURRENT] = 0x1A0219,
-	[DTC_BMS_LOST] = 0xC11187,
+	[DTC_OVERTEMPERATURE] = 0x0A9400,
+	[DTC_UNDERVOLTAGE] = 0x0A0900,
+	[DTC_OVERCURRENT] = 0x0A0800,
+	[DTC_BMS_LOST] = 0xC11100,
 };
 
 /* This cycle's state, copied out of main(); also the read-only memory window. */
@@ -255,6 +279,42 @@ static const struct zelos_uds_memory memories[] = {
 
 static const uint16_t snapshot_dids[] = {0x0101, 0x0102, 0x0103, 0x0104, 0x0105};
 
+/* J1979 PIDs, each a formula over one DID's bytes (big-endian, as read above). */
+static void pid_run_time(const uint8_t *uptime_ms, uint8_t *out)
+{
+	sys_put_be16((uint16_t)MIN(sys_get_be32(uptime_ms) / 1000U, UINT16_MAX), out);
+}
+
+static void pid_module_voltage(const uint8_t *volts_f32, uint8_t *out)
+{
+	uint32_t bits = sys_get_be32(volts_f32);
+	float v;
+
+	memcpy(&v, &bits, sizeof(v));
+	sys_put_be16((uint16_t)scaled(v, 0.001f, 0, UINT16_MAX), out);
+}
+
+static void pid_ambient_temperature(const uint8_t *celsius_i8, uint8_t *out)
+{
+	out[0] = (uint8_t)CLAMP((int8_t)celsius_i8[0] + 40, 0, UINT8_MAX);
+}
+
+static void pid_pack_life(const uint8_t *pack_01v, uint8_t *out)
+{
+	uint16_t raw = sys_get_be16(pack_01v);
+	float life = (raw * 0.1f - UNDERVOLTAGE_V) / (PACK_FULL_V - UNDERVOLTAGE_V);
+
+	out[0] = raw == UINT16_MAX ? 0
+				   : (uint8_t)scaled(CLAMP(life, 0.0f, 1.0f), 1.0f / 255, 0, 255);
+}
+
+static const struct zelos_uds_pid pids[] = {
+	{0x1F, 2, 0x0104, pid_run_time},
+	{0x42, 2, 0x0101, pid_module_voltage},
+	{0x46, 1, 0x0103, pid_ambient_temperature},
+	{0x5B, 1, 0x0105, pid_pack_life},
+};
+
 static const struct zelos_uds_config config = {
 	.dids = dids,
 	.did_count = ARRAY_SIZE(dids),
@@ -269,6 +329,10 @@ static const struct zelos_uds_config config = {
 	.snapshot_dids = snapshot_dids,
 	.snapshot_did_count = ARRAY_SIZE(snapshot_dids),
 	.write = dcdc_cal_write,
+	.pids = pids,
+	.pid_count = ARRAY_SIZE(pids),
+	.calid = SW_VERSION,
+	.ecu_name = ECU_NAME,
 };
 
 int dcdc_uds_start(void)

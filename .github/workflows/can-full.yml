@@ -16,6 +16,7 @@ on:
       - "include/**"
       - "snippets/**"
       - "dbc/**"
+      - "arxml/**"
       - "tools/**"
       - "toolchain/**"
       - "zephyr/**"
@@ -87,4 +88,8 @@ jobs:
       # runs whether or not the full bench passed.
       - if: "!cancelled()"
         run: just test-bench can_raw can-full/build/full.elf
+        working-directory: .
+      # The OBD suite's fault tests fall silent as the BMS; same bench of its own.
+      - if: "!cancelled()"
+        run: just test-bench obd can-full/build/full.elf
         working-directory: .

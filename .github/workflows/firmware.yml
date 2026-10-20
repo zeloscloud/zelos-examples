@@ -12,6 +12,8 @@ on:
       - "snippets/**"
       - "tests/**"
       - "dbc/**"
+      - "arxml/**"
+      - "tools/arxml2c.py"
       - "toolchain/**"
       - "zephyr/**"
       - "west.yml"
@@ -59,3 +61,8 @@ jobs:
       - run: just canopen-od pdu
       - name: nodes/pdu/od/ is up to date with its EDS
         run: git diff --exit-code -- nodes/pdu/od
+
+      - uses: astral-sh/setup-uv@v6
+      - run: just arxml
+      - name: nodes/dcdc/src/autosar_pdus.* is up to date with arxml/can-full.arxml
+        run: git diff --exit-code -- nodes/dcdc/src/autosar_pdus.h nodes/dcdc/src/autosar_pdus.c

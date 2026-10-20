@@ -2,7 +2,8 @@
  * The UDS server on Zephyr's ISO-TP, against a controller with M_CAN's filter
  * semantics: a received frame goes to the first matching filter only. On the
  * STM32H7's FDCAN, a second filter on the physical request identifier never
- * saw the tester's flow control, so every multi-frame response stalled.
+ * saw the tester's flow control, so every multi-frame response stalled. And
+ * with nothing to acknowledge its frames, a response the server cannot end.
  */
 
 #include <zelos/uds.h>
@@ -80,13 +81,60 @@ struct sent {
 K_MSGQ_DEFINE(sent_q, sizeof(struct sent), 16, 4);
 K_MSGQ_DEFINE(tester_q, sizeof(struct can_frame), 16, 4);
 
+/* Nothing acknowledges: a frame stays in the controller until can_stop(). */
+static bool unacked;
+/* The controller's TX buffer stays taken: can_send() times out. */
+static bool full;
+static bool stopped;
+static struct sent held[4];
+static int held_count;
+
 static int send(const struct device *dev, const struct can_frame *frame, k_timeout_t timeout,
 		can_tx_callback_t cb, void *user_data)
 {
 	struct sent s = {.frame = *frame, .cb = cb, .user_data = user_data};
 
 	ARG_UNUSED(dev);
+	if (stopped) {
+		return -ENETDOWN;
+	}
+	if (full) {
+		return -EAGAIN;
+	}
+	if (unacked) {
+		zassert_true(held_count < ARRAY_SIZE(held));
+		held[held_count++] = s;
+		return 0;
+	}
 	return k_msgq_put(&sent_q, &s, timeout);
+}
+
+/* As M_CAN's: every frame held fails to its sender. */
+static int stop(const struct device *dev)
+{
+	stopped = true;
+	while (held_count > 0) {
+		struct sent s = held[--held_count];
+
+		s.cb(dev, -ENETDOWN, s.user_data);
+	}
+	return 0;
+}
+
+/* No acknowledgement drives M_CAN error-passive; a full buffer here stands for that too. */
+static int get_state(const struct device *dev, enum can_state *state, struct can_bus_err_cnt *cnt)
+{
+	ARG_UNUSED(dev);
+	ARG_UNUSED(cnt);
+	*state = unacked || full ? CAN_STATE_ERROR_PASSIVE : CAN_STATE_ERROR_ACTIVE;
+	return 0;
+}
+
+static int start(const struct device *dev)
+{
+	ARG_UNUSED(dev);
+	stopped = false;
+	return 0;
 }
 
 static void bus(void *p1, void *p2, void *p3)
@@ -135,43 +183,175 @@ static struct can_frame received(void)
 	return frame;
 }
 
-ZTEST(uds_isotp, test_multi_frame_response_then_more_requests)
+static const uint8_t vin_rsp[] = {0x62, 0xF1, 0x90, '1', 'Z', 'L', 'S', 'D', 'C', 'D',
+				  'C', '0', 'B', 'E', 'N', 'C', 'H', '0', '0', '1'};
+
+static void request_vin(void)
 {
-	static const uint8_t expected[] = {0x62, 0xF1, 0x90, '1', 'Z', 'L', 'S', 'D', 'C', 'D',
-					   'C', '0', 'B', 'E', 'N', 'C', 'H', '0', '0', '1'};
-	uint8_t response[sizeof(expected)];
+	deliver(CONFIG_ZELOS_UDS_PHYS_ID, (uint8_t[]){0x03, 0x22, 0xF1, 0x90}, 4);
+}
+
+/* Flow control on the physical identifier: continue, no limits. */
+static void continue_to_send(void)
+{
+	deliver(CONFIG_ZELOS_UDS_PHYS_ID, (uint8_t[]){0x30, 0x00, 0x00}, 3);
+}
+
+static struct can_frame first_frame(void)
+{
+	struct can_frame f = received();
+
+	zassert_equal(f.data[0], 0x10, "first frame");
+	zassert_equal(f.data[1], sizeof(vin_rsp));
+	return f;
+}
+
+/* A multi-frame response, then the request context back on its identifier. */
+static void read_vin_by_hand(void)
+{
+	uint8_t response[sizeof(vin_rsp)];
 	struct can_frame f;
 	size_t n;
 
-	fake_can_add_rx_filter_fake.custom_fake = add_rx_filter;
-	fake_can_remove_rx_filter_fake.custom_fake = remove_rx_filter;
-	fake_can_send_fake.custom_fake = send;
-	zassert_ok(zelos_uds_start(&config));
-
-	for (int round = 0; round < 2; round++) {
-		deliver(CONFIG_ZELOS_UDS_PHYS_ID, (uint8_t[]){0x03, 0x22, 0xF1, 0x90}, 4);
+	request_vin();
+	f = first_frame();
+	memcpy(response, &f.data[2], 6);
+	n = 6;
+	continue_to_send();
+	for (uint8_t sn = 1; n < sizeof(vin_rsp); sn++) {
 		f = received();
-		zassert_equal(f.data[0], 0x10, "first frame");
-		zassert_equal(f.data[1], sizeof(expected));
-		memcpy(response, &f.data[2], 6);
-		n = 6;
-		/* Flow control on the physical identifier: continue, no limits. */
-		deliver(CONFIG_ZELOS_UDS_PHYS_ID, (uint8_t[]){0x30, 0x00, 0x00}, 3);
-		for (uint8_t sn = 1; n < sizeof(expected); sn++) {
-			f = received();
-			zassert_equal(f.data[0], 0x20 | sn, "consecutive frame %u", sn);
-			memcpy(&response[n], &f.data[1], MIN(7, sizeof(expected) - n));
-			n += MIN(7, sizeof(expected) - n);
-		}
-		zassert_mem_equal(response, expected, sizeof(expected));
-
-		/* The request context is back on its identifier. */
-		deliver(CONFIG_ZELOS_UDS_PHYS_ID, (uint8_t[]){0x02, 0x3E, 0x00}, 3);
-		f = received();
-		zassert_mem_equal(f.data, ((uint8_t[]){0x02, 0x7E, 0x00}), 3);
+		zassert_equal(f.data[0], 0x20 | sn, "consecutive frame %u", sn);
+		memcpy(&response[n], &f.data[1], MIN(7, sizeof(vin_rsp) - n));
+		n += MIN(7, sizeof(vin_rsp) - n);
 	}
+	zassert_mem_equal(response, vin_rsp, sizeof(vin_rsp));
 
+	deliver(CONFIG_ZELOS_UDS_PHYS_ID, (uint8_t[]){0x02, 0x3E, 0x00}, 3);
+	f = received();
+	zassert_mem_equal(f.data, ((uint8_t[]){0x02, 0x7E, 0x00}), 3);
+}
+
+/* Whether the server answers on its physical identifier within `ms`. */
+static bool answers(int ms)
+{
+	struct can_frame f;
+
+	deliver(CONFIG_ZELOS_UDS_PHYS_ID, (uint8_t[]){0x02, 0x3E, 0x00}, 3);
+	return k_msgq_get(&tester_q, &f, K_MSEC(ms)) == 0;
+}
+
+/* Back on the bus after a send that could not end: its identifiers its own, sends whole. */
+static void recovered(void)
+{
+	unacked = false;
+	full = false;
+	zassert_true(answers(100), "no answer after the send");
+	read_vin_by_hand();
 	zassert_equal(overlaps, 0, "two filters covered one identifier");
 }
 
-ZTEST_SUITE(uds_isotp, NULL, NULL, NULL, NULL, NULL);
+ZTEST(uds_isotp, test_multi_frame_response_then_more_requests)
+{
+	for (int round = 0; round < 2; round++) {
+		read_vin_by_hand();
+	}
+	zassert_equal(overlaps, 0, "two filters covered one identifier");
+}
+
+/* The first frame never leaves: N_Bs ends the send, the restart drops the frame. */
+ZTEST(uds_isotp, test_unacknowledged_first_frame)
+{
+	unacked = true;
+	request_vin();
+	k_sleep(K_MSEC(CONFIG_ISOTP_BS_TIMEOUT + 200));
+	zassert_equal(held_count, 0, "the first frame is still in the controller");
+	recovered();
+}
+
+/* A CF finds no free buffer: ISO-TP's CF path records N_As and never ends the send. */
+ZTEST(uds_isotp, test_cf_without_a_buffer)
+{
+	request_vin();
+	(void)first_frame();
+	full = true;
+	continue_to_send();
+	/* A slice of N_As to see the error, the drain of N_Bs + 127 ms. */
+	k_sleep(K_MSEC(CONFIG_ISOTP_A_TIMEOUT + CONFIG_ISOTP_BS_TIMEOUT + 300));
+	recovered();
+}
+
+/* A request mid-response is an error ISO-TP ends itself, after its CF loop: no restart. */
+ZTEST(uds_isotp, test_request_mid_response)
+{
+	struct sent s;
+
+	request_vin();
+	(void)first_frame();
+	unacked = true;
+	continue_to_send();
+	/* The CF loop waits on the first CF, which the bus holds. */
+	k_sleep(K_MSEC(10));
+	zassert_equal(held_count, 1);
+	/* On the physical identifier the send's FC filter holds: N_UNEXP_PDU. */
+	deliver(CONFIG_ZELOS_UDS_PHYS_ID, (uint8_t[]){0x02, 0x3E, 0x00}, 3);
+	k_sleep(K_MSEC(CONFIG_ISOTP_A_TIMEOUT + 100));
+	zassert_equal(fake_can_stop_fake.call_count, 0, "restarted a send that ends");
+	/* The bus takes the CF: the CF loop goes on, and the send ends. */
+	unacked = false;
+	s = held[--held_count];
+	zassert_ok(k_msgq_put(&sent_q, &s, K_NO_WAIT));
+	k_sleep(K_MSEC(100));
+	k_msgq_purge(&tester_q);
+	recovered();
+	zassert_equal(fake_can_stop_fake.call_count, 0);
+}
+
+/* A CF never leaves: ISO-TP waits for it for ever, so only the backstop ends the send. */
+ZTEST(uds_isotp, test_unacknowledged_cf)
+{
+	/* The slowest send the spec allows: 585 CFs at STmin 127 ms, N_WFTmax waits + FC. */
+	const int slowest_ms = 585 * 127 + (CONFIG_ISOTP_WFTMAX + 1) * CONFIG_ISOTP_BS_TIMEOUT;
+
+	request_vin();
+	(void)first_frame();
+	unacked = true;
+	continue_to_send();
+	/* Silent meanwhile: a request would hit the send's FC filter and end it (N_UNEXP_PDU). */
+	k_sleep(K_MSEC(slowest_ms));
+	zassert_equal(held_count, 1, "restarted before the slowest send the spec allows");
+	/* The backstop, its last slice and the drain. */
+	k_sleep(K_SECONDS(4));
+	zassert_equal(held_count, 0, "the CF is still in the controller");
+	recovered();
+}
+
+/* The bus acknowledges the first frame, the tester never flow-controls: N_Bs, no restart. */
+ZTEST(uds_isotp, test_flow_control_never_sent)
+{
+	request_vin();
+	(void)first_frame();
+	k_sleep(K_MSEC(CONFIG_ISOTP_BS_TIMEOUT + 200));
+	zassert_equal(fake_can_stop_fake.call_count, 0, "restarted an acknowledged bus");
+	recovered();
+}
+
+/* The fake controller's own rule resets its fakes before each test. */
+static void before(void *fixture)
+{
+	ARG_UNUSED(fixture);
+	fake_can_add_rx_filter_fake.custom_fake = add_rx_filter;
+	fake_can_remove_rx_filter_fake.custom_fake = remove_rx_filter;
+	fake_can_send_fake.custom_fake = send;
+	fake_can_stop_fake.custom_fake = stop;
+	fake_can_start_fake.custom_fake = start;
+	fake_can_get_state_fake.custom_fake = get_state;
+}
+
+static void *setup(void)
+{
+	before(NULL);
+	zassert_ok(zelos_uds_start(&config));
+	return NULL;
+}
+
+ZTEST_SUITE(uds_isotp, NULL, setup, before, NULL, NULL);

@@ -21,7 +21,7 @@ import pytest
 from udsoncan.services import ECUReset
 
 from zelos_testing import frames, uds_keys
-from zelos_testing.frames import bound, collect
+from zelos_testing.frames import bound, wait_until
 from zelos_testing.uds import (
     ACTIVE_SESSION,
     ADJUST,
@@ -46,6 +46,7 @@ from zelos_testing.uds import (
     LEVEL_PROGRAMMING,
     MARGIN,
     OUTPUT,
+    P2_STAR_S,
     PDTC,
     PROGRAMMING,
     RESET,
@@ -106,11 +107,14 @@ def test_live_values_are_typed(ecu):
     elapsed_ms = ecu.read(UPTIME) - first
     assert elapsed_ms > 0
     if not frames.SIMULATED:
-        assert elapsed_ms == pytest.approx(1000, rel=MARGIN, abs=20)
+        # The DID is the model's sample: it steps once per 50 ms cycle.
+        assert elapsed_ms == pytest.approx(1000, rel=MARGIN, abs=20 + 50)
 
 
-def test_one_unknown_identifier_fails_the_read(ecu):
-    assert ecu.raw(b"\x22\xf1\x86\x12\x34") == b"\x7f\x22\x31"
+def test_unknown_identifiers_are_left_out_of_the_read(ecu):
+    # ISO 14229-1: the supported DIDs answer; 0x31 only when none is supported.
+    assert ecu.raw(b"\x22\xf1\x86\x12\x34") == b"\x62\xf1\x86\x01"
+    assert ecu.raw(b"\x22\x12\x34\x56\x78") == b"\x7f\x22\x31"
 
 
 def test_setpoint_and_vin_are_written_in_extended_with_level_1(ecu):
@@ -135,8 +139,11 @@ def test_setpoint_and_vin_are_written_in_extended_with_level_1(ecu):
 
 
 def test_memory_by_address(ecu):
-    state = STATE.unpack(ecu.client.read_memory_by_address(location(STATE_ADDRESS, STATE.size)).service_data.memory_block)
-    assert state[5] == pytest.approx(SETPOINT_V)  # setpoint_v
+    def setpoint_v() -> float:
+        return STATE.unpack(ecu.client.read_memory_by_address(location(STATE_ADDRESS, STATE.size)).service_data.memory_block)[5]
+
+    # The window is the state of the last control cycle; an earlier test may just have restored the setpoint.
+    wait_until(lambda: setpoint_v() == pytest.approx(SETPOINT_V), 0.2, step_s=0.01)
     # 1- and 2-byte sizes too; nothing outside a window, nothing straddling one.
     assert len(ecu.client.read_memory_by_address(location(STATE_ADDRESS + 4, 4, 8)).service_data.memory_block) == 4
     assert len(ecu.client.read_memory_by_address(location(STATE_ADDRESS, 8, 16)).service_data.memory_block) == 8
@@ -369,17 +376,18 @@ def test_dtc_reports(ecu):
     ecu.client.clear_dtc(0xFFFFFF)
     # Cleared: none failed since. Untested or passed since, by the model.
     assert dtcs(ecu, TF | TFSLC | CDTC | PDTC) == {}
-    count_ = ecu.client.get_number_of_dtc_by_status_mask(0xFF).service_data
-    assert count_.dtc_format == 0x01 and count_.dtc_count == len([s for s in dtcs(ecu).values() if s])
+    # The list's mask: a passing model cycle between the two reads sets none of these bits.
+    count_ = ecu.client.get_number_of_dtc_by_status_mask(TF | TFSLC | CDTC | PDTC).service_data
+    assert count_.dtc_format == 0x01 and count_.dtc_count == 0
     assert nrc(ecu.client.clear_dtc, 0x000001) == 0x31
     ecu.client.clear_dtc(DTC_OVERTEMPERATURE)
-    # Extended data 0x01 occurrences, 0x02 aging; snapshot record 0x01 only.
-    assert ecu.raw(b"\x19\x06\x1a\x00\x98\x01")[6:] == b"\x01\x00"
-    assert ecu.raw(b"\x19\x06\x1a\x00\x98\xff")[6:] == b"\x01\x00\x02\x00"
-    assert ecu.raw(b"\x19\x06\x1a\x00\x98\x03") == b"\x7f\x19\x31"
+    # Extended data 0x01 occurrences, 0x02 aging.
+    assert ecu.raw(b"\x19\x06\x0a\x94\x00\x01")[6:] == b"\x01\x00"
+    assert ecu.raw(b"\x19\x06\x0a\x94\x00\xff")[6:] == b"\x01\x00\x02\x00"
+    assert ecu.raw(b"\x19\x06\x0a\x94\x00\x03") == b"\x7f\x19\x31"
     assert ecu.raw(b"\x19\x04\x12\x34\x56\x01") == b"\x7f\x19\x31"
-    assert ecu.raw(b"\x19\x04\x1a\x00\x98\x02") == b"\x7f\x19\x31"
-    assert ecu.raw(b"\x19\x04\x1a\x00\x98\xff")[:5] == b"\x59\x04\x1a\x00\x98"
+    assert ecu.raw(b"\x19\x04\x0a\x94\x00\x02") == b"\x7f\x19\x31"
+    assert ecu.raw(b"\x19\x04\x0a\x94\x00\xff")[:5] == b"\x59\x04\x0a\x94\x00"
     assert ecu.raw(b"\x19\x02") == b"\x7f\x19\x13"
 
 
@@ -394,9 +402,10 @@ def test_self_test_answers_pending_then_its_result(ecu, bus):
     bus.set_filters([{"can_id": RESPONSE, "can_mask": 0x7FF}])
     started_at = time.time()
     # udsoncan waits out the pending response; the bus shows what the server sent.
-    result = ecu.client.start_routine(SELF_TEST).service_data.routine_status_record
+    with frames.reading(bus) as seen:
+        result = ecu.client.start_routine(SELF_TEST).service_data.routine_status_record
     assert len(result) == 1
-    responses = [m for m in collect(bus, 0.1, ids=[RESPONSE]) if m.timestamp >= started_at]
+    responses = [m for m in seen if m.arbitration_id == RESPONSE and not m.is_error_frame and m.timestamp >= started_at]
     payloads = [bytes(m.data[1 : 1 + m.data[0]]) for m in responses]
     assert payloads == [b"\x7f\x31\x78", b"\x71\x01\x02\x01" + result]
     if not frames.SIMULATED:
@@ -420,7 +429,7 @@ def test_busy_while_pending(ecu):
         for request_ in (b"\x29\x01", b"\x3e\x80"):
             everyone.conn.send(request_)
         # Nothing for these: the next response is the routine's result.
-        assert everyone.conn.wait_frame(timeout=bound(SELF_TEST_S))[:4] == b"\x71\x01\x02\x01"
+        assert everyone.conn.wait_frame(timeout=bound(P2_STAR_S))[:4] == b"\x71\x01\x02\x01"
 
 
 def test_programming_sequence(ecu):

@@ -8,7 +8,7 @@ FROM python:3.12-slim
 COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /usr/local/bin/uv
 
 # `ip` reads the channel's controller state for the bus_health fixture;
-# candump records the bus for the coexistence suite, outside its process.
+# candump records the bus for the suites, outside their process.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends iproute2 can-utils \
  && rm -rf /var/lib/apt/lists/*
