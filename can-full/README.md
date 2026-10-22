@@ -56,7 +56,9 @@ The first three are can-bench's, unchanged except that the DC-DC runs XCP, UDS
 and AUTOSAR PDUs, and has Ethernet. On this bench every node sits on one
 Renode Ethernet switch, bridged to `tap0` (10.1.1.1/24) where the tester runs; on
 hardware the board's RJ45 port joins the bench's LAN, and nothing waits for the
-cable: CAN starts at the same time without one. Over XCP its demand and slew rate become calibration parameters, its
+cable: CAN starts at the same time without one. The address is usable about 7 s
+after a reset (link up at about 1.7 s, then RFC 5227 conflict detection), so a
+tester reconnecting over Ethernet after an ECUReset waits that long. Over XCP its demand and slew rate become calibration parameters, its
 setpoint, current, temperature and allowance measurements, all described by
 `build/full.a2l`, which the build fills with that ELF's addresses.
 Over UDS (ISO 14229-1) it is a diagnostic server as an OEM baseline ECU carries

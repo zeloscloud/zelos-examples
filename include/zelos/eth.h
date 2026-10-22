@@ -4,8 +4,9 @@
  * zelos_eth_start() sets CONFIG_ZELOS_ETH_IPV4_ADDR on the Ethernet interface
  * and returns at once: nothing waits for a cable, so CAN starts on time
  * without one. The stack brings the address up when the link comes up, after
- * RFC 5227 conflict detection. On a conflict the address is dropped (another
- * host has it) and tried again at the next link up.
+ * RFC 5227 conflict detection, about 5 s after link up. A conflict while
+ * probing leaves the address unused until the next link up; one after it is
+ * up is reported and the address kept, as Zephyr does.
  */
 
 #ifndef ZELOS_ETH_H_
@@ -20,7 +21,7 @@ enum zelos_eth_ipv4 {
 	/* Conflict detection running. */
 	ZELOS_ETH_IPV4_PROBING = 1,
 	ZELOS_ETH_IPV4_UP = 2,
-	/* Another host holds the address; unused until the next link up. */
+	/* Another host claims the address. */
 	ZELOS_ETH_IPV4_CONFLICT = 3,
 };
 

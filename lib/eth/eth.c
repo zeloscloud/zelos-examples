@@ -96,10 +96,9 @@ static void on_acd(struct net_mgmt_event_callback *cb, uint64_t event, struct ne
 		LOG_ERR("%s is another host's: not used", CONFIG_ZELOS_ETH_IPV4_ADDR);
 		break;
 	default:
-		/* A host claimed it after ours was up and the stack's defence failed. */
+		/* Claimed by a host after ours was up; the stack keeps and defends it. */
 		atomic_set(&ipv4, ZELOS_ETH_IPV4_CONFLICT);
-		(void)net_if_ipv4_addr_rm(iface, &addr);
-		LOG_ERR("%s claimed by another host: dropped", CONFIG_ZELOS_ETH_IPV4_ADDR);
+		LOG_ERR("%s also claimed by another host", CONFIG_ZELOS_ETH_IPV4_ADDR);
 		break;
 	}
 }
