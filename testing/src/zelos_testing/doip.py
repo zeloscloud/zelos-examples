@@ -15,6 +15,8 @@ import struct
 import time
 from typing import Self
 
+from zelos_testing import frames
+
 PORT = 13400
 ECU, TESTER, FUNCTIONAL = 0x1001, 0x0E80, 0xE400
 VERSION = 0x02
@@ -54,7 +56,9 @@ def local_address(host: str) -> str:
 
 def udp(host: str, kind: int, payload: bytes = b"", version: int = VERSION, wait_s: float = 1.0) -> list[tuple[float, str, int, bytes]]:
     """Send one datagram to `host` (an address or the subnet's broadcast) from the
-    host's address on that subnet; every answer within wait_s: (seconds after, ip, type, payload)."""
+    host's address on that subnet; every answer within wait_s of the node's time:
+    (host seconds after, ip, type, payload)."""
+    wait_s = frames.bound(wait_s)
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         s.bind((local_address(host), 0))
