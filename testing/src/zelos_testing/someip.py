@@ -8,6 +8,7 @@ another interface.
 
 from __future__ import annotations
 
+import contextlib
 import socket
 import struct
 import time
@@ -123,8 +124,13 @@ class Client:
         self.events.bind((self.local, 0))
         self.event_port = self.events.getsockname()[1]
         self.session = 0
+        self.subscribed = False
 
     def close(self) -> None:
+        # A subscription left behind would hold one of the node's few slots.
+        if self.subscribed:
+            with contextlib.suppress(OSError):
+                self.subscribe(ttl=0)
         self.sd.close()
         self.events.close()
 
@@ -143,6 +149,7 @@ class Client:
 
     def subscribe(self, ttl: int = 3, eventgroup: int = EVENTGROUP) -> None:
         self.send_sd([subscribe_entry(ttl, eventgroup)], [endpoint_option(self.local, self.event_port)])
+        self.subscribed = ttl != 0
 
     def sd_from_node(self, timeout_s: float, want=lambda flags, entries: True) -> tuple[float, int, list[Entry], Message] | None:
         """The next SD message from the node that `want` takes, within timeout_s of node time."""

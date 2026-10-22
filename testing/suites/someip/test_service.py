@@ -61,11 +61,11 @@ def offers(flags_entries) -> bool:
 
 
 @pytest.fixture(scope="module")
-def group(host) -> bool:
-    """Whether the SD group's traffic reaches this host. The hardware bench's switch
-    forwards the node's multicast to IGMPv2 members only, and Linux joins with v3."""
-    with Client(host) as c:
-        return c.sd_from_node(CYCLIC_S * 2.5, lambda f, e: offers((f, e))) is not None
+def group() -> bool:
+    """Whether the SD group's multicast is checked: under Renode only. The hardware
+    bench's switch forwards the node's multicast to the host intermittently (IGMP
+    snooping: the node joins with v2, Linux with v3), so there it would be luck."""
+    return frames.SIMULATED
 
 
 def find(c: Client) -> tuple[int, Entry, someip.Message] | None:
@@ -87,7 +87,7 @@ def find(c: Client) -> tuple[int, Entry, someip.Message] | None:
 
 def test_offers(host, group):
     if not group:
-        pytest.skip("the SD group does not reach this host (the bench switch); Renode covers it")
+        pytest.skip("SD multicast is checked under Renode: the hardware bench's switch forwards it intermittently")
     with Client(host) as c:
         seen = []
         while len(seen) < 3:
@@ -178,9 +178,10 @@ def test_setpoint_getter_and_notifier(host, can_ecu):
         try:
             written = time.time()
             can_ecu.client.write_data_by_identifier(SETPOINT, 12.0)
+            end = time.monotonic() + bound(1.0)
             while True:
                 got = c.event(1.0)
-                assert got is not None, "no notification"
+                assert got is not None and time.monotonic() < end, "no notification"
                 at, msg = got
                 if msg.method == SETPOINT_NOTIFIER and msg.payload == struct.pack("!H", 1200):
                     break
@@ -205,10 +206,11 @@ def test_communication_control_stops_events_only(pytestconfig, host, can_ecu):
         can_ecu.unlock(LEVEL_EXTENDED)
         try:
             can_ecu.client.communication_control(0x01, 0x01)  # enableRxAndDisableTx, normal
-            # Drain what was already on its way, then none.
-            while c.event(0.3) is not None:
-                pass
-            assert c.event(1.0) is None
+            # What was already on its way, then none.
+            end = time.monotonic() + bound(0.5)
+            while time.monotonic() < end:
+                c.event(0.1)
+            assert c.event(1.0) is None, "events after 0x28"
             assert find(c) is not None
             assert c.call(SETPOINT_GETTER).kind == RESPONSE
         finally:

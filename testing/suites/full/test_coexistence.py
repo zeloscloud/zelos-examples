@@ -23,6 +23,7 @@ The bus is recorded by `candump` (can-utils), which the host needs.
 import bisect
 import contextlib
 import os
+import re
 import signal
 import subprocess
 import threading
@@ -174,21 +175,27 @@ def ethernet_load(pytestconfig):
         return
     iface, host = link
     doip.wait_entity(host)
-    seen = {"counters": [], "obd": 0, "obd_bad": [], "ping": ""}
+    seen = {"counters": [], "obd": 0, "obd_bad": [], "ping": None, "errors": []}
     stop = threading.Event()
 
     def subscriber(c):
-        while not stop.is_set():
-            got = c.event(0.5)
-            if got and got[1].method == someip.STATUS_EVENT:
-                seen["counters"].append(someip.STATUS.unpack(got[1].payload)[6])
+        try:
+            while not stop.is_set():
+                got = c.event(0.5)
+                if got and got[1].method == someip.STATUS_EVENT:
+                    seen["counters"].append((got[0], someip.STATUS.unpack(got[1].payload)[6]))
+        except Exception as e:  # noqa: BLE001 - raised in the test, not lost in the thread
+            seen["errors"].append(e)
 
     def tester(raw):
-        while not stop.is_set():
-            rsp = raw.request(b"\x01\x42")
-            seen["obd"] += 1
-            if rsp is None or rsp[:2] != b"\x41\x42":
-                seen["obd_bad"].append(rsp)
+        try:
+            while not stop.is_set():
+                rsp = raw.request(b"\x01\x42")
+                seen["obd"] += 1
+                if rsp is None or rsp[:2] != b"\x41\x42":
+                    seen["obd_bad"].append(rsp)
+        except Exception as e:  # noqa: BLE001 - raised in the test, not lost in the thread
+            seen["errors"].append(e)
 
     with someip.Client(host) as c, doip.Raw(host) as raw:
         c.subscribe(ttl=0xFFFFFF)
@@ -203,10 +210,17 @@ def ethernet_load(pytestconfig):
             stop.set()
             for t in threads:
                 t.join(bound(5.0))
+                if t.is_alive():
+                    seen["errors"].append(f"{t.name} did not stop")
             if ping is not None:
                 ping.send_signal(signal.SIGINT)
-                seen["ping"] = ping.communicate(timeout=5)[0]
-            c.subscribe(ttl=0)
+                try:
+                    out = ping.communicate(timeout=5)[0]
+                except subprocess.TimeoutExpired:
+                    ping.kill()
+                    out = ping.communicate()[0]
+                m = re.search(r"(\d+) packets transmitted, (\d+) received", out)
+                seen["ping"] = (int(m.group(1)), int(m.group(2))) if m else out
 
 
 def test_every_protocol_at_once(pytestconfig, bus, record_property, foreign_managed):
@@ -329,12 +343,19 @@ def test_every_protocol_at_once(pytestconfig, bus, record_property, foreign_mana
     # The node lost nothing, sending or receiving.
     if eth is not None:
         # Ethernet beside it: nothing the MAC dropped, every event and OBD answer there.
-        steps = [(b - a) % 128 for a, b in pairwise(eth["counters"])]
-        print(f"ethernet: {len(eth['counters'])} DcdcStatus, {eth['obd']} OBD over DoIP, ping {eth['ping'].strip().splitlines()[-2:] if eth['ping'] else 'off'}, MAC drops {eth_after['rx_dropped'] - eth_before['rx_dropped']}")
+        events = [c for t, c in eth["counters"] if soak_from <= t <= soak_to]
+        steps = [(b - a) % 128 for a, b in pairwise(events)]
+        status = len([m for m in seen if m.arbitration_id == STATUS.frame_id])
+        print(f"ethernet: {len(events)} DcdcStatus ({status} on CAN), {eth['obd']} OBD over DoIP, ping {eth['ping'] or 'off'}, MAC drops {eth_after['rx_dropped'] - eth_before['rx_dropped']}")
+        assert eth["errors"] == [], eth["errors"]
         assert eth_after["rx_dropped"] == eth_before["rx_dropped"], (eth_before, eth_after)
-        assert len(eth["counters"]) > 2 and set(steps) <= {1, 2, 3}, steps
+        # One event per two DCDC_Status cycles, for the whole soak, none skipped.
+        assert set(steps) <= {1, 2, 3} and abs(len(events) - status / 2) <= max(3, 0.02 * status), (len(events), status)
         assert eth["obd"] > 0 and eth["obd_bad"] == [], eth["obd_bad"][:3]
-        assert not eth["ping"] or " 0% packet loss" in eth["ping"], eth["ping"]
+        if not frames.SIMULATED:
+            # 100 Hz for the soak; the echo in flight at the stop may go unanswered.
+            sent, received = eth["ping"]
+            assert sent >= 50 * soak_s and received >= sent - 1, eth["ping"]
     assert delta["overflow"] == 0, delta
     assert delta["tx_error"] == 0, delta
     assert delta["rx_overrun"] == 0, delta
