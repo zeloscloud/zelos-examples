@@ -459,7 +459,8 @@ static void handle(struct net_buf *buf, bool functional)
 	net_buf_unref(buf);
 
 	k_mutex_lock(&core_lock, K_FOREVER);
-	n = zelos_uds_core_request(&core, req, len, functional, k_uptime_get(), rsp);
+	n = zelos_uds_core_serve(&core, ZELOS_UDS_ORIGIN_CAN, req, len, functional, k_uptime_get(),
+				 rsp);
 	reset = core.reset;
 	k_mutex_unlock(&core_lock);
 
