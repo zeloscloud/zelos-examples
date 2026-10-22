@@ -73,14 +73,14 @@ CAN_STATS = ("sent", "overflow", "deferred", "tx_error", "peak", "rx_overrun")
 class EthStatus(DidCodec):
     """DID 0x0111, struct zelos_eth_status, as a dict; the MAC as aa:bb:..."""
 
-    FMT = struct.Struct(">4B6s3I2B")
+    FMT = struct.Struct(">4B6s3I2BI")
     IPV4 = ("none", "probing", "up", "conflict")
 
     def encode(self, value) -> bytes:
         raise NotImplementedError("read-only")
 
     def decode(self, payload: bytes) -> dict:
-        link, speed, full, ipv4, mac, rx, tx, rx_errors, doip, someip = self.FMT.unpack(payload)
+        link, speed, full, ipv4, mac, rx, tx, rx_errors, doip, someip, dropped = self.FMT.unpack(payload)
         return {
             "link": bool(link),
             "speed_mbps": speed,
@@ -92,6 +92,7 @@ class EthStatus(DidCodec):
             "rx_errors": rx_errors,
             "doip_testers": doip,
             "someip_subscribers": someip,
+            "rx_dropped": dropped,
         }
 
     def __len__(self) -> int:

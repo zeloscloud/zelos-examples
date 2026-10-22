@@ -15,11 +15,12 @@
  *   0x0110 CAN statistics, 6 x uint32 (see struct zelos_can_stats): sent,
  *          overflow, deferred, tx_error, peak, rx_overrun. The node's, so in
  *          a combined image every protocol's
- *   0x0111 Ethernet, with lib/eth only, 24 bytes: link up (0/1), speed Mb/s
+ *   0x0111 Ethernet, with lib/eth only, 28 bytes: link up (0/1), speed Mb/s
  *          (0, 10, 100), full duplex (0/1), IPv4 (enum zelos_eth_ipv4: 0 none,
  *          1 probing, 2 up, 3 conflict), MAC (6), then uint32 RX packets, TX
  *          packets, RX dropped (struct zelos_eth_status), then DoIP testers
- *          activated and SOME/IP subscribers (uint8 each)
+ *          activated and SOME/IP subscribers (uint8 each), then uint32 frames
+ *          the MAC dropped (FIFO full, no descriptor): the loss count
  *   0x0200 output voltage setpoint, uint16 10 mV, 1380 at power-on, 1000..1600;
  *          written in extended with level 0x01. The model regulates to it.
  * I/O control 0x0300: the same setpoint, overridden: return, reset to 1380,
@@ -245,6 +246,7 @@ static void read_eth(uint8_t *out)
 #else
 	out[23] = 0;
 #endif
+	sys_put_be32(st.rx_dropped, &out[24]);
 }
 #endif
 
@@ -263,7 +265,7 @@ static const struct zelos_uds_did dids[] = {
 	{0x0106, 2, read_input_a, NULL},
 	{0x0110, 24, read_can_stats, NULL},
 #if defined(CONFIG_ZELOS_ETH)
-	{0x0111, 24, read_eth, NULL},
+	{0x0111, 28, read_eth, NULL},
 #endif
 	{0x0200, 2, read_setpoint, write_setpoint},
 };

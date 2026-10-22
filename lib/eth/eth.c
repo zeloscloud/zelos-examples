@@ -12,6 +12,10 @@
 #include <zephyr/net/phy.h>
 #include <zephyr/sys/atomic.h>
 
+#if defined(CONFIG_SOC_SERIES_STM32H7X)
+#include <soc.h>
+#endif
+
 LOG_MODULE_REGISTER(zelos_eth, LOG_LEVEL_INF);
 
 #define IF_EVENTS (NET_EVENT_IF_UP | NET_EVENT_IF_DOWN)
@@ -135,6 +139,31 @@ int zelos_eth_start(void)
 	return 0;
 }
 
+/* The MAC's drop counters, read and cleared, added up. */
+static uint32_t mac_dropped(void)
+{
+#if defined(CONFIG_SOC_SERIES_STM32H7X)
+	static struct k_spinlock lock;
+	static uint32_t total;
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	/* 11-bit counters, cleared on read; a set overflow bit means at least the maximum. */
+	const uint32_t mtl = ETH->MTLRQMPOCR;
+	const uint32_t dma = ETH->DMACMFCR;
+	uint32_t n;
+
+	total += (mtl & ETH_MTLRQMPOCR_OVFCNTOVF) ? 0x7FF : (mtl & ETH_MTLRQMPOCR_OVFPKTCNT);
+	total += (mtl & ETH_MTLRQMPOCR_MISCNTOVF) ? 0x7FF
+						    : (mtl & ETH_MTLRQMPOCR_MISPKTCNT) >>
+							      ETH_MTLRQMPOCR_MISPKTCNT_Pos;
+	total += (dma & ETH_DMACMFCR_MFCO) ? 0x7FF : (dma & ETH_DMACMFCR_MFC);
+	n = total;
+	k_spin_unlock(&lock, key);
+	return n;
+#else
+	return 0;
+#endif
+}
+
 enum zelos_eth_ipv4 zelos_eth_ipv4(void)
 {
 	return (enum zelos_eth_ipv4)atomic_get(&ipv4);
@@ -165,5 +194,6 @@ struct zelos_eth_status zelos_eth_status(void)
 		st.tx_packets = eth.pkts.tx;
 		st.rx_errors = eth.errors.rx;
 	}
+	st.rx_dropped = mac_dropped();
 	return st;
 }

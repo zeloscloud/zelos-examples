@@ -41,6 +41,12 @@ struct zelos_eth_status {
 	 * DMA error). On a shared LAN it grows; not a loss count alone.
 	 */
 	uint32_t rx_errors;
+	/*
+	 * Frames the MAC itself dropped, receive FIFO full or no DMA descriptor
+	 * (STM32H7: MTL RX missed/overflow and DMA missed frame counters): the
+	 * loss count. 0 where the MAC has none.
+	 */
+	uint32_t rx_dropped;
 };
 
 /** Set the address and return. 0, or -ENODEV without an Ethernet interface. */
