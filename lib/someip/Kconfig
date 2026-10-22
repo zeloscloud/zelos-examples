@@ -1,0 +1,15 @@
+config ZELOS_SOMEIP
+	bool "SOME/IP server with Service Discovery"
+	depends on ZELOS_ETH && NET_UDP && NET_SOCKETS && NET_IPV4_IGMP
+	select ZELOS_SOMEIP_CORE
+	select ZELOS_REBOOT
+	help
+	  One service instance on UDP: events, fields (getter and
+	  notifier), offered by SOME/IP-SD on 30490. See
+	  include/zelos/someip.h.
+
+config ZELOS_SOMEIP_CORE
+	bool "SOME/IP protocol core"
+	help
+	  The server's protocol logic without sockets. ZELOS_SOMEIP selects
+	  it; on its own it is only useful to unit tests.
