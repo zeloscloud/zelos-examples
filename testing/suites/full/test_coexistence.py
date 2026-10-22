@@ -5,7 +5,10 @@ operational with SYNC every 10 ms and RPDO1 every 100 ms, J1939 and DCDC_Status
 on their periods, and the bench's VCU and BMS on the bus. Afterwards: no EMCY
 (recorded under a foreign manager, whose commands may trip an output), no DAQ
 sample lost, every period kept, each SYNC answered, and the node's own
-counters (UDS DID 0x0110) show no frame lost either way.
+counters (UDS DID 0x0110) show no frame lost either way. With the node's
+Ethernet on the host's subnet, also a SOME/IP subscriber, OBD over DoIP and,
+in real time, ping at 100 Hz: no DcdcStatus missing, every answer there, and
+the MAC dropped nothing (DID 0x0111).
 
 Under Renode the host-paced traffic (SYNC, RPDO1) is slowed by --time-scale,
 UDS blocks stay under an RX FIFO, and periods are checked against the node's
@@ -18,7 +21,10 @@ The bus is recorded by `candump` (can-utils), which the host needs.
 """
 
 import bisect
+import contextlib
 import os
+import signal
+import subprocess
 import threading
 import time
 import zlib
@@ -28,13 +34,14 @@ import canopen
 import pytest
 from udsoncan import MemoryLocation
 
-from zelos_testing import bench, dbc, frames
-from zelos_testing.bench_plugin import find_a2l
+from zelos_testing import bench, dbc, doip, frames, someip
+from zelos_testing.bench_plugin import eth_link, find_a2l
 from zelos_testing.dcdc import STATUS
 from zelos_testing.frames import assert_period, bound
 from zelos_testing.uds import (
     CAN_STATS,
     DEFAULT,
+    ETH_STATUS,
     EXTENDED,
     LEVEL_PROGRAMMING,
     PHYSICAL,
@@ -156,6 +163,52 @@ def counters(ecu):
     return dict(zip(CAN_STATS, ecu.read(CAN_STATS_DID), strict=True))
 
 
+@contextlib.contextmanager
+def ethernet_load(pytestconfig):
+    """With lib/eth's node on the host's subnet: a SOME/IP subscriber, a DoIP tester
+    asking OBD (served beside the CAN tester's session) and, in real time, ping at
+    100 Hz. Yields what each saw, the last entries filled in at exit."""
+    link = eth_link(pytestconfig)
+    if link is None:
+        yield None
+        return
+    iface, host = link
+    doip.wait_entity(host)
+    seen = {"counters": [], "obd": 0, "obd_bad": [], "ping": ""}
+    stop = threading.Event()
+
+    def subscriber(c):
+        while not stop.is_set():
+            got = c.event(0.5)
+            if got and got[1].method == someip.STATUS_EVENT:
+                seen["counters"].append(someip.STATUS.unpack(got[1].payload)[6])
+
+    def tester(raw):
+        while not stop.is_set():
+            rsp = raw.request(b"\x01\x42")
+            seen["obd"] += 1
+            if rsp is None or rsp[:2] != b"\x41\x42":
+                seen["obd_bad"].append(rsp)
+
+    with someip.Client(host) as c, doip.Raw(host) as raw:
+        c.subscribe(ttl=0xFFFFFF)
+        assert raw.activate() == 0x10
+        threads = [threading.Thread(target=subscriber, args=(c,), daemon=True), threading.Thread(target=tester, args=(raw,), daemon=True)]
+        ping = None if frames.SIMULATED else subprocess.Popen(["ping", "-n", "-q", "-i", "0.01", "-I", iface, host], stdout=subprocess.PIPE, text=True)
+        for t in threads:
+            t.start()
+        try:
+            yield seen
+        finally:
+            stop.set()
+            for t in threads:
+                t.join(bound(5.0))
+            if ping is not None:
+                ping.send_signal(signal.SIGINT)
+                seen["ping"] = ping.communicate(timeout=5)[0]
+            c.subscribe(ttl=0)
+
+
 def test_every_protocol_at_once(pytestconfig, bus, record_property, foreign_managed):
     channel = pytestconfig.getoption("channel")
     a2l = find_a2l(pytestconfig)
@@ -189,9 +242,10 @@ def test_every_protocol_at_once(pytestconfig, bus, record_property, foreign_mana
                 pdu.rpdo[1].start(bound(RPDO_S))
                 network.sync.start(bound(SYNC_S))
 
+            eth_before = ecu.read(ETH_STATUS) if eth_link(pytestconfig) else None
             stop, done, errors = threading.Event(), [], []
             uds = threading.Thread(target=program, args=(ecu, stop, done, errors), daemon=True)
-            with xcp.measuring("input_current_a", "temperature_c") as daq:
+            with xcp.measuring("input_current_a", "temperature_c") as daq, ethernet_load(pytestconfig) as eth:
                 soak_from = time.time()
                 daq_from = len(daq.ecu_times)
                 uds.start()
@@ -208,6 +262,7 @@ def test_every_protocol_at_once(pytestconfig, bus, record_property, foreign_mana
                 pdu.nmt.state = "PRE-OPERATIONAL"
             ecu.client.change_session(DEFAULT)
             after = counters(ecu)
+            eth_after = ecu.read(ETH_STATUS) if eth is not None else None
         finally:
             # The bus belongs to its fixture; only stop listening on it.
             network.notifier.stop()
@@ -272,6 +327,14 @@ def test_every_protocol_at_once(pytestconfig, bus, record_property, foreign_mana
             assert_period(gaps(stamps), period_ms / 1000, 0.05)
 
     # The node lost nothing, sending or receiving.
+    if eth is not None:
+        # Ethernet beside it: nothing the MAC dropped, every event and OBD answer there.
+        steps = [(b - a) % 128 for a, b in pairwise(eth["counters"])]
+        print(f"ethernet: {len(eth['counters'])} DcdcStatus, {eth['obd']} OBD over DoIP, ping {eth['ping'].strip().splitlines()[-2:] if eth['ping'] else 'off'}, MAC drops {eth_after['rx_dropped'] - eth_before['rx_dropped']}")
+        assert eth_after["rx_dropped"] == eth_before["rx_dropped"], (eth_before, eth_after)
+        assert len(eth["counters"]) > 2 and set(steps) <= {1, 2, 3}, steps
+        assert eth["obd"] > 0 and eth["obd_bad"] == [], eth["obd_bad"][:3]
+        assert not eth["ping"] or " 0% packet loss" in eth["ping"], eth["ping"]
     assert delta["overflow"] == 0, delta
     assert delta["tx_error"] == 0, delta
     assert delta["rx_overrun"] == 0, delta
