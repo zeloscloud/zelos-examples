@@ -236,10 +236,7 @@ def test_errors_and_refusals(host):
 
 def test_reboot_stops_the_offer_and_sets_the_reboot_flag(host, group, can_ecu):
     with Client(host) as c:
-        # Two unicast answers, so the session's drop at the reboot shows.
         assert find(c) is not None
-        before = find(c)
-        assert before is not None
         assert can_ecu.raw(b"\x11\x01") == b"\x51\x01"
         if group:
             # A cyclic offer may still be on its way: the StopOffer is the one with TTL 0.
@@ -249,12 +246,12 @@ def test_reboot_stops_the_offer_and_sets_the_reboot_flag(host, group, can_ecu):
             assert first is not None, "no offer after the reboot"
             _, flags, entries, msg = first
             assert flags & FLAG_REBOOT and msg.session == 1 and entries[0].ttl == TTL_S
-        # Unicast too, as a peer detects a reboot (PRS_SOMEIPSD_00258): Reboot set and the
-        # session lower than before. The node answers for a moment after the reset's
-        # response: wait for its reboot.
+        # Unicast too: this host's own counter (PRS_SOMEIPSD_00631) starts over at 1,
+        # Reboot set. The node answers for a moment after the reset's response: wait
+        # for its reboot.
         can_ecu.wait_up(bound(5.0))
         end = time.monotonic() + bound(15.0)
         while (got := find(c)) is None:
             assert time.monotonic() < end, "no answer after the reboot"
         flags, _, msg = got
-        assert flags & FLAG_REBOOT and msg.session < before[2].session, (hex(flags), msg.session, before[2].session)
+        assert flags & FLAG_REBOOT and msg.session == 1, (hex(flags), msg.session)
