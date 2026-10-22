@@ -15,10 +15,11 @@
  *   0x0110 CAN statistics, 6 x uint32 (see struct zelos_can_stats): sent,
  *          overflow, deferred, tx_error, peak, rx_overrun. The node's, so in
  *          a combined image every protocol's
- *   0x0111 Ethernet, with lib/eth only, 22 bytes: link up (0/1), speed Mb/s
+ *   0x0111 Ethernet, with lib/eth only, 23 bytes: link up (0/1), speed Mb/s
  *          (0, 10, 100), full duplex (0/1), IPv4 (enum zelos_eth_ipv4: 0 none,
  *          1 probing, 2 up, 3 conflict), MAC (6), then uint32 RX packets, TX
- *          packets, RX errors
+ *          packets, RX dropped (struct zelos_eth_status), then DoIP testers
+ *          activated (uint8)
  *   0x0200 output voltage setpoint, uint16 10 mV, 1380 at power-on, 1000..1600;
  *          written in extended with level 0x01. The model regulates to it.
  * I/O control 0x0300: the same setpoint, overridden: return, reset to 1380,
@@ -64,6 +65,7 @@
 #include <string.h>
 
 #include <zelos/can.h>
+#include <zelos/doip.h>
 #include <zelos/eth.h>
 #include <zelos/uds.h>
 
@@ -232,6 +234,11 @@ static void read_eth(uint8_t *out)
 	sys_put_be32(st.rx_packets, &out[10]);
 	sys_put_be32(st.tx_packets, &out[14]);
 	sys_put_be32(st.rx_errors, &out[18]);
+#if defined(CONFIG_ZELOS_DOIP)
+	out[22] = zelos_doip_testers();
+#else
+	out[22] = 0;
+#endif
 }
 #endif
 
@@ -250,7 +257,7 @@ static const struct zelos_uds_did dids[] = {
 	{0x0106, 2, read_input_a, NULL},
 	{0x0110, 24, read_can_stats, NULL},
 #if defined(CONFIG_ZELOS_ETH)
-	{0x0111, 22, read_eth, NULL},
+	{0x0111, 23, read_eth, NULL},
 #endif
 	{0x0200, 2, read_setpoint, write_setpoint},
 };
@@ -359,9 +366,24 @@ static const struct zelos_uds_config config = {
 	.ecu_name = ECU_NAME,
 };
 
+#if defined(CONFIG_ZELOS_DOIP)
+static const struct zelos_doip_config doip = {
+	.logical_address = CONFIG_ZELOS_DOIP_LOGICAL_ADDRESS,
+	.functional_address = CONFIG_ZELOS_DOIP_FUNCTIONAL_ADDRESS,
+	.vin = read_vin,
+};
+#endif
+
 int dcdc_uds_start(void)
 {
-	return zelos_uds_start(&config);
+	int err = zelos_uds_start(&config);
+
+#if defined(CONFIG_ZELOS_DOIP)
+	if (err == 0) {
+		err = zelos_doip_start(&doip);
+	}
+#endif
+	return err;
 }
 
 float dcdc_uds_output_v(void)
