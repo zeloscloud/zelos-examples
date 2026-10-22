@@ -1,0 +1,7 @@
+name: ethernet
+append:
+  EXTRA_CONF_FILE: ethernet.conf
+boards:
+  /nucleo_h753zi.*/:
+    append:
+      EXTRA_DTC_OVERLAY_FILE: nucleo_h753zi.overlay

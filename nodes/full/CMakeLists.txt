@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20.0)
-# XCP, UDS and AUTOSAR are part of this image, so their snippets apply without -S.
-set(SNIPPET xcp uds autosar CACHE STRING "Snippets every build of this image takes")
+# XCP, UDS, AUTOSAR and Ethernet are part of this image, so their snippets apply without -S.
+set(SNIPPET xcp uds autosar ethernet CACHE STRING "Snippets every build of this image takes")
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(full)
 
