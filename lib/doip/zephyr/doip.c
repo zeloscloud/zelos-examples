@@ -34,7 +34,7 @@ LOG_MODULE_REGISTER(zelos_doip, LOG_LEVEL_INF);
 #define ANNOUNCE_NUM 3
 /* Vehicle identification responses waiting out A_DoIP_Announce_Wait. */
 #define DELAYED_MAX 4
-/* Before an ECUReset's reboot, twice: the response, then the FINs, acknowledged on a LAN. */
+/* Before an ECUReset's reboot: the response, then the FINs, acknowledged on a LAN. */
 #define RESET_DRAIN_MS 100
 /* Listener, UDP, tester sockets: CONFIG_ZVFS_POLL_MAX at least. */
 #define FDS (2 + ZELOS_DOIP_SOCKETS)
@@ -360,9 +360,7 @@ static void run(void *p1, void *p2, void *p3)
 		}
 		if (reset_after != ZELOS_UDS_RESET_NONE) {
 			LOG_INF("ECUReset over DoIP");
-			/* The response out, then every tester told, as the reboot would not. */
-			k_msleep(RESET_DRAIN_MS);
-			close_all();
+			/* The response out first; the hook then closes every tester. */
 			k_msleep(RESET_DRAIN_MS);
 			zelos_reboot(reset_after == ZELOS_UDS_RESET_HARD ? SYS_REBOOT_COLD
 								       : SYS_REBOOT_WARM);
@@ -372,10 +370,26 @@ static void run(void *p1, void *p2, void *p3)
 
 K_THREAD_DEFINE(doip_tid, STACK_SIZE, run, NULL, NULL, NULL, PRIORITY, 0, SYS_FOREVER_MS);
 
+/*
+ * zelos_reboot()'s hook, in the rebooting thread: every tester learns of the
+ * reboot at once (FIN), whatever asked for it. The DoIP thread may still poll
+ * these sockets; nothing it does then outlasts the reboot.
+ */
+static void close_testers(void)
+{
+	for (int s = 0; s < ZELOS_DOIP_SOCKETS; s++) {
+		if (fd[s] >= 0) {
+			zsock_close(fd[s]);
+		}
+	}
+	k_msleep(RESET_DRAIN_MS);
+}
+
 int zelos_doip_start(const struct zelos_doip_config *cfg)
 {
 	config = cfg;
 	zelos_uds_on_response(on_response);
+	zelos_reboot_on(close_testers);
 	k_thread_start(doip_tid);
 	LOG_INF("DoIP entity 0x%04x (functional 0x%04x)", cfg->logical_address,
 		cfg->functional_address);
