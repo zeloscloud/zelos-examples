@@ -47,13 +47,16 @@ same default, so run one bench at a time or move one.
 |---|---|---|---|
 | VCU | `../nodes/vcu` | | `0x101` |
 | BMS | `../nodes/bms` | | `0x200`-`0x202` |
-| DC-DC | `../nodes/full` (`../nodes/dcdc`, XCP, UDS and AUTOSAR) | XCP on CAN, UDS on ISO-TP, AUTOSAR PDUs | `0x300`; AUTOSAR `0x310`-`0x315`; CRO `0x6F0`, DTO `0x6F1`; UDS `0x7E0`, functional `0x7DF`, responses `0x7E8` |
+| DC-DC | `../nodes/full` (`../nodes/dcdc`, XCP, UDS, AUTOSAR and Ethernet) | XCP on CAN, UDS on ISO-TP, AUTOSAR PDUs; IPv4 on Ethernet | `0x300`; AUTOSAR `0x310`-`0x315`; CRO `0x6F0`, DTO `0x6F1`; UDS `0x7E0`, functional `0x7DF`, responses `0x7E8`; `10.1.1.75/24` |
 | Signal generator | `../nodes/full/src/waveform.c` | Classic CAN | `0x7F0` `Waveform` every 2 ms: sine, square and sawtooth of one phase, chirped 1 to 100 Hz over 20 s; the lowest-priority id, for plots |
 | genset | `../nodes/full` (`../nodes/genset`) | J1939 | 29-bit, source address `0x80` |
 | PDU | `../nodes/full` (`../nodes/pdu`) | CANopen, node-id `0x20` | NMT `0x000`, SYNC `0x080`, TIME `0x100`, EMCY `0x0A0`, TPDO1 `0x1A0`, RPDO1 `0x220`, TPDO2 `0x2A0`, RPDO2 `0x320`, TPDO3 `0x3A0`, SDO `0x5A0`/`0x620`, heartbeat `0x720` |
 
 The first three are can-bench's, unchanged except that the DC-DC runs XCP, UDS
-and AUTOSAR PDUs. Over XCP its demand and slew rate become calibration parameters, its
+and AUTOSAR PDUs, and has Ethernet. On this bench every node sits on one
+Renode Ethernet switch, bridged to `tap0` (10.1.1.1/24) where the tester runs; on
+hardware the board's RJ45 port joins the bench's LAN, and nothing waits for the
+cable: CAN starts at the same time without one. Over XCP its demand and slew rate become calibration parameters, its
 setpoint, current, temperature and allowance measurements, all described by
 `build/full.a2l`, which the build fills with that ELF's addresses.
 Over UDS (ISO 14229-1) it is a diagnostic server as an OEM baseline ECU carries
@@ -102,6 +105,7 @@ inputs and per-channel current, and trips channel 8, which is shorted.
 | `../testing/suites/autosar` | DC-DC | Decoded as a bench decodes an AUTOSAR ECU, from the ARXML alone: ids, lengths and cycles as described; E2E profile 1 (by hand), 2 and 5 (cantools) CRCs and counters; the container's PDUs in turn; the multiplexed PDU's alternatives; the SecOC MAC verified with the key; every value equal to DCDC_Status's of the same sample; UDS on the CanTp addresses the ARXML gives, its flow control as described; 0x28 silences the PDUs. The ARXML carries `bench.dbc` unchanged. Core: ztests in `../tests/lib/autosar` with the PRS E2E examples |
 | `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; requests answered; periods; DM1 by BAM, reassembled by python-can-j1939; SOFT by RTS/CTS in the windows the requester grants, and by BAM to a global request. Originator conformance (windows, retransmit, abort, T3/T4): ztests in `../tests/lib/j1939` |
 | `../testing/suites/canopen` | PDU | Boot-up and heartbeat; NMT start, stop and pre-operational; SDO identity and downloads; RPDO commands reflected in TPDOs; an overcurrent trip raises EMCY and recovers; SYNC answered by the synchronous TPDO |
+| `../testing/suites/eth` | DC-DC | The board's Ethernet (`../lib/eth`): link 100 Mb/s full duplex, the static address up after conflict detection, ping, the host's neighbour entry equal to the node's MAC, and the node's counters (UDS DID `0x0111`, read over CAN). The host end is whichever interface is on the node's subnet: the bench's `tap0`, or the hardware bench's own |
 | `../testing/suites/full` | all three | Every protocol at once for `--soak-s` (120 s here, 10 s on hardware): XCP DAQ, a UDS 64 KiB download and upload loop, CANopen operational with SYNC every 10 ms and RPDO1, J1939 and DCDC_Status. No EMCY, no DAQ sample lost, periods kept, and the node's counters (UDS DID `0x0110`) show no TX queue overflow, TX error or RX FIFO overrun |
 
 The suites drive the other nodes' roles themselves when those nodes are absent,
