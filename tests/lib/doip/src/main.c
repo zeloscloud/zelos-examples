@@ -282,4 +282,33 @@ ZTEST(doip, test_inactivity)
 	zassert_true(closed[s]);
 }
 
+ZTEST(doip, test_entities_are_not_answered)
+{
+	/* Another entity's NACK, announcement or status: nothing, or two could bounce. */
+	static const uint8_t nack[] = {HDR(0x0000, 1), 0x01};
+	static const uint8_t vam[] = {HDR(0x0004, 0)};
+	static const uint8_t status[] = {HDR(0x4002, 0)};
+	uint8_t out[ZELOS_DOIP_MESSAGE_MAX];
+	bool delay;
+
+	zassert_equal(zelos_doip_core_udp(&doip, nack, sizeof(nack), out, &delay), 0);
+	zassert_equal(zelos_doip_core_udp(&doip, vam, sizeof(vam), out, &delay), 0);
+	zassert_equal(zelos_doip_core_udp(&doip, status, sizeof(status), out, &delay), 0);
+}
+
+ZTEST(doip, test_activation_after_the_checked_socket_closes)
+{
+	int a = open_socket();
+	int b;
+
+	ACTIVATE(a, 0x0E80, 0x00);
+	b = open_socket();
+	ACTIVATE(b, 0x0E80, 0x00);
+	SENT(a, HDR(0x0007, 0));
+	/* The old tester's socket goes (RST) before it answers: the new one takes over. */
+	zelos_doip_core_close(&doip, a);
+	zelos_doip_core_tick(&doip, now);
+	ACTIVATION(b, 0x0E80, 0x10);
+}
+
 ZTEST_SUITE(doip, NULL, NULL, before, NULL, NULL);

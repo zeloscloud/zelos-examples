@@ -67,6 +67,20 @@ enum {
 
 #define FOREVER INT64_MAX
 
+/* A type the entity takes on TCP. */
+static bool tcp_type(uint16_t type)
+{
+	return type == ACTIVATE || type == ALIVE_CHECK || type == ALIVE_CHECK_RESPONSE ||
+	       type == DIAGNOSTIC;
+}
+
+/* What entities send: answering one could bounce between two entities forever. */
+static bool from_entity(uint16_t type)
+{
+	return type == GENERIC_NACK || type == ANNOUNCEMENT ||
+	       type == ENTITY_STATUS_RESPONSE || type == POWER_MODE_RESPONSE;
+}
+
 static size_t header(uint8_t *out, uint16_t type, size_t len)
 {
 	out[0] = VERSION;
@@ -130,6 +144,10 @@ void zelos_doip_core_close(struct zelos_doip_core *doip, int s)
 	}
 	doip->ops->close(doip->ctx, s);
 	doip->socket[s].state = ZELOS_DOIP_FREE;
+	/* An activation waiting on this socket's alive check goes on at the next tick. */
+	doip->socket[s].alive_wait = false;
+	doip->socket[s].alive = false;
+	doip->socket[s].activating = false;
 }
 
 static void send(struct zelos_doip_core *doip, int s, size_t len)
@@ -229,6 +247,8 @@ static void activate(struct zelos_doip_core *doip, int s, int64_t now)
 	}
 	if (waiting) {
 		sock->activating = true;
+		/* The initial inactivity timer does not close it while it waits. */
+		sock->idle_until = MAX(sock->idle_until, now + ALIVE_CHECK_MS + INITIAL_INACTIVITY_MS);
 		return;
 	}
 	sock->state = ZELOS_DOIP_ACTIVE;
@@ -241,7 +261,7 @@ static void activate(struct zelos_doip_core *doip, int s, int64_t now)
 static void resume(struct zelos_doip_core *doip, int64_t now)
 {
 	for (int i = 0; i < ZELOS_DOIP_SOCKETS; i++) {
-		if (doip->socket[i].alive_wait) {
+		if (doip->socket[i].state != ZELOS_DOIP_FREE && doip->socket[i].alive_wait) {
 			return;
 		}
 	}
@@ -338,7 +358,9 @@ static void message(struct zelos_doip_core *doip, int s, int64_t now)
 		valid = len >= 5;
 		break;
 	default:
-		send_nack(doip, s, UNKNOWN_TYPE);
+		if (!from_entity(type)) {
+			send_nack(doip, s, UNKNOWN_TYPE);
+		}
 		return;
 	}
 	if (!valid) {
@@ -423,9 +445,16 @@ void zelos_doip_core_receive(struct zelos_doip_core *doip, int s, const uint8_t 
 			const uint8_t *p = &sock->buf[ZELOS_DOIP_HEADER_SIZE];
 			const size_t read = sock->have - ZELOS_DOIP_HEADER_SIZE;
 
+			const uint16_t type = sys_get_be16(&sock->buf[2]);
+
+			/* ISO 13400-2 order: unknown type before too large. */
 			if (read == 4) {
 				diagnostic_nack(doip, s, sys_get_be16(&p[0]), sys_get_be16(&p[2]),
 						MESSAGE_TOO_LARGE);
+			} else if (!tcp_type(type)) {
+				if (!from_entity(type)) {
+					send_nack(doip, s, UNKNOWN_TYPE);
+				}
 			} else {
 				send_nack(doip, s, TOO_LARGE);
 			}
@@ -441,7 +470,6 @@ void zelos_doip_core_receive(struct zelos_doip_core *doip, int s, const uint8_t 
 int64_t zelos_doip_core_tick(struct zelos_doip_core *doip, int64_t now)
 {
 	int64_t next = FOREVER;
-	bool expired = false;
 
 	for (int i = 0; i < ZELOS_DOIP_SOCKETS; i++) {
 		struct zelos_doip_socket *sock = &doip->socket[i];
@@ -451,9 +479,7 @@ int64_t zelos_doip_core_tick(struct zelos_doip_core *doip, int64_t now)
 		}
 		if (sock->alive_wait && now >= sock->alive_until) {
 			/* Its tester is gone. */
-			sock->alive_wait = false;
 			zelos_doip_core_close(doip, i);
-			expired = true;
 			continue;
 		}
 		if (now >= sock->idle_until) {
@@ -465,9 +491,8 @@ int64_t zelos_doip_core_tick(struct zelos_doip_core *doip, int64_t now)
 			next = MIN(next, sock->alive_until);
 		}
 	}
-	if (expired) {
-		resume(doip, now);
-	}
+	/* Activations whose alive checks were answered, timed out, or lost their socket. */
+	resume(doip, now);
 	return next;
 }
 
@@ -501,6 +526,13 @@ size_t zelos_doip_core_udp(struct zelos_doip_core *doip, const uint8_t *in, size
 	size = sys_get_be32(&in[4]);
 	if (!version_ok(in, type >= IDENTIFY && type <= IDENTIFY_VIN)) {
 		return nack(out, INCORRECT_PATTERN);
+	}
+	if (from_entity(type)) {
+		return 0;
+	}
+	if (type != IDENTIFY && type != IDENTIFY_EID && type != IDENTIFY_VIN &&
+	    type != ENTITY_STATUS && type != POWER_MODE) {
+		return nack(out, UNKNOWN_TYPE);
 	}
 	if (size > ZELOS_DOIP_MDS) {
 		return nack(out, TOO_LARGE);

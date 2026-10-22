@@ -223,10 +223,14 @@ static bool endpoint(const uint8_t *entry, const uint8_t *options, size_t option
 			const uint8_t *o = options;
 			size_t left = options_len;
 
-			/* Walk to option first[run] + k. */
+			/* Walk to option first[run] + k, each length read only where it is. */
 			for (int i = 0; i < first[run] + k; i++) {
-				size_t size = 3 + sys_get_be16(o);
+				size_t size;
 
+				if (left < 3) {
+					return false;
+				}
+				size = 3 + sys_get_be16(o);
 				if (size > left) {
 					return false;
 				}
@@ -262,7 +266,8 @@ static void subscribe(struct zelos_someip_core *sip, const uint8_t *entry, const
 	uint16_t session;
 	size_t len;
 
-	ok = ok && endpoint(entry, options, options_len, &addr, &port);
+	/* 0.0.0.0 or port 0 would send nowhere, or to the SD group. */
+	ok = ok && endpoint(entry, options, options_len, &addr, &port) && addr != 0 && port != 0;
 	if (ok) {
 		for (int i = 0; i < ZELOS_SOMEIP_SUBSCRIBERS; i++) {
 			struct zelos_someip_subscriber *s = &sip->subscriber[i];
@@ -309,11 +314,18 @@ static void subscribe(struct zelos_someip_core *sip, const uint8_t *entry, const
 	sip->ops->send_sd(sip->ctx, from, from_port, sip->out, len);
 
 	if (fresh && svc->may_notify()) {
-		/* A field's notifier sends its value to a new subscriber at once. */
+		/*
+		 * A field's notifier sends its value to a new subscriber at once. The
+		 * value others last got stays, so a change since still reaches them.
+		 */
 		for (size_t f = 0; f < svc->field_count; f++) {
-			svc->fields[f].read(sip->field[f]);
-			send_value(sip, slot, svc->fields[f].notifier, sip->field[f],
-				   svc->fields[f].size);
+			uint8_t value[ZELOS_SOMEIP_PAYLOAD_MAX];
+
+			svc->fields[f].read(value);
+			if (zelos_someip_core_subscribers(sip) == 1) {
+				memcpy(sip->field[f], value, svc->fields[f].size);
+			}
+			send_value(sip, slot, svc->fields[f].notifier, value, svc->fields[f].size);
 		}
 	}
 	for (size_t e = 0; e < svc->event_count; e++) {
@@ -330,6 +342,7 @@ void zelos_someip_core_sd(struct zelos_someip_core *sip, uint32_t addr, uint16_t
 	const uint8_t *p = &data[ZELOS_SOMEIP_HEADER_SIZE];
 	size_t entries_len;
 	size_t options_len;
+	size_t avail;
 	const uint8_t *options;
 
 	if (!sip->up || len < ZELOS_SOMEIP_HEADER_SIZE + 12 ||
@@ -337,13 +350,15 @@ void zelos_someip_core_sd(struct zelos_someip_core *sip, uint32_t addr, uint16_t
 	    sys_get_be32(&data[4]) != len - 8) {
 		return;
 	}
+	/* Lengths from the wire, compared without sums that could wrap. */
+	avail = len - ZELOS_SOMEIP_HEADER_SIZE - 12;
 	entries_len = sys_get_be32(&p[4]);
-	if (entries_len % ENTRY_SIZE != 0 || 8 + entries_len + 4 > len - ZELOS_SOMEIP_HEADER_SIZE) {
+	if (entries_len % ENTRY_SIZE != 0 || entries_len > avail) {
 		return;
 	}
 	options_len = sys_get_be32(&p[8 + entries_len]);
 	options = &p[8 + entries_len + 4];
-	if (8 + entries_len + 4 + options_len > len - ZELOS_SOMEIP_HEADER_SIZE) {
+	if (options_len > avail - entries_len) {
 		return;
 	}
 

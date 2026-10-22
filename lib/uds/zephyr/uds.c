@@ -461,7 +461,9 @@ static void handle(struct net_buf *buf, bool functional)
 	k_mutex_lock(&core_lock, K_FOREVER);
 	n = zelos_uds_core_serve(&core, ZELOS_UDS_ORIGIN_CAN, req, len, functional, k_uptime_get(),
 				 rsp);
+	/* The requester's to act on: a reset asked over DoIP is not CAN's to repeat. */
 	reset = core.reset;
+	core.reset = ZELOS_UDS_RESET_NONE;
 	k_mutex_unlock(&core_lock);
 
 	send(n);
@@ -592,6 +594,7 @@ size_t zelos_uds_serve(uint16_t origin, const uint8_t *req, size_t len, bool fun
 	k_mutex_lock(&core_lock, K_FOREVER);
 	n = zelos_uds_core_serve(&core, origin, req, len, functional, k_uptime_get(), out);
 	*reset = core.reset;
+	core.reset = ZELOS_UDS_RESET_NONE;
 	k_mutex_unlock(&core_lock);
 	return n;
 }

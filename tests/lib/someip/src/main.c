@@ -277,4 +277,28 @@ ZTEST(someip, test_unicast_sessions_per_peer)
 	}
 }
 
+ZTEST(someip, test_hostile_lengths)
+{
+	/* A subscribe whose options length wraps a 32-bit sum, or whose option runs off. */
+	uint8_t m[16 + 8 + 16 + 4 + 2] = {0xFF, 0xFF, 0x81, 0x00, 0, 0, 0, 38};
+	const uint8_t e[16] = {0x06, 0xFF, 0, 0x10, 0x5A, 0x00, 0, 1, 1, 0, 0, 3, 0, 0, 0, 1};
+
+	sys_put_be32(16, &m[20]);
+	memcpy(&m[24], e, 16);
+	sys_put_be32(0xFFFFFFF0, &m[40]);
+	sd_sent = 0;
+	zelos_someip_core_sd(&sip, PEER, 30490, m, sizeof(m), now);
+	zassert_equal(sd_sent, 0);
+	zassert_equal(zelos_someip_core_subscribers(&sip), 0);
+
+	/* A valid options length, but option 255 of a 2-byte, one-length-field run. */
+	sys_put_be32(2, &m[40]);
+	m[44] = 0xFF;
+	m[45] = 0xFF;
+	zelos_someip_core_sd(&sip, PEER, 30490, m, sizeof(m), now);
+	zassert_equal(zelos_someip_core_subscribers(&sip), 0);
+	/* Refused with a Nack, nothing read beyond the datagram. */
+	zassert_equal(sys_get_be24(&sd_out[24 + 9]), 0);
+}
+
 ZTEST_SUITE(someip, NULL, NULL, before, NULL, NULL);

@@ -17,7 +17,7 @@
  *          a combined image every protocol's
  *   0x0111 Ethernet, with lib/eth only, 28 bytes: link up (0/1), speed Mb/s
  *          (0, 10, 100), full duplex (0/1), IPv4 (enum zelos_eth_ipv4: 0 none,
- *          1 probing, 2 up, 3 conflict), MAC (6), then uint32 RX packets, TX
+ *          1 probing, 2 up, 3 conflict, 4 contested), MAC (6), then uint32 RX packets, TX
  *          packets, RX dropped (struct zelos_eth_status), then DoIP testers
  *          activated and SOME/IP subscribers (uint8 each), then uint32 frames
  *          the MAC dropped (FIFO full, no descriptor): the loss count
@@ -71,6 +71,7 @@
 #include <zelos/someip.h>
 #include <zelos/uds.h>
 
+#include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/util.h>
 
@@ -133,19 +134,29 @@ READ_ASCII(read_serial, SERIAL)
 READ_ASCII(read_hw_version, HW_VERSION)
 READ_ASCII(read_sw_version, SW_VERSION)
 
+/* Written by UDS, read by DoIP's thread too (vehicle identification). */
+static struct k_spinlock vin_lock;
+
 static void read_vin(uint8_t *out)
 {
+	k_spinlock_key_t key = k_spin_lock(&vin_lock);
+
 	memcpy(out, vin, VIN_LEN);
+	k_spin_unlock(&vin_lock, key);
 }
 
 static uint8_t write_vin(const uint8_t *in)
 {
+	k_spinlock_key_t key;
+
 	for (size_t i = 0; i < VIN_LEN; i++) {
 		if (in[i] < 0x20 || in[i] > 0x7E) {
 			return NRC_OUT_OF_RANGE;
 		}
 	}
+	key = k_spin_lock(&vin_lock);
 	memcpy(vin, in, VIN_LEN);
+	k_spin_unlock(&vin_lock, key);
 	return 0;
 }
 

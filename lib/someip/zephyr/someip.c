@@ -142,7 +142,7 @@ static void run(void *p1, void *p2, void *p3)
 		int64_t next;
 		int ready;
 
-		up = zelos_eth_ipv4() == ZELOS_ETH_IPV4_UP;
+		up = zelos_eth_ipv4_usable(zelos_eth_ipv4());
 		if (up && !was_up) {
 			struct net_in_addr self;
 

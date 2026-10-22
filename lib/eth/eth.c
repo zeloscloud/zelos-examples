@@ -101,7 +101,7 @@ static void on_acd(struct net_mgmt_event_callback *cb, uint64_t event, struct ne
 		break;
 	default:
 		/* Claimed by a host after ours was up; the stack keeps and defends it. */
-		atomic_set(&ipv4, ZELOS_ETH_IPV4_CONFLICT);
+		atomic_set(&ipv4, ZELOS_ETH_IPV4_CONTESTED);
 		LOG_ERR("%s also claimed by another host", CONFIG_ZELOS_ETH_IPV4_ADDR);
 		break;
 	}

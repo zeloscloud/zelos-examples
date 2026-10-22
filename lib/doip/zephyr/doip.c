@@ -61,6 +61,8 @@ static size_t pending_len;
 static uint16_t pending_to;
 
 static atomic_t testers;
+/* Set by the reboot hook: the DoIP thread touches no socket after. */
+static atomic_t rebooting;
 
 uint8_t zelos_doip_testers(void)
 {
@@ -296,12 +298,17 @@ static void run(void *p1, void *p2, void *p3)
 
 	for (;;) {
 		int64_t now = k_uptime_get();
-		int64_t next = zelos_doip_core_tick(&core, now);
+		int64_t next;
 		const bool was_up = up;
 		int timeout;
 		int ready;
 
-		up = zelos_eth_ipv4() == ZELOS_ETH_IPV4_UP;
+		if (atomic_get(&rebooting)) {
+			k_sleep(K_FOREVER);
+		}
+		next = zelos_doip_core_tick(&core, now);
+
+		up = zelos_eth_ipv4_usable(zelos_eth_ipv4());
 		if (up && !was_up) {
 			if (udp < 0) {
 				/* The EID is the MAC, known once lib/eth has started. */
@@ -344,7 +351,7 @@ static void run(void *p1, void *p2, void *p3)
 			LOG_ERR("poll: %d", errno);
 			k_msleep(POLL_MS);
 		}
-		if (ready <= 0) {
+		if (ready <= 0 || atomic_get(&rebooting)) {
 			continue;
 		}
 		if (fds[0].revents & ZSOCK_POLLIN) {
@@ -372,17 +379,24 @@ K_THREAD_DEFINE(doip_tid, STACK_SIZE, run, NULL, NULL, NULL, PRIORITY, 0, SYS_FO
 
 /*
  * zelos_reboot()'s hook, in the rebooting thread: every tester learns of the
- * reboot at once (FIN), whatever asked for it. The DoIP thread may still poll
- * these sockets; nothing it does then outlasts the reboot.
+ * reboot at once (FIN), whatever asked for it.
  */
 static void close_testers(void)
 {
+	bool closed = false;
+
+	/* The DoIP thread leaves the sockets alone from here (run()). */
+	atomic_set(&rebooting, 1);
 	for (int s = 0; s < ZELOS_DOIP_SOCKETS; s++) {
 		if (fd[s] >= 0) {
 			zsock_close(fd[s]);
+			fd[s] = -1;
+			closed = true;
 		}
 	}
-	k_msleep(RESET_DRAIN_MS);
+	if (closed) {
+		k_msleep(RESET_DRAIN_MS);
+	}
 }
 
 int zelos_doip_start(const struct zelos_doip_config *cfg)

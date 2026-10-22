@@ -21,9 +21,17 @@ enum zelos_eth_ipv4 {
 	/* Conflict detection running. */
 	ZELOS_ETH_IPV4_PROBING = 1,
 	ZELOS_ETH_IPV4_UP = 2,
-	/* Another host claims the address. */
+	/* Another host held it while probing: the address is not used. */
 	ZELOS_ETH_IPV4_CONFLICT = 3,
+	/* Up, and another host claims it since: kept and defended, as Zephyr does. */
+	ZELOS_ETH_IPV4_CONTESTED = 4,
 };
+
+/* Whether the address is usable: up, contested or not. */
+static inline bool zelos_eth_ipv4_usable(enum zelos_eth_ipv4 state)
+{
+	return state == ZELOS_ETH_IPV4_UP || state == ZELOS_ETH_IPV4_CONTESTED;
+}
 
 struct zelos_eth_status {
 	bool link;

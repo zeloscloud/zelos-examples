@@ -74,7 +74,7 @@ class EthStatus(DidCodec):
     """DID 0x0111, struct zelos_eth_status, as a dict; the MAC as aa:bb:..."""
 
     FMT = struct.Struct(">4B6s3I2BI")
-    IPV4 = ("none", "probing", "up", "conflict")
+    IPV4 = ("none", "probing", "up", "conflict", "contested")
 
     def encode(self, value) -> bytes:
         raise NotImplementedError("read-only")
