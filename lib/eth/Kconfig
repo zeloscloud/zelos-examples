@@ -1,0 +1,19 @@
+config ZELOS_ETH
+	bool "Ethernet link and a static IPv4 address"
+	depends on NET_IPV4 && NET_L2_ETHERNET && NET_MGMT_EVENT && NET_STATISTICS_USER_API
+	help
+	  zelos_eth_start() sets ZELOS_ETH_IPV4_ADDR on the board's Ethernet
+	  interface and returns without waiting for a link. See
+	  include/zelos/eth.h; snippets/ethernet turns it on.
+
+if ZELOS_ETH
+
+config ZELOS_ETH_IPV4_ADDR
+	string "Static IPv4 address"
+	default "10.1.1.75"
+
+config ZELOS_ETH_IPV4_NETMASK
+	string "IPv4 netmask"
+	default "255.255.255.0"
+
+endif # ZELOS_ETH
