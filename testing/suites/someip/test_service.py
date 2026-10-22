@@ -37,7 +37,13 @@ from zelos_testing.someip import (
     Client,
     Entry,
 )
-from zelos_testing.uds import EXTENDED, LEVEL_EXTENDED, SETPOINT, SETPOINT_V
+from zelos_testing.uds import (
+    EXTENDED,
+    LEVEL_EXTENDED,
+    SETPOINT,
+    SETPOINT_V,
+    keep_session,
+)
 
 pytestmark = pytest.mark.usefixtures("bus_health")
 
@@ -186,8 +192,12 @@ def test_setpoint_getter_and_notifier(host, can_ecu):
             c.subscribe(ttl=0)
 
 
-def test_communication_control_stops_events_only(host, can_ecu):
-    with Client(host) as c:
+def test_communication_control_stops_events_only(pytestconfig, host, can_ecu):
+    with (
+        can.Bus(interface=pytestconfig.getoption("interface"), channel=pytestconfig.getoption("channel")) as bus,
+        keep_session(bus),
+        Client(host) as c,
+    ):
         c.subscribe(ttl=0xFFFFFF)
         assert c.sd_from_node(1.0, lambda f, e: any(x.kind == SUBSCRIBE_ACK for x in e)) is not None
         assert c.event(1.0) is not None

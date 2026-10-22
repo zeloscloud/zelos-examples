@@ -21,6 +21,8 @@ def host(pytestconfig) -> str:
     link = eth_link(pytestconfig)
     if link is None:
         pytest.skip(f"no host interface on {pytestconfig.getoption('eth_host')}'s subnet (--eth-iface)")
+    # Up, after a boot's link and conflict detection.
+    doip.wait_entity(link[1])
     return link[1]
 
 

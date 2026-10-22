@@ -79,7 +79,17 @@ class Raw:
     """One TCP connection to the entity, message by message."""
 
     def __init__(self, host: str, timeout_s: float = 2.0):
-        self.sock = socket.create_connection((host, PORT), timeout_s, source_address=(local_address(host), 0))
+        # Refused while the entity's closed connections wait out TIME_WAIT (1.5 s of its
+        # time, longer under Renode) with every context taken: retried.
+        end = time.monotonic() + frames.bound(timeout_s)
+        while True:
+            try:
+                self.sock = socket.create_connection((host, PORT), frames.bound(timeout_s), source_address=(local_address(host), 0))
+                break
+            except ConnectionRefusedError:
+                if time.monotonic() >= end:
+                    raise
+                time.sleep(0.1)
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.rx = b""
 
@@ -96,8 +106,9 @@ class Raw:
         self.sock.sendall(message(kind, payload))
 
     def recv(self, timeout_s: float = 2.0) -> tuple[int, bytes] | None:
-        """The next message; None once the entity closed; TimeoutError if none in timeout_s."""
-        deadline = time.monotonic() + timeout_s
+        """The next message; None once the entity closed; TimeoutError if none in timeout_s
+        of node time."""
+        deadline = time.monotonic() + frames.bound(timeout_s)
         while True:
             if len(self.rx) >= HEADER.size:
                 size = HEADER.size + HEADER.unpack_from(self.rx)[3]
@@ -146,6 +157,13 @@ class Raw:
             return None
         assert kind == DIAGNOSTIC and payload[:4] == struct.pack("!HH", ECU, source), (hex(kind), payload.hex())
         return payload[4:]
+
+
+def wait_entity(host: str, timeout_s: float = ADDRESS_S) -> None:
+    """Until the entity answers vehicle identification: its address is up after a boot."""
+    end = time.monotonic() + frames.bound(timeout_s)
+    while not udp(host, IDENTIFY):
+        assert time.monotonic() < end, f"no DoIP entity at {host} after {timeout_s:.0f} s"
 
 
 def tester(host: str, timeout_s: float):
