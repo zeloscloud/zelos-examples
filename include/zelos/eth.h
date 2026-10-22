@@ -35,12 +35,19 @@ struct zelos_eth_status {
 	/* Since boot. */
 	uint32_t rx_packets;
 	uint32_t tx_packets;
-	/* Frames the driver dropped or failed to receive. */
+	/*
+	 * Frames dropped on receive, Zephyr's count: not for this host (another
+	 * host's ARP, flooded unicast), refused by the stack, or lost (no buffer,
+	 * DMA error). On a shared LAN it grows; not a loss count alone.
+	 */
 	uint32_t rx_errors;
 };
 
 /** Set the address and return. 0, or -ENODEV without an Ethernet interface. */
 int zelos_eth_start(void);
+
+/** The address's state alone, cheaply, from any thread. */
+enum zelos_eth_ipv4 zelos_eth_ipv4(void);
 
 /** A snapshot, from any thread. Zeroes before zelos_eth_start(). */
 struct zelos_eth_status zelos_eth_status(void);

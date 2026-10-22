@@ -262,6 +262,29 @@ int zelos_uds_start(const struct zelos_uds_config *config);
  */
 void zelos_uds_dtc(size_t index, bool failed);
 
+/**
+ * A request from a tester on another transport (DoIP), as the CAN server
+ * serves its own: see zelos_uds_core_serve(). Any thread.
+ *
+ * @param origin The tester's logical address, never ZELOS_UDS_ORIGIN_CAN.
+ * @param out CONFIG_ZELOS_UDS_BUF_SIZE bytes for the response.
+ * @param reset Set to the ECUReset requested (enum zelos_uds_reset): the
+ *              caller sends the response, then calls zelos_reboot().
+ * @return Length of the response; 0: none.
+ */
+size_t zelos_uds_serve(uint16_t origin, const uint8_t *req, size_t len, bool functional,
+		       uint8_t *out, uint8_t *reset);
+
+/* The origin's tester is gone: the session it owns, if any, ends. */
+void zelos_uds_release(uint16_t origin);
+
+/*
+ * Pending routine responses for a tester on another transport. Called from the
+ * UDS thread; must not block: copy and hand over.
+ */
+typedef void (*zelos_uds_sink_t)(uint16_t origin, const uint8_t *rsp, size_t len);
+void zelos_uds_on_response(zelos_uds_sink_t fn);
+
 /* Whether 0x28 lets the application send, and receive, its normal messages. */
 bool zelos_uds_tx_enabled(void);
 bool zelos_uds_rx_enabled(void);

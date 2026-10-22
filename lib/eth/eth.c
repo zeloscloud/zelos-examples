@@ -135,6 +135,11 @@ int zelos_eth_start(void)
 	return 0;
 }
 
+enum zelos_eth_ipv4 zelos_eth_ipv4(void)
+{
+	return (enum zelos_eth_ipv4)atomic_get(&ipv4);
+}
+
 struct zelos_eth_status zelos_eth_status(void)
 {
 	struct zelos_eth_status st = {0};

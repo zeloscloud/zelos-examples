@@ -505,8 +505,12 @@ static void receive(struct isotp_recv_ctx *ctx, k_timeout_t timeout, bool functi
 	}
 }
 
+/* Where a pending routine's responses go when another transport's tester started it. */
+static zelos_uds_sink_t sink;
+
 static void uds_thread(void *p1, void *p2, void *p3)
 {
+	uint16_t to;
 	size_t n;
 
 	ARG_UNUSED(p1);
@@ -526,9 +530,14 @@ static void uds_thread(void *p1, void *p2, void *p3)
 		receive(&func_ctx, K_NO_WAIT, true);
 
 		k_mutex_lock(&core_lock, K_FOREVER);
+		to = core.pending_origin;
 		n = zelos_uds_core_tick(&core, k_uptime_get(), rsp);
 		k_mutex_unlock(&core_lock);
-		send(n);
+		if (to == ZELOS_UDS_ORIGIN_CAN) {
+			send(n);
+		} else if (n > 0 && sink != NULL) {
+			sink(to, rsp, n);
+		}
 	}
 }
 
@@ -573,6 +582,30 @@ int zelos_uds_start(const struct zelos_uds_config *config)
 		CONFIG_ZELOS_UDS_FUNC_ID, CONFIG_ZELOS_UDS_RESP_ID);
 
 	return 0;
+}
+
+size_t zelos_uds_serve(uint16_t origin, const uint8_t *req, size_t len, bool functional,
+		       uint8_t *out, uint8_t *reset)
+{
+	size_t n;
+
+	k_mutex_lock(&core_lock, K_FOREVER);
+	n = zelos_uds_core_serve(&core, origin, req, len, functional, k_uptime_get(), out);
+	*reset = core.reset;
+	k_mutex_unlock(&core_lock);
+	return n;
+}
+
+void zelos_uds_release(uint16_t origin)
+{
+	k_mutex_lock(&core_lock, K_FOREVER);
+	zelos_uds_core_release(&core, origin);
+	k_mutex_unlock(&core_lock);
+}
+
+void zelos_uds_on_response(zelos_uds_sink_t fn)
+{
+	sink = fn;
 }
 
 void zelos_uds_dtc(size_t index, bool failed)
