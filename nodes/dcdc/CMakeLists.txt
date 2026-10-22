@@ -18,3 +18,7 @@ endif()
 if(CONFIG_ZELOS_AUTOSAR)
   target_sources(app PRIVATE src/autosar.c src/autosar_pdus.c)
 endif()
+# A SOME/IP service, only with `-S ethernet` (and `-S uds`, for its field).
+if(CONFIG_ZELOS_SOMEIP)
+  target_sources(app PRIVATE src/someip.c)
+endif()

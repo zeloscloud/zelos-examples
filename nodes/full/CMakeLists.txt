@@ -15,5 +15,6 @@ target_sources(app PRIVATE
   ${nodes}/genset/src/genset.c
   ${nodes}/pdu/src/pdu.c ${nodes}/pdu/od/CO_OD.c
 )
+target_sources_ifdef(CONFIG_ZELOS_SOMEIP app PRIVATE ${nodes}/dcdc/src/someip.c)
 # zephyr/dcdc.a2l, the DC-DC's A2L with this image's addresses.
 zelos_xcp_a2l(${nodes}/dcdc/dcdc.a2l)
