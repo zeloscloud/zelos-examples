@@ -34,6 +34,7 @@ from zelos_testing.uds import (
     DEFAULT,
     DOWNLOAD_ADDRESS,
     DOWNLOAD_SIZE,
+    DTC_BMS_LOST,
     DTC_OVERTEMPERATURE,
     DTCS,
     ERASE,
@@ -374,10 +375,11 @@ def test_dtc_reports(ecu):
     assert supported.status_availability.get_byte_as_int() == 0xFF
     assert [d.id for d in supported.dtcs] == list(DTCS)
     ecu.client.clear_dtc(0xFFFFFF)
-    # Cleared: none failed since. Untested or passed since, by the model.
-    assert dtcs(ecu, TF | TFSLC | CDTC | PDTC) == {}
-    # The list's mask: a passing model cycle between the two reads sets none of these bits.
-    count_ = ecu.client.get_number_of_dtc_by_status_mask(TF | TFSLC | CDTC | PDTC).service_data
+    # Cleared: none failed since, but U0111, which fails every cycle on a bench with no BMS.
+    failed = dtcs(ecu, TF | TFSLC | CDTC | PDTC)
+    assert set(failed) <= {DTC_BMS_LOST}, failed
+    # Confirmation takes another operation cycle: none is confirmed after the clear.
+    count_ = ecu.client.get_number_of_dtc_by_status_mask(CDTC).service_data
     assert count_.dtc_format == 0x01 and count_.dtc_count == 0
     assert nrc(ecu.client.clear_dtc, 0x000001) == 0x31
     ecu.client.clear_dtc(DTC_OVERTEMPERATURE)
