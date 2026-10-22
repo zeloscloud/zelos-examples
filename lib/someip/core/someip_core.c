@@ -89,7 +89,6 @@ void zelos_someip_core_init(struct zelos_someip_core *sip, const struct zelos_so
 	sip->ops = ops;
 	sip->ctx = ctx;
 	sip->reboot_mc = true;
-	sip->reboot_uc = true;
 }
 
 uint8_t zelos_someip_core_subscribers(const struct zelos_someip_core *sip)
@@ -118,14 +117,44 @@ void zelos_someip_core_down(struct zelos_someip_core *sip)
 	memset(sip->subscriber, 0, sizeof(sip->subscriber));
 }
 
-/* An SD message holding one service entry (offer, TTL ttl) and its endpoint option. */
-static size_t offer(struct zelos_someip_core *sip, uint8_t *out, bool unicast, uint32_t ttl)
+/* The next session ID to addr (0: multicast), and its Reboot flag. */
+static uint16_t session_to(struct zelos_someip_core *sip, uint32_t addr, bool *reboot)
+{
+	struct zelos_someip_peer *p = NULL;
+	uint16_t session;
+
+	if (addr == 0) {
+		session = next_session(&sip->session_mc, &sip->reboot_mc);
+		*reboot = sip->reboot_mc;
+		return session;
+	}
+	for (int i = 0; i < ZELOS_SOMEIP_PEERS; i++) {
+		struct zelos_someip_peer *q = &sip->peer[i];
+
+		if (q->used != 0 && q->addr == addr) {
+			p = q;
+			break;
+		}
+		if (p == NULL || q->used < p->used) {
+			p = q;
+		}
+	}
+	if (p->used == 0 || p->addr != addr) {
+		*p = (struct zelos_someip_peer){.addr = addr, .reboot = true};
+	}
+	p->used = ++sip->peer_clock;
+	session = next_session(&p->session, &p->reboot);
+	*reboot = p->reboot;
+	return session;
+}
+
+/* An SD message to addr (0: multicast) with one offer entry (TTL ttl) and its endpoint. */
+static size_t offer(struct zelos_someip_core *sip, uint8_t *out, uint32_t addr, uint32_t ttl)
 {
 	const struct zelos_someip_service *svc = sip->service;
 	uint8_t *p = &out[ZELOS_SOMEIP_HEADER_SIZE];
-	uint16_t session = unicast ? next_session(&sip->session_uc, &sip->reboot_uc)
-				   : next_session(&sip->session_mc, &sip->reboot_mc);
-	bool reboot = unicast ? sip->reboot_uc : sip->reboot_mc;
+	bool reboot;
+	uint16_t session = session_to(sip, addr, &reboot);
 
 	p[0] = (reboot ? FLAG_REBOOT : 0) | FLAG_UNICAST;
 	p[1] = p[2] = p[3] = 0;
@@ -156,7 +185,7 @@ static size_t offer(struct zelos_someip_core *sip, uint8_t *out, bool unicast, u
 
 size_t zelos_someip_core_stop_offer(struct zelos_someip_core *sip, uint8_t *out)
 {
-	return sip->up ? offer(sip, out, false, 0) : 0;
+	return sip->up ? offer(sip, out, 0, 0) : 0;
 }
 
 static void send_value(struct zelos_someip_core *sip, const struct zelos_someip_subscriber *to,
@@ -229,6 +258,7 @@ static void subscribe(struct zelos_someip_core *sip, const uint8_t *entry, const
 	uint32_t addr = 0;
 	uint16_t port = 0;
 	bool fresh = false;
+	bool reboot;
 	uint16_t session;
 	size_t len;
 
@@ -264,8 +294,8 @@ static void subscribe(struct zelos_someip_core *sip, const uint8_t *entry, const
 		return;
 	}
 
-	session = next_session(&sip->session_uc, &sip->reboot_uc);
-	p[0] = (sip->reboot_uc ? FLAG_REBOOT : 0) | FLAG_UNICAST;
+	session = session_to(sip, from, &reboot);
+	p[0] = (reboot ? FLAG_REBOOT : 0) | FLAG_UNICAST;
 	p[1] = p[2] = p[3] = 0;
 	sys_put_be32(ENTRY_SIZE, &p[4]);
 	/* The entry back, as an Ack (its TTL) or a Nack (TTL 0), no options. */
@@ -410,7 +440,7 @@ int64_t zelos_someip_core_tick(struct zelos_someip_core *sip, int64_t now)
 	}
 
 	if (now >= sip->next_offer) {
-		len = offer(sip, sip->out, false, TTL_S);
+		len = offer(sip, sip->out, 0, TTL_S);
 		sip->ops->send_sd(sip->ctx, 0, ZELOS_SOMEIP_SD_PORT, sip->out, len);
 		if (sip->repetition < REPETITIONS_MAX) {
 			/* 100, 200, 400 ms after the first, then the cycle. */
@@ -424,7 +454,7 @@ int64_t zelos_someip_core_tick(struct zelos_someip_core *sip, int64_t now)
 
 	if (sip->find_reply) {
 		if (now >= sip->find_at) {
-			len = offer(sip, sip->out, true, TTL_S);
+			len = offer(sip, sip->out, sip->find_addr, TTL_S);
 			sip->ops->send_sd(sip->ctx, sip->find_addr, sip->find_port, sip->out, len);
 			sip->find_reply = false;
 		} else {

@@ -253,4 +253,28 @@ ZTEST(someip, test_find_is_answered_unicast)
 	zassert_equal(sys_get_be16(&sd_out[10]), 1);
 }
 
+ZTEST(someip, test_unicast_sessions_per_peer)
+{
+	const uint8_t e[16] = {0x00, 0, 0, 0, 0x5A, 0x00, 0xFF, 0xFF, 0xFF, 0, 0, 3,
+			       0xFF, 0xFF, 0xFF, 0xFF};
+
+	/* Multicast offers do not count towards a peer's (PRS_SOMEIPSD_00256, 00631). */
+	zelos_someip_core_tick(&sip, now + 10);
+	zelos_someip_core_tick(&sip, now + 110);
+	/* Each peer from 1, Reboot set; its own counter goes on. */
+	for (uint32_t peer = PEER; peer < PEER + 2; peer++) {
+		for (uint16_t want = 1; want <= 2; want++) {
+			uint8_t m[16 + 8 + 16 + 4] = {0xFF, 0xFF, 0x81, 0x00, 0, 0, 0, 36};
+
+			sys_put_be32(16, &m[20]);
+			memcpy(&m[24], e, 16);
+			zelos_someip_core_sd(&sip, peer, 30490, m, sizeof(m), now + 120);
+			zelos_someip_core_tick(&sip, now + 120);
+			zassert_equal(sd_to, peer);
+			zassert_equal(sys_get_be16(&sd_out[10]), want);
+			zassert_equal(sd_out[16] & 0x80, 0x80);
+		}
+	}
+}
+
 ZTEST_SUITE(someip, NULL, NULL, before, NULL, NULL);

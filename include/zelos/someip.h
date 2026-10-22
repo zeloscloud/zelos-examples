@@ -10,8 +10,10 @@
  * acknowledged and the subscriber gets the events, unicast, until its TTL ends
  * or it stops; anything else gets a negative acknowledgement. Four
  * subscribers at most. A link down forgets them; SD starts over at link up.
- * zelos_reboot() sends a StopOffer first. The Reboot flag stays set until a
- * session counter wraps, so peers can tell a reboot.
+ * zelos_reboot() sends a StopOffer first. SD session IDs count per relation,
+ * multicast and each unicast peer by address, each from 1 after a boot with
+ * the Reboot flag set until it wraps, so peers can tell a reboot. Past
+ * ZELOS_SOMEIP_PEERS peers, the least recent one's counter starts over.
  *
  * The service: cyclic events, sent to subscribers from the first subscription;
  * fields with a getter and a notifier, the notifier sent to a new subscriber at
@@ -34,6 +36,8 @@
 #define ZELOS_SOMEIP_SD_GROUP 0xE0E0E0F5U
 #define ZELOS_SOMEIP_HEADER_SIZE 16
 #define ZELOS_SOMEIP_SUBSCRIBERS 4
+/* Unicast SD peers with a session counter of their own. */
+#define ZELOS_SOMEIP_PEERS 8
 #define ZELOS_SOMEIP_EVENTS_MAX 4
 #define ZELOS_SOMEIP_FIELDS_MAX 4
 /* Largest event or field payload. */
@@ -96,6 +100,14 @@ struct zelos_someip_ops {
 	uint32_t (*random)(void);
 };
 
+/* A unicast SD peer's session counter. Least recently used goes when all are taken. */
+struct zelos_someip_peer {
+	uint32_t addr;
+	uint16_t session;
+	bool reboot;
+	uint32_t used;
+};
+
 struct zelos_someip_subscriber {
 	bool used;
 	uint32_t addr;
@@ -117,12 +129,15 @@ struct zelos_someip_core {
 	uint32_t find_addr;
 	uint16_t find_port;
 	int64_t find_at;
-	/* Session IDs, multicast and unicast SD and the service; Reboot flags. */
+	/*
+	 * SD session IDs and Reboot flags: one for multicast, one per unicast peer
+	 * (PRS_SOMEIPSD_00256, 00631). The service's own session ID.
+	 */
 	uint16_t session_mc;
-	uint16_t session_uc;
-	uint16_t session;
 	bool reboot_mc;
-	bool reboot_uc;
+	struct zelos_someip_peer peer[ZELOS_SOMEIP_PEERS];
+	uint32_t peer_clock;
+	uint16_t session;
 	struct zelos_someip_subscriber subscriber[ZELOS_SOMEIP_SUBSCRIBERS];
 	int64_t next_event[ZELOS_SOMEIP_EVENTS_MAX];
 	uint8_t field[ZELOS_SOMEIP_FIELDS_MAX][ZELOS_SOMEIP_PAYLOAD_MAX];
