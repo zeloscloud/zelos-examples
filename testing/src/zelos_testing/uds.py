@@ -73,14 +73,14 @@ CAN_STATS = ("sent", "overflow", "deferred", "tx_error", "peak", "rx_overrun")
 class EthStatus(DidCodec):
     """DID 0x0111, struct zelos_eth_status, as a dict; the MAC as aa:bb:..."""
 
-    FMT = struct.Struct(">4B6s3I")
+    FMT = struct.Struct(">4B6s3IB")
     IPV4 = ("none", "probing", "up", "conflict")
 
     def encode(self, value) -> bytes:
         raise NotImplementedError("read-only")
 
     def decode(self, payload: bytes) -> dict:
-        link, speed, full, ipv4, mac, rx, tx, rx_errors = self.FMT.unpack(payload)
+        link, speed, full, ipv4, mac, rx, tx, rx_errors, doip = self.FMT.unpack(payload)
         return {
             "link": bool(link),
             "speed_mbps": speed,
@@ -90,6 +90,7 @@ class EthStatus(DidCodec):
             "rx_packets": rx,
             "tx_packets": tx,
             "rx_errors": rx_errors,
+            "doip_testers": doip,
         }
 
     def __len__(self) -> int:
@@ -213,6 +214,11 @@ class UdsEcu:
             address=isotp.Address(isotp.AddressingMode.Normal_11bits, txid=txid, rxid=RESPONSE),
             params={"tx_padding": 0xCC, "tx_data_min_length": 8, "blocking_send": True},
         )
+        client = Client(PythonIsoTpConnection(stack), config=self._config())
+        client.open()
+        return client
+
+    def _config(self) -> dict:
         config = dict(default_client_config)
         config.update(
             request_timeout=None,
@@ -224,9 +230,7 @@ class UdsEcu:
             data_identifiers=DIDS,
             input_output=IOS,
         )
-        client = Client(PythonIsoTpConnection(stack), config=config)
-        client.open()
-        return client
+        return config
 
     def __enter__(self):
         config = prepare_bus_config(

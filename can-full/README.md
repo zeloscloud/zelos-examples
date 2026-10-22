@@ -58,7 +58,11 @@ Renode Ethernet switch, bridged to `tap0` (10.1.1.1/24) where the tester runs; o
 hardware the board's RJ45 port joins the bench's LAN, and nothing waits for the
 cable: CAN starts at the same time without one. The address is usable about 7 s
 after a reset (link up at about 1.7 s, then RFC 5227 conflict detection), so a
-tester reconnecting over Ethernet after an ECUReset waits that long. Over XCP its demand and slew rate become calibration parameters, its
+tester reconnecting over Ethernet after an ECUReset waits that long. The
+DC-DC is a DoIP entity there (logical address `0x1001`, functional `0xE400`,
+testers `0x0E00`-`0x0FFF`), with the same UDS server CAN reaches: while one
+tester holds a non-default session, the other transport's gets 0x21, except for
+OBD requests. Over XCP its demand and slew rate become calibration parameters, its
 setpoint, current, temperature and allowance measurements, all described by
 `build/full.a2l`, which the build fills with that ELF's addresses.
 Over UDS (ISO 14229-1) it is a diagnostic server as an OEM baseline ECU carries
@@ -108,6 +112,7 @@ inputs and per-channel current, and trips channel 8, which is shorted.
 | `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; requests answered; periods; DM1 by BAM, reassembled by python-can-j1939; SOFT by RTS/CTS in the windows the requester grants, and by BAM to a global request. Originator conformance (windows, retransmit, abort, T3/T4): ztests in `../tests/lib/j1939` |
 | `../testing/suites/canopen` | PDU | Boot-up and heartbeat; NMT start, stop and pre-operational; SDO identity and downloads; RPDO commands reflected in TPDOs; an overcurrent trip raises EMCY and recovers; SYNC answered by the synchronous TPDO |
 | `../testing/suites/eth` | DC-DC | The board's Ethernet (`../lib/eth`): link 100 Mb/s full duplex, the static address up after conflict detection, ping, the host's neighbour entry equal to the node's MAC, and the node's counters (UDS DID `0x0111`, read over CAN). The host end is whichever interface is on the node's subnet: the bench's `tap0`, or the hardware bench's own |
+| `../testing/suites/doip` | DC-DC | Its UDS server as a DoIP entity (ISO 13400-2, `../lib/doip`), checked with a client written from the standard and with zelos-can's (doipclient), as the UDS and OBD extensions connect: vehicle identification by plain request, EID and VIN, answered within 500 ms, and one responder to a broadcast; entity status, power mode, header NACKs; routing activation's codes (0x10, 0x00, 0x02, 0x03 and 0x01 decided by alive checks, 0x06), initial inactivity; diagnostic messages acknowledged, NACKed (0x02, 0x03, 0x04 above MDS) or answered; three announcements 500 ms apart after a reset. The UDS conformance suite, unchanged, over DoIP. One server, two transports: a CAN tester's session gives the DoIP tester 0x21 and only OBD, and S3 still ends it; a closed DoIP owner's output returns at once; a pending routine answers its own tester. Core: ztests in `../tests/lib/doip` |
 | `../testing/suites/full` | all three | Every protocol at once for `--soak-s` (120 s here, 10 s on hardware): XCP DAQ, a UDS 64 KiB download and upload loop, CANopen operational with SYNC every 10 ms and RPDO1, J1939 and DCDC_Status. No EMCY, no DAQ sample lost, periods kept, and the node's counters (UDS DID `0x0110`) show no TX queue overflow, TX error or RX FIFO overrun |
 
 The suites drive the other nodes' roles themselves when those nodes are absent,

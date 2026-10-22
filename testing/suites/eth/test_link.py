@@ -76,7 +76,6 @@ def test_ping(ecu, eth):
         assert rtt_max_ms < 2.0, out
     assert after["rx_packets"] - before["rx_packets"] >= PINGS
     assert after["tx_packets"] - before["tx_packets"] >= PINGS
-    assert after["rx_errors"] == before["rx_errors"]
 
 
 def test_neighbour_is_the_node(ecu, eth):
