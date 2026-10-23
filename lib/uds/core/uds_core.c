@@ -1221,6 +1221,26 @@ static size_t negative(uint8_t *rsp, uint8_t sid, uint8_t nrc)
 	return 3;
 }
 
+/* 0x21, or nothing where an idle server would not answer either. */
+static size_t busy(const struct zelos_uds_core *uds, const uint8_t *req, size_t len,
+		   bool functional, uint8_t *rsp)
+{
+	const struct service *s = find_service(req[0]);
+
+	/* A keep-alive needs no answer; anything else must wait. */
+	if (len == 2 && req[0] == SID_TESTER_PRESENT && req[1] == SUPPRESS) {
+		return 0;
+	}
+	/*
+	 * A functional request gets no 0x21 where an idle server would not
+	 * answer (0x11, 0x7F). suppressPosRsp hides positive responses only.
+	 */
+	if (functional && (s == NULL || (s->sessions & BIT(uds->session)) == 0)) {
+		return 0;
+	}
+	return negative(rsp, req[0], NRC_BUSY_REPEAT);
+}
+
 size_t zelos_uds_core_request(struct zelos_uds_core *uds, const uint8_t *req, size_t len,
 			      bool functional, int64_t now, uint8_t *rsp)
 {
@@ -1244,20 +1264,7 @@ size_t zelos_uds_core_request(struct zelos_uds_core *uds, const uint8_t *req, si
 #endif
 
 	if (uds->pending != 0 && !obd) {
-		const struct service *s = find_service(req[0]);
-
-		/* A keep-alive needs no answer; anything else must wait. */
-		if (len == 2 && req[0] == SID_TESTER_PRESENT && req[1] == SUPPRESS) {
-			return 0;
-		}
-		/*
-		 * A functional request gets no 0x21 where an idle server would not
-		 * answer (0x11, 0x7F). suppressPosRsp hides positive responses only.
-		 */
-		if (functional && (s == NULL || (s->sessions & BIT(uds->session)) == 0)) {
-			return 0;
-		}
-		return negative(rsp, req[0], NRC_BUSY_REPEAT);
+		return busy(uds, req, len, functional, rsp);
 	}
 
 	rsp[0] = req[0] + POSITIVE;
@@ -1274,6 +1281,55 @@ size_t zelos_uds_core_request(struct zelos_uds_core *uds, const uint8_t *req, si
 		return negative(rsp, req[0], nrc);
 	}
 	return r.suppress ? 0 : r.len;
+}
+
+/* Served beside another tester's session: J1979 services and OBDonUDS requests. */
+static bool parallel(const uint8_t *req, size_t len)
+{
+#if defined(CONFIG_ZELOS_UDS_OBD)
+	return (req[0] >= 0x01 && req[0] <= 0x0A) || uds_obd_relevant(req, len);
+#else
+	return false;
+#endif
+}
+
+size_t zelos_uds_core_serve(struct zelos_uds_core *uds, uint16_t origin, const uint8_t *req,
+			    size_t len, bool functional, int64_t now, uint8_t *rsp)
+{
+	const bool other = uds->owned && origin != uds->owner;
+	const int64_t s3 = uds->s3_deadline;
+	const bool was_pending = uds->pending != 0;
+	size_t n;
+
+	if (len == 0) {
+		return 0;
+	}
+	if (other && !parallel(req, len)) {
+		/* Neither served nor keeping the owner's session alive. */
+		return busy(uds, req, len, functional, rsp);
+	}
+	n = zelos_uds_core_request(uds, req, len, functional, now, rsp);
+	if (other) {
+		uds->s3_deadline = s3;
+	}
+	if (!was_pending && uds->pending != 0) {
+		uds->pending_origin = origin;
+	}
+	if (uds->session == ZELOS_UDS_SESSION_DEFAULT) {
+		uds->owned = false;
+	} else if (!uds->owned) {
+		uds->owned = true;
+		uds->owner = origin;
+	}
+	return n;
+}
+
+void zelos_uds_core_release(struct zelos_uds_core *uds, uint16_t origin)
+{
+	if (uds->owned && uds->owner == origin) {
+		enter_session(uds, ZELOS_UDS_SESSION_DEFAULT);
+		uds->owned = false;
+	}
 }
 
 static void finish_pending(struct zelos_uds_core *uds)
@@ -1317,6 +1373,7 @@ size_t zelos_uds_core_tick(struct zelos_uds_core *uds, int64_t now, uint8_t *rsp
 
 	if (uds->session != ZELOS_UDS_SESSION_DEFAULT && now >= uds->s3_deadline) {
 		enter_session(uds, ZELOS_UDS_SESSION_DEFAULT);
+		uds->owned = false;
 	}
 	return 0;
 }

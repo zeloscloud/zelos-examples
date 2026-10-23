@@ -10,7 +10,7 @@ NODES := "vcu bms full"
 # Each node with a suite, as node:suite, in the order they run. `just test`
 # runs every suite on the bench; `just hil` runs one node's. full's
 # coexistence suite runs every protocol at once.
-SUITES := "full:xcp full:uds full:obd full:j1939 full:canopen full:autosar full:full"
+SUITES := "full:xcp full:uds full:obd full:j1939 full:canopen full:autosar full:eth full:doip full:someip full:full"
 
 # The firmware is built by the repository's shared recipes, one level up.
 FIRMWARE := quote(just_executable()) + " --justfile " + quote(justfile_directory() / ".." / "justfile")

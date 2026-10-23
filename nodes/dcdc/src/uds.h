@@ -4,6 +4,7 @@
 #define DCDC_UDS_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "state.h"
 
@@ -11,6 +12,9 @@ int dcdc_uds_start(void);
 
 /* The output voltage to regulate to: the tester's, or the setpoint DID's. */
 float dcdc_uds_output_v(void);
+
+/* DID 0x0200, the output voltage setpoint, 10 mV. */
+uint16_t dcdc_uds_setpoint(void);
 
 /*
  * Publish this cycle's state and run the DTC tests on it. The BMS timeout test

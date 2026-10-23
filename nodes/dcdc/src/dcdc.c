@@ -129,6 +129,11 @@ static int64_t limits_at_ms;
 #include "autosar.h"
 #endif
 
+#if defined(CONFIG_ZELOS_SOMEIP)
+/* Built with `-S ethernet`, the node is a SOME/IP service. See src/someip.c. */
+#include "someip.h"
+#endif
+
 /* Demand and slew rate, as one pair: a tool's write lands whole or not yet. */
 static struct dcdc_calibration calibration(void)
 {
@@ -215,6 +220,12 @@ int dcdc_start(void)
 
 #if defined(CONFIG_ZELOS_AUTOSAR)
 	if (dcdc_autosar_start() != 0) {
+		return -EIO;
+	}
+#endif
+
+#if defined(CONFIG_ZELOS_SOMEIP)
+	if (dcdc_someip_start() != 0) {
 		return -EIO;
 	}
 #endif
@@ -340,6 +351,10 @@ static void run(void *p1, void *p2, void *p3)
 					       ? BENCH_DCDC_STATUS_DERATE_ACTIVE_ACTIVE_CHOICE
 					       : BENCH_DCDC_STATUS_DERATE_ACTIVE_INACTIVE_CHOICE;
 		status.counter = counter & 0x7FU;
+#if defined(CONFIG_ZELOS_SOMEIP)
+		/* The same sample and Counter as this cycle's DCDC_Status. */
+		dcdc_someip_sample(&state, temperature_c > DERATE_ABOVE_C, status.counter);
+#endif
 
 		if (bench_dcdc_status_pack(buf, &status, sizeof(buf)) != (int)sizeof(buf)) {
 			LOG_ERR("pack failed");

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Run every ELF in BENCH_ELFS as its own machine on one CAN hub, bridged to vcan0.
+# Run every ELF in BENCH_ELFS as its own machine on one CAN hub, bridged to vcan0,
+# and on one Ethernet switch, bridged to tap0 (made by the bus service).
 #
 # Each machine is named after its ELF, so two ELFs with one name cannot share a
 # bench.
@@ -19,6 +20,7 @@ first=
 {
 	echo 'using sysbus'
 	echo 'emulation CreateCANHub "canHub"'
+	echo 'emulation CreateSwitch "ethSwitch"'
 	for elf in ${BENCH_ELFS}; do
 		name=$(basename "${elf}" .elf)
 		first=${first:-${name}}
@@ -58,6 +60,7 @@ first=
 			"""
 			runMacro \$reset
 			connector Connect sysbus.fdcan1 canHub
+			connector Connect sysbus.ethernet ethSwitch
 		EOF
 	done
 	# One bridge only: two bridges on one vcan interface loop frames forever.
@@ -82,6 +85,8 @@ first=
 		mach set "${first}"
 		machine CreateSocketCANBridge "socketcan" "vcan0"
 		connector Connect socketcan canHub
+		emulation CreateTap "tap0" "tap"
+		connector Connect host.tap ethSwitch
 		emulation SetGlobalSerialExecution True
 		emulation SetGlobalQuantum "0.001"
 		start

@@ -474,6 +474,64 @@ ZTEST(uds, test_pending_routine)
 	EXPECT((0x71, 0x03, 0x02, 0x01, 0x00), 0x31, 0x03, 0x02, 0x01);
 }
 
+#define CAN ZELOS_UDS_ORIGIN_CAN
+#define DOIP 0x0E80
+
+/* From one origin; the response must be exactly the bytes given, () for none. */
+#define FROM(origin, functional, rsp_bytes, ...)                                                   \
+	do {                                                                                       \
+		const uint8_t req_[] = {__VA_ARGS__};                                              \
+		const uint8_t want_[] = {0, STRIP rsp_bytes};                                      \
+		rsp_len = zelos_uds_core_serve(&uds, origin, req_, sizeof(req_), functional, now,  \
+					       rsp);                                               \
+		zassert_equal(rsp_len, sizeof(want_) - 1, "length %zu", rsp_len);                  \
+		zassert_mem_equal(rsp, &want_[1], sizeof(want_) - 1);                              \
+	} while (0)
+
+ZTEST(uds, test_one_owner_per_session)
+{
+	now += DELAY_MS;
+	FROM(CAN, false, (0x50, 0x03, P2), 0x10, 0x03);
+	/* The other tester waits; its keep-alive is ignored; OBD is served. */
+	FROM(DOIP, false, (0x7F, 0x10, 0x21), 0x10, 0x01);
+	FROM(DOIP, false, (0x7F, 0x22, 0x21), 0x22, 0xF1, 0x86);
+	FROM(DOIP, false, (), 0x3E, 0x80);
+	FROM(DOIP, true, (), 0x3E, 0x80);
+	FROM(DOIP, true, (), 0x99);
+	FROM(DOIP, false, (0x41, 0x1C, 0x01), 0x01, 0x1C);
+	/* None of it restarts S3: the owner's last request at +0 still ends it at +5000. */
+	now += 4999;
+	FROM(DOIP, false, (0x7F, 0x3E, 0x21), 0x3E, 0x00);
+	FROM(DOIP, false, (0x41, 0x1C, 0x01), 0x01, 0x1C);
+	zelos_uds_core_tick(&uds, now, rsp);
+	zassert_equal(uds.session, 0x03);
+	now += 1;
+	zelos_uds_core_tick(&uds, now, rsp);
+	zassert_equal(uds.session, 0x01);
+
+	/* Free again: the DoIP tester takes it; a close by a non-owner changes nothing. */
+	FROM(DOIP, false, (0x50, 0x03, P2), 0x10, 0x03);
+	FROM(CAN, false, (0x7F, 0x22, 0x21), 0x22, 0xF1, 0x86);
+	zelos_uds_core_release(&uds, CAN);
+	FROM(DOIP, false, (0x62, 0xF1, 0x86, 0x03), 0x22, 0xF1, 0x86);
+
+	/* Its routine's pending responses are its own; its close ends the session. */
+	FROM(DOIP, false, (0x67, 0x01, BE32(SEED)), 0x27, 0x01);
+	FROM(DOIP, false, (0x67, 0x02), 0x27, 0x02, BE32(KEY1));
+	FROM(DOIP, false, (0x7F, 0x31, 0x78), 0x31, 0x01, 0x02, 0x01);
+	zassert_equal(uds.pending_origin, DOIP);
+	zelos_uds_core_release(&uds, DOIP);
+	zassert_equal(uds.session, 0x01);
+	zassert_equal(uds.unlocked, 0);
+	/* The routine runs to its end, its result still the gone tester's. */
+	FROM(CAN, false, (0x7F, 0x22, 0x21), 0x22, 0xF1, 0x86);
+	now += 2000;
+	zassert_equal(zelos_uds_core_tick(&uds, now, rsp), 5);
+	zassert_equal(uds.pending_origin, DOIP);
+	FROM(CAN, false, (0x50, 0x03, P2), 0x10, 0x03);
+	FROM(DOIP, false, (0x7F, 0x10, 0x21), 0x10, 0x03);
+}
+
 ZTEST(uds, test_obd_current_data)
 {
 	/* Bitmaps: 0x01, 0x1C, 0x1F and more; nothing in 0x21..0x3F but more; 0x42, 0x46. */

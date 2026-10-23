@@ -262,6 +262,29 @@ int zelos_uds_start(const struct zelos_uds_config *config);
  */
 void zelos_uds_dtc(size_t index, bool failed);
 
+/**
+ * A request from a tester on another transport (DoIP), as the CAN server
+ * serves its own: see zelos_uds_core_serve(). Any thread.
+ *
+ * @param origin The tester's logical address, never ZELOS_UDS_ORIGIN_CAN.
+ * @param out CONFIG_ZELOS_UDS_BUF_SIZE bytes for the response.
+ * @param reset Set to the ECUReset requested (enum zelos_uds_reset): the
+ *              caller sends the response, then calls zelos_reboot().
+ * @return Length of the response; 0: none.
+ */
+size_t zelos_uds_serve(uint16_t origin, const uint8_t *req, size_t len, bool functional,
+		       uint8_t *out, uint8_t *reset);
+
+/* The origin's tester is gone: the session it owns, if any, ends. */
+void zelos_uds_release(uint16_t origin);
+
+/*
+ * Pending routine responses for a tester on another transport. Called from the
+ * UDS thread; must not block: copy and hand over.
+ */
+typedef void (*zelos_uds_sink_t)(uint16_t origin, const uint8_t *rsp, size_t len);
+void zelos_uds_on_response(zelos_uds_sink_t fn);
+
 /* Whether 0x28 lets the application send, and receive, its normal messages. */
 bool zelos_uds_tx_enabled(void);
 bool zelos_uds_rx_enabled(void);
@@ -379,6 +402,12 @@ struct zelos_uds_core {
 
 	/* Set by ECUReset: reset once its response, if any, is sent. */
 	uint8_t reset;
+
+	/* zelos_uds_core_serve(): the origin holding a non-default session. */
+	bool owned;
+	uint16_t owner;
+	/* Where zelos_uds_core_tick()'s pending routine responses go. */
+	uint16_t pending_origin;
 };
 
 /**
@@ -401,6 +430,27 @@ int zelos_uds_core_init(struct zelos_uds_core *uds, const struct zelos_uds_confi
  */
 size_t zelos_uds_core_request(struct zelos_uds_core *uds, const uint8_t *req, size_t len,
 			      bool functional, int64_t now, uint8_t *rsp);
+
+/* The CAN tester(s), as one origin; a DoIP tester is its logical address. */
+#define ZELOS_UDS_ORIGIN_CAN 0x0000
+
+/**
+ * Handle one request from one of several testers (AUTOSAR Dcm's rule, ISO
+ * 14229-1 Annex J). The origin that leaves the default session owns it until
+ * the session is default again (0x10 0x01, S3, release). Meanwhile another
+ * origin's requests get 0x21, or nothing where the core gives nothing when
+ * busy (`3E 80`, a functional request it does not serve), and never restart
+ * S3; its J1979 and OBDonUDS requests are served as usual, still without
+ * restarting S3. A routine's pending responses go to the origin that started
+ * it (pending_origin).
+ *
+ * @return Length of the response for origin written to rsp; 0: none.
+ */
+size_t zelos_uds_core_serve(struct zelos_uds_core *uds, uint16_t origin, const uint8_t *req,
+			    size_t len, bool functional, int64_t now, uint8_t *rsp);
+
+/** The origin's tester is gone (its connection closed): if it owns the session, end it. */
+void zelos_uds_core_release(struct zelos_uds_core *uds, uint16_t origin);
 
 /**
  * Advance the timers: S3, and a pending routine's 0x78 repeats and result.

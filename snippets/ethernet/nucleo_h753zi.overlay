@@ -1,0 +1,8 @@
+/*
+ * No soft reset of the LAN8742A at init: it sleeps 50 ms before main(), so
+ * before CAN starts. The PHY's nRST is the MCU's NRST (SB74), which every MCU
+ * reset drives, so it starts reset anyway.
+ */
+&eth_phy {
+	no-reset;
+};

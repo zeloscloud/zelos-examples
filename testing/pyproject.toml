@@ -18,7 +18,7 @@ dependencies = [
     "python-can==4.6.1",
     "pyxcp==0.29.19",
     "udsoncan==1.26.1",
-    "zelos-can==0.0.11a12",
+    "zelos-can[diag]==0.0.11a13",
     "zelos-sdk==0.0.12a3",
 ]
 

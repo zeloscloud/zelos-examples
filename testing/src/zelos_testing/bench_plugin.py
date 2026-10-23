@@ -4,7 +4,10 @@ A PLC that manages the CANopen node and how to pause it, the XCP node's A2L, and
 the coexistence soak's length. See zelos_testing.bench.
 """
 
+import ipaddress
+import json
 import os
+import subprocess
 from pathlib import Path
 
 import can
@@ -28,6 +31,17 @@ def pytest_addoption(parser):
         "(default: 120 on vcan, 10 on a physical channel)",
     )
     parser.addoption(
+        "--eth-host",
+        default=os.environ.get("ZELOS_TEST_ETH_HOST", "10.1.1.75"),
+        help="The node's IPv4 address, lib/eth's default ($ZELOS_TEST_ETH_HOST, else 10.1.1.75)",
+    )
+    parser.addoption(
+        "--eth-iface",
+        default=os.environ.get("ZELOS_TEST_ETH_IFACE"),
+        help="Host interface on the node's subnet, e.g. enp86s0 ($ZELOS_TEST_ETH_IFACE; "
+        "default: the one interface with an address on --eth-host's subnet)",
+    )
+    parser.addoption(
         "--a2l",
         type=Path,
         help="A2L generated beside an XCP node's ELF, e.g. build/full.a2l "
@@ -42,6 +56,23 @@ def find_a2l(config) -> Path | None:
         found = sorted(Path("/elf").glob("*.a2l"))
         path = found[0] if len(found) == 1 else None
     return path
+
+
+def eth_link(config) -> tuple[str, str] | None:
+    """(host interface, node address): --eth-iface, else the interface on the node's subnet."""
+    host = config.getoption("eth_host")
+    iface = config.getoption("eth_iface")
+    if iface is None:
+        out = subprocess.run(["ip", "-json", "-4", "addr"], check=True, capture_output=True, text=True).stdout
+        node = ipaddress.ip_address(host)
+        found = {
+            link["ifname"]
+            for link in json.loads(out)
+            for a in link.get("addr_info", [])
+            if node in ipaddress.ip_interface(f"{a['local']}/{a['prefixlen']}").network
+        }
+        iface = found.pop() if len(found) == 1 else None
+    return (iface, host) if iface else None
 
 
 def quiet_config(config) -> bench.QuietConfig | None:

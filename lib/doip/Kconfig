@@ -1,0 +1,27 @@
+config ZELOS_DOIP
+	bool "DoIP entity (ISO 13400-2) for the UDS server"
+	depends on ZELOS_UDS && ZELOS_ETH && NET_TCP && NET_UDP && NET_SOCKETS
+	select ZELOS_DOIP_CORE
+	help
+	  Vehicle identification, routing activation and diagnostic
+	  messages on UDP and TCP 13400, into the UDS server CAN also
+	  reaches. See include/zelos/doip.h.
+
+config ZELOS_DOIP_CORE
+	bool "DoIP protocol core"
+	depends on ZELOS_UDS_CORE
+	help
+	  The entity's protocol logic without sockets. ZELOS_DOIP selects
+	  it; on its own it is only useful to unit tests.
+
+if ZELOS_DOIP
+
+config ZELOS_DOIP_LOGICAL_ADDRESS
+	hex "The entity's logical address"
+	default 0x1001
+
+config ZELOS_DOIP_FUNCTIONAL_ADDRESS
+	hex "Functional logical address, as CAN's 0x7DF"
+	default 0xe400
+
+endif # ZELOS_DOIP

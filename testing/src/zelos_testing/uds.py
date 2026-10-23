@@ -21,7 +21,7 @@ from zelos_can.bus import BUS_DEFAULTS, open_python_can_bus, prepare_bus_config
 
 from zelos_testing import frames, uds_keys
 
-__all__ = ["CAN_STATS", "FUNCTIONAL", "PHYSICAL", "RESPONSE", "NegativeResponseException", "UdsEcu", "transfer_block"]
+__all__ = ["CAN_STATS", "ETH_STATUS", "FUNCTIONAL", "PHYSICAL", "RESPONSE", "NegativeResponseException", "UdsEcu", "transfer_block"]
 
 # The node's identifiers: requests to it, to every ECU, and its responses.
 PHYSICAL, FUNCTIONAL, RESPONSE = 0x7E0, 0x7DF, 0x7E8
@@ -69,6 +69,36 @@ class Words(DidCodec):
 # DID 0x0110, in order: the node's CAN counters (struct zelos_can_stats).
 CAN_STATS = ("sent", "overflow", "deferred", "tx_error", "peak", "rx_overrun")
 
+
+class EthStatus(DidCodec):
+    """DID 0x0111, struct zelos_eth_status, as a dict; the MAC as aa:bb:..."""
+
+    FMT = struct.Struct(">4B6s3I2BI")
+    IPV4 = ("none", "probing", "up", "conflict", "contested")
+
+    def encode(self, value) -> bytes:
+        raise NotImplementedError("read-only")
+
+    def decode(self, payload: bytes) -> dict:
+        link, speed, full, ipv4, mac, rx, tx, rx_errors, doip, someip, dropped = self.FMT.unpack(payload)
+        return {
+            "link": bool(link),
+            "speed_mbps": speed,
+            "full_duplex": bool(full),
+            "ipv4": self.IPV4[ipv4],
+            "mac": mac.hex(":"),
+            "rx_packets": rx,
+            "tx_packets": tx,
+            "rx_errors": rx_errors,
+            "doip_testers": doip,
+            "someip_subscribers": someip,
+            "rx_dropped": dropped,
+        }
+
+    def __len__(self) -> int:
+        return self.FMT.size
+
+
 # The contract; see nodes/dcdc/src/uds.c.
 DIDS = {
     0xF186: Scaled(">B"),  # active session
@@ -85,6 +115,7 @@ DIDS = {
     0x0105: Scaled(">H", 0.1),  # input voltage, V; 6553.5 unknown
     0x0106: Scaled(">H", 0.01),  # input current, A
     0x0110: Words(len(CAN_STATS)),  # CAN counters
+    0x0111: EthStatus(),  # Ethernet, with lib/eth
     0x0200: Scaled(">H", 0.01),  # output voltage setpoint, V
 }
 IOS = {0x0300: Scaled(">H", 0.01)}  # output voltage setpoint, V
@@ -98,7 +129,7 @@ IDENTIFICATION = {
     0xF191: "NUCLEO-H753ZI",
     0xF195: "DCDC-1.0.0",
 }
-VIN, ACTIVE_SESSION = 0xF190, 0xF186
+VIN, ACTIVE_SESSION, ETH_STATUS = 0xF190, 0xF186, 0x0111
 VOLTAGE, CURRENT, TEMPERATURE, UPTIME, INPUT_V, INPUT_A, SETPOINT = 0x0101, 0x0102, 0x0103, 0x0104, 0x0105, 0x0106, 0x0200
 OUTPUT = 0x0300
 RETURN, RESET, FREEZE, ADJUST = 0, 1, 2, 3
@@ -185,6 +216,11 @@ class UdsEcu:
             address=isotp.Address(isotp.AddressingMode.Normal_11bits, txid=txid, rxid=RESPONSE),
             params={"tx_padding": 0xCC, "tx_data_min_length": 8, "blocking_send": True},
         )
+        client = Client(PythonIsoTpConnection(stack), config=self._config())
+        client.open()
+        return client
+
+    def _config(self) -> dict:
         config = dict(default_client_config)
         config.update(
             request_timeout=None,
@@ -196,9 +232,7 @@ class UdsEcu:
             data_identifiers=DIDS,
             input_output=IOS,
         )
-        client = Client(PythonIsoTpConnection(stack), config=config)
-        client.open()
-        return client
+        return config
 
     def __enter__(self):
         config = prepare_bus_config(

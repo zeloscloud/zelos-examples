@@ -3,12 +3,14 @@
  * UDS and AUTOSAR PDUs), the genset (J1939) and the PDU (CANopen). lib/can
  * brings the bus up once; each node then starts its own threads. A signal
  * generator (nodes/full/src/waveform.c) adds a chirped Waveform frame for plots.
+ * Ethernet (lib/eth) comes up beside them, at 10.1.1.75 by default.
  *
  * The UDS server is the DC-DC's: CommunicationControl and ControlDTCSetting
  * act on the DC-DC alone. ECUReset reboots the MCU, so every node restarts.
  */
 
 #include <zelos/can.h>
+#include <zelos/eth.h>
 
 #include <zephyr/logging/log.h>
 
@@ -30,6 +32,10 @@ int main(void)
 	(void)genset_start();
 	(void)pdu_start();
 	(void)waveform_start();
+#if defined(CONFIG_ZELOS_ETH)
+	/* Last, and it never waits: CAN starts as it would with no cable. */
+	(void)zelos_eth_start();
+#endif
 
 	return 0;
 }

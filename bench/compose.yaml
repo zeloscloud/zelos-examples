@@ -2,9 +2,9 @@ name: zelos-bench
 
 # Any set of nodes on one virtual CAN bus, and a tester on the same bus.
 #
-# `bus` owns the network namespace vcan0 lives in; `renode` and `tester` join
-# it. No container names and no published ports, so `docker compose -p <name>`
-# runs several benches side by side on one host.
+# `bus` owns the network namespace vcan0 and tap0 live in; `renode` and
+# `tester` join it. No container names and no published ports, so
+# `docker compose -p <name>` runs several benches side by side on one host.
 #
 # BENCH_ELF_DIR is mounted as /elf; BENCH_ELFS names the ELFs in it to run, one
 # node each. An XCP node's A2L sits beside its ELF there, where the tester's
@@ -20,16 +20,23 @@ x-sim: &sim
   pull_policy: build
 
 services:
+  # Also tap0, the host end of the nodes' Ethernet: 10.1.1.1/24, the hardware
+  # bench's address, so a node at 10.1.1.75 answers the same tests on both.
   bus:
     <<: *sim
     cap_add:
       - NET_ADMIN
+    devices:
+      - /dev/net/tun
     command:
       - bash
       - -c
-      - ip link add dev vcan0 type vcan && ip link set up vcan0 && exec sleep infinity
+      - >-
+        ip link add dev vcan0 type vcan && ip link set up vcan0
+        && ip tuntap add dev tap0 mode tap && ip addr add 10.1.1.1/24 dev tap0
+        && ip link set up tap0 && exec sleep infinity
     healthcheck:
-      test: ["CMD", "ip", "link", "show", "vcan0"]
+      test: ["CMD", "ip", "link", "show", "tap0"]
       interval: 2s
       timeout: 2s
       retries: 15
@@ -40,6 +47,11 @@ services:
       bus:
         condition: service_healthy
     network_mode: "service:bus"
+    # To attach to bus's tap0.
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
     volumes:
       - ./renode-run.sh:/bench/renode-run.sh:ro
       - ${BENCH_ELF_DIR:-.}:/elf:ro

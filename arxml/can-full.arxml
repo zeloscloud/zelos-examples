@@ -5,6 +5,7 @@
   The source of the DC-DC's AUTOSAR PDUs: tools/arxml2c.py generates
   nodes/dcdc/src/autosar_pdus.{c,h} from it (`just arxml`), and CI fails when
   they and this file disagree. Frames from dbc/bench.dbc appear unchanged.
+  The DC-DC's SOME/IP DcdcService on BenchEth is described here too.
 -->
 <AUTOSAR xmlns="http://autosar.org/schema/r4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://autosar.org/schema/r4.0 AUTOSAR_00048.xsd">
   <AR-PACKAGES>
@@ -38,6 +39,10 @@
         <UNIT>
           <SHORT-NAME>s</SHORT-NAME>
           <DISPLAY-NAME>s</DISPLAY-NAME>
+        </UNIT>
+        <UNIT>
+          <SHORT-NAME>ms</SHORT-NAME>
+          <DISPLAY-NAME>ms</DISPLAY-NAME>
         </UNIT>
         <UNIT>
           <SHORT-NAME>Hz</SHORT-NAME>
@@ -3668,6 +3673,18 @@
           <BASE-TYPE-SIZE>16</BASE-TYPE-SIZE>
           <BASE-TYPE-ENCODING>NONE</BASE-TYPE-ENCODING>
         </SW-BASE-TYPE>
+        <SW-BASE-TYPE>
+          <SHORT-NAME>uint32</SHORT-NAME>
+          <CATEGORY>FIXED_LENGTH</CATEGORY>
+          <BASE-TYPE-SIZE>32</BASE-TYPE-SIZE>
+          <BASE-TYPE-ENCODING>NONE</BASE-TYPE-ENCODING>
+        </SW-BASE-TYPE>
+        <SW-BASE-TYPE>
+          <SHORT-NAME>float32</SHORT-NAME>
+          <CATEGORY>FIXED_LENGTH</CATEGORY>
+          <BASE-TYPE-SIZE>32</BASE-TYPE-SIZE>
+          <BASE-TYPE-ENCODING>IEEE754</BASE-TYPE-ENCODING>
+        </SW-BASE-TYPE>
       </ELEMENTS>
     </AR-PACKAGE>
     <AR-PACKAGE>
@@ -4768,7 +4785,7 @@
         <ECU-INSTANCE>
           <SHORT-NAME>DCDC</SHORT-NAME>
           <DESC>
-            <L-2 L="EN">DC-DC converter. Steps the high-voltage pack down to the 12 V rail, within the BMS current limit. AUTOSAR PDUs (E2E, container, multiplexed, secured), UDS on CanTp, XCP on CAN.</L-2>
+            <L-2 L="EN">DC-DC converter. Steps the high-voltage pack down to the 12 V rail, within the BMS current limit. AUTOSAR PDUs (E2E, container, multiplexed, secured), UDS on CanTp, XCP on CAN. SOME/IP DcdcService and DoIP on BenchEth.</L-2>
           </DESC>
           <ASSOCIATED-COM-I-PDU-GROUP-REFS>
             <ASSOCIATED-COM-I-PDU-GROUP-REF DEST="I-SIGNAL-I-PDU-GROUP">/PduGroups/DCDC_Rx</ASSOCIATED-COM-I-PDU-GROUP-REF>
@@ -4778,6 +4795,9 @@
             <CAN-COMMUNICATION-CONTROLLER>
               <SHORT-NAME>DCDC_CanController</SHORT-NAME>
             </CAN-COMMUNICATION-CONTROLLER>
+            <ETHERNET-COMMUNICATION-CONTROLLER>
+              <SHORT-NAME>DCDC_EthController</SHORT-NAME>
+            </ETHERNET-COMMUNICATION-CONTROLLER>
           </COMM-CONTROLLERS>
           <CONNECTORS>
             <CAN-COMMUNICATION-CONNECTOR>
@@ -4946,6 +4966,10 @@
                 </I-PDU-PORT>
               </ECU-COMM-PORT-INSTANCES>
             </CAN-COMMUNICATION-CONNECTOR>
+            <ETHERNET-COMMUNICATION-CONNECTOR>
+              <SHORT-NAME>DCDC_EthConnector</SHORT-NAME>
+              <COMM-CONTROLLER-REF DEST="ETHERNET-COMMUNICATION-CONTROLLER">/Ecus/DCDC/DCDC_EthController</COMM-CONTROLLER-REF>
+            </ETHERNET-COMMUNICATION-CONNECTOR>
           </CONNECTORS>
         </ECU-INSTANCE>
         <ECU-INSTANCE>
@@ -6153,6 +6177,83 @@
             </CAN-CLUSTER-CONDITIONAL>
           </CAN-CLUSTER-VARIANTS>
         </CAN-CLUSTER>
+        <ETHERNET-CLUSTER>
+          <SHORT-NAME>BenchEth</SHORT-NAME>
+          <DESC>
+            <L-2 L="EN">The bench Ethernet: the DC-DC at 10.1.1.75/24, SOME/IP on UDP only, SD on UDP 30490 and multicast group 224.224.224.245.</L-2>
+          </DESC>
+          <ETHERNET-CLUSTER-VARIANTS>
+            <ETHERNET-CLUSTER-CONDITIONAL>
+              <PHYSICAL-CHANNELS>
+                <ETHERNET-PHYSICAL-CHANNEL>
+                  <SHORT-NAME>BenchEthCh</SHORT-NAME>
+                  <COMM-CONNECTORS>
+                    <COMMUNICATION-CONNECTOR-REF-CONDITIONAL>
+                      <COMMUNICATION-CONNECTOR-REF DEST="ETHERNET-COMMUNICATION-CONNECTOR">/Ecus/DCDC/DCDC_EthConnector</COMMUNICATION-CONNECTOR-REF>
+                    </COMMUNICATION-CONNECTOR-REF-CONDITIONAL>
+                  </COMM-CONNECTORS>
+                  <NETWORK-ENDPOINTS>
+                    <NETWORK-ENDPOINT>
+                      <SHORT-NAME>NE_Dcdc</SHORT-NAME>
+                      <NETWORK-ENDPOINT-ADDRESSES>
+                        <IPV-4-CONFIGURATION>
+                          <IPV-4-ADDRESS>10.1.1.75</IPV-4-ADDRESS>
+                          <IPV-4-ADDRESS-SOURCE>FIXED</IPV-4-ADDRESS-SOURCE>
+                          <NETWORK-MASK>255.255.255.0</NETWORK-MASK>
+                        </IPV-4-CONFIGURATION>
+                      </NETWORK-ENDPOINT-ADDRESSES>
+                    </NETWORK-ENDPOINT>
+                    <NETWORK-ENDPOINT>
+                      <SHORT-NAME>NE_SdMulticast</SHORT-NAME>
+                      <NETWORK-ENDPOINT-ADDRESSES>
+                        <IPV-4-CONFIGURATION>
+                          <IPV-4-ADDRESS>224.224.224.245</IPV-4-ADDRESS>
+                          <IPV-4-ADDRESS-SOURCE>FIXED</IPV-4-ADDRESS-SOURCE>
+                        </IPV-4-CONFIGURATION>
+                      </NETWORK-ENDPOINT-ADDRESSES>
+                    </NETWORK-ENDPOINT>
+                  </NETWORK-ENDPOINTS>
+                  <SO-AD-CONFIG>
+                    <SOCKET-ADDRESSS>
+                      <SOCKET-ADDRESS>
+                        <SHORT-NAME>SA_DcdcService</SHORT-NAME>
+                        <APPLICATION-ENDPOINT>
+                          <SHORT-NAME>SA_DcdcService_AE</SHORT-NAME>
+                          <NETWORK-ENDPOINT-REF DEST="NETWORK-ENDPOINT">/Communication/BenchEth/BenchEthCh/NE_Dcdc</NETWORK-ENDPOINT-REF>
+                          <TP-CONFIGURATION>
+                            <UDP-TP>
+                              <UDP-TP-PORT>
+                                <PORT-NUMBER>30509</PORT-NUMBER>
+                              </UDP-TP-PORT>
+                            </UDP-TP>
+                          </TP-CONFIGURATION>
+                        </APPLICATION-ENDPOINT>
+                        <CONNECTOR-REF DEST="ETHERNET-COMMUNICATION-CONNECTOR">/Ecus/DCDC/DCDC_EthConnector</CONNECTOR-REF>
+                      </SOCKET-ADDRESS>
+                      <SOCKET-ADDRESS>
+                        <SHORT-NAME>SA_Sd</SHORT-NAME>
+                        <APPLICATION-ENDPOINT>
+                          <SHORT-NAME>SA_Sd_AE</SHORT-NAME>
+                          <NETWORK-ENDPOINT-REF DEST="NETWORK-ENDPOINT">/Communication/BenchEth/BenchEthCh/NE_SdMulticast</NETWORK-ENDPOINT-REF>
+                          <TP-CONFIGURATION>
+                            <UDP-TP>
+                              <UDP-TP-PORT>
+                                <PORT-NUMBER>30490</PORT-NUMBER>
+                              </UDP-TP-PORT>
+                            </UDP-TP>
+                          </TP-CONFIGURATION>
+                        </APPLICATION-ENDPOINT>
+                        <MULTICAST-CONNECTOR-REFS>
+                          <MULTICAST-CONNECTOR-REF DEST="ETHERNET-COMMUNICATION-CONNECTOR">/Ecus/DCDC/DCDC_EthConnector</MULTICAST-CONNECTOR-REF>
+                        </MULTICAST-CONNECTOR-REFS>
+                      </SOCKET-ADDRESS>
+                    </SOCKET-ADDRESSS>
+                  </SO-AD-CONFIG>
+                </ETHERNET-PHYSICAL-CHANNEL>
+              </PHYSICAL-CHANNELS>
+            </ETHERNET-CLUSTER-CONDITIONAL>
+          </ETHERNET-CLUSTER-VARIANTS>
+        </ETHERNET-CLUSTER>
       </ELEMENTS>
     </AR-PACKAGE>
     <AR-PACKAGE>
@@ -6257,18 +6358,322 @@
       </ELEMENTS>
     </AR-PACKAGE>
     <AR-PACKAGE>
+      <SHORT-NAME>DataTypes</SHORT-NAME>
+      <ELEMENTS>
+        <IMPLEMENTATION-DATA-TYPE>
+          <SHORT-NAME>DcdcStatusType</SHORT-NAME>
+          <DESC>
+            <L-2 L="EN">26 bytes. InputVoltage is NaN with no fresh BMS_Status; Counter is the DCDC_Status Counter of the same sample.</L-2>
+          </DESC>
+          <CATEGORY>STRUCTURE</CATEGORY>
+          <SUB-ELEMENTS>
+              <IMPLEMENTATION-DATA-TYPE-ELEMENT>
+                <SHORT-NAME>OutputVoltage</SHORT-NAME>
+                <CATEGORY>VALUE</CATEGORY>
+                <SW-DATA-DEF-PROPS>
+                  <SW-DATA-DEF-PROPS-VARIANTS>
+                    <SW-DATA-DEF-PROPS-CONDITIONAL>
+                      <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/float32</BASE-TYPE-REF>
+                      <UNIT-REF DEST="UNIT">/Units/V</UNIT-REF>
+                    </SW-DATA-DEF-PROPS-CONDITIONAL>
+                  </SW-DATA-DEF-PROPS-VARIANTS>
+                </SW-DATA-DEF-PROPS>
+              </IMPLEMENTATION-DATA-TYPE-ELEMENT>
+              <IMPLEMENTATION-DATA-TYPE-ELEMENT>
+                <SHORT-NAME>OutputCurrent</SHORT-NAME>
+                <CATEGORY>VALUE</CATEGORY>
+                <SW-DATA-DEF-PROPS>
+                  <SW-DATA-DEF-PROPS-VARIANTS>
+                    <SW-DATA-DEF-PROPS-CONDITIONAL>
+                      <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/float32</BASE-TYPE-REF>
+                      <UNIT-REF DEST="UNIT">/Units/A</UNIT-REF>
+                    </SW-DATA-DEF-PROPS-CONDITIONAL>
+                  </SW-DATA-DEF-PROPS-VARIANTS>
+                </SW-DATA-DEF-PROPS>
+              </IMPLEMENTATION-DATA-TYPE-ELEMENT>
+              <IMPLEMENTATION-DATA-TYPE-ELEMENT>
+                <SHORT-NAME>InputVoltage</SHORT-NAME>
+                <CATEGORY>VALUE</CATEGORY>
+                <SW-DATA-DEF-PROPS>
+                  <SW-DATA-DEF-PROPS-VARIANTS>
+                    <SW-DATA-DEF-PROPS-CONDITIONAL>
+                      <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/float32</BASE-TYPE-REF>
+                      <UNIT-REF DEST="UNIT">/Units/V</UNIT-REF>
+                    </SW-DATA-DEF-PROPS-CONDITIONAL>
+                  </SW-DATA-DEF-PROPS-VARIANTS>
+                </SW-DATA-DEF-PROPS>
+              </IMPLEMENTATION-DATA-TYPE-ELEMENT>
+              <IMPLEMENTATION-DATA-TYPE-ELEMENT>
+                <SHORT-NAME>InputCurrent</SHORT-NAME>
+                <CATEGORY>VALUE</CATEGORY>
+                <SW-DATA-DEF-PROPS>
+                  <SW-DATA-DEF-PROPS-VARIANTS>
+                    <SW-DATA-DEF-PROPS-CONDITIONAL>
+                      <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/float32</BASE-TYPE-REF>
+                      <UNIT-REF DEST="UNIT">/Units/A</UNIT-REF>
+                    </SW-DATA-DEF-PROPS-CONDITIONAL>
+                  </SW-DATA-DEF-PROPS-VARIANTS>
+                </SW-DATA-DEF-PROPS>
+              </IMPLEMENTATION-DATA-TYPE-ELEMENT>
+              <IMPLEMENTATION-DATA-TYPE-ELEMENT>
+                <SHORT-NAME>Temperature</SHORT-NAME>
+                <CATEGORY>VALUE</CATEGORY>
+                <SW-DATA-DEF-PROPS>
+                  <SW-DATA-DEF-PROPS-VARIANTS>
+                    <SW-DATA-DEF-PROPS-CONDITIONAL>
+                      <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/float32</BASE-TYPE-REF>
+                      <UNIT-REF DEST="UNIT">/Units/degC</UNIT-REF>
+                    </SW-DATA-DEF-PROPS-CONDITIONAL>
+                  </SW-DATA-DEF-PROPS-VARIANTS>
+                </SW-DATA-DEF-PROPS>
+              </IMPLEMENTATION-DATA-TYPE-ELEMENT>
+              <IMPLEMENTATION-DATA-TYPE-ELEMENT>
+                <SHORT-NAME>State</SHORT-NAME>
+                <CATEGORY>VALUE</CATEGORY>
+                <SW-DATA-DEF-PROPS>
+                  <SW-DATA-DEF-PROPS-VARIANTS>
+                    <SW-DATA-DEF-PROPS-CONDITIONAL>
+                      <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/uint8</BASE-TYPE-REF>
+                      <COMPU-METHOD-REF DEST="COMPU-METHOD">/CompuMethods/DcdcState</COMPU-METHOD-REF>
+                    </SW-DATA-DEF-PROPS-CONDITIONAL>
+                  </SW-DATA-DEF-PROPS-VARIANTS>
+                </SW-DATA-DEF-PROPS>
+              </IMPLEMENTATION-DATA-TYPE-ELEMENT>
+              <IMPLEMENTATION-DATA-TYPE-ELEMENT>
+                <SHORT-NAME>Counter</SHORT-NAME>
+                <CATEGORY>VALUE</CATEGORY>
+                <SW-DATA-DEF-PROPS>
+                  <SW-DATA-DEF-PROPS-VARIANTS>
+                    <SW-DATA-DEF-PROPS-CONDITIONAL>
+                      <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/uint8</BASE-TYPE-REF>
+                    </SW-DATA-DEF-PROPS-CONDITIONAL>
+                  </SW-DATA-DEF-PROPS-VARIANTS>
+                </SW-DATA-DEF-PROPS>
+              </IMPLEMENTATION-DATA-TYPE-ELEMENT>
+              <IMPLEMENTATION-DATA-TYPE-ELEMENT>
+                <SHORT-NAME>Uptime</SHORT-NAME>
+                <CATEGORY>VALUE</CATEGORY>
+                <SW-DATA-DEF-PROPS>
+                  <SW-DATA-DEF-PROPS-VARIANTS>
+                    <SW-DATA-DEF-PROPS-CONDITIONAL>
+                      <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/uint32</BASE-TYPE-REF>
+                      <UNIT-REF DEST="UNIT">/Units/ms</UNIT-REF>
+                    </SW-DATA-DEF-PROPS-CONDITIONAL>
+                  </SW-DATA-DEF-PROPS-VARIANTS>
+                </SW-DATA-DEF-PROPS>
+              </IMPLEMENTATION-DATA-TYPE-ELEMENT>
+          </SUB-ELEMENTS>
+        </IMPLEMENTATION-DATA-TYPE>
+        <IMPLEMENTATION-DATA-TYPE>
+          <SHORT-NAME>SetpointType</SHORT-NAME>
+          <CATEGORY>VALUE</CATEGORY>
+          <SW-DATA-DEF-PROPS>
+            <SW-DATA-DEF-PROPS-VARIANTS>
+              <SW-DATA-DEF-PROPS-CONDITIONAL>
+                <BASE-TYPE-REF DEST="SW-BASE-TYPE">/BaseTypes/uint16</BASE-TYPE-REF>
+                <COMPU-METHOD-REF DEST="COMPU-METHOD">/CompuMethods/V_0p01_0_0_65535</COMPU-METHOD-REF>
+              </SW-DATA-DEF-PROPS-CONDITIONAL>
+            </SW-DATA-DEF-PROPS-VARIANTS>
+          </SW-DATA-DEF-PROPS>
+        </IMPLEMENTATION-DATA-TYPE>
+      </ELEMENTS>
+    </AR-PACKAGE>
+    <AR-PACKAGE>
+      <SHORT-NAME>ServiceInterfaces</SHORT-NAME>
+      <ELEMENTS>
+        <SERVICE-INTERFACE>
+          <SHORT-NAME>DcdcService</SHORT-NAME>
+          <MAJOR-VERSION>1</MAJOR-VERSION>
+          <MINOR-VERSION>0</MINOR-VERSION>
+          <EVENTS>
+            <VARIABLE-DATA-PROTOTYPE>
+              <SHORT-NAME>DcdcStatus</SHORT-NAME>
+              <DESC>
+                <L-2 L="EN">Cyclic, every 100 ms.</L-2>
+              </DESC>
+              <TYPE-TREF DEST="IMPLEMENTATION-DATA-TYPE">/DataTypes/DcdcStatusType</TYPE-TREF>
+            </VARIABLE-DATA-PROTOTYPE>
+          </EVENTS>
+          <FIELDS>
+            <FIELD>
+              <SHORT-NAME>Setpoint</SHORT-NAME>
+              <DESC>
+                <L-2 L="EN">Output voltage setpoint, UDS DID 0x0200. Written through UDS only, behind security access.</L-2>
+              </DESC>
+              <TYPE-TREF DEST="IMPLEMENTATION-DATA-TYPE">/DataTypes/SetpointType</TYPE-TREF>
+              <HAS-GETTER>true</HAS-GETTER>
+              <HAS-NOTIFIER>true</HAS-NOTIFIER>
+              <HAS-SETTER>false</HAS-SETTER>
+            </FIELD>
+          </FIELDS>
+        </SERVICE-INTERFACE>
+      </ELEMENTS>
+    </AR-PACKAGE>
+    <AR-PACKAGE>
+      <SHORT-NAME>Deployments</SHORT-NAME>
+      <ELEMENTS>
+        <SOMEIP-SERVICE-INTERFACE-DEPLOYMENT>
+          <SHORT-NAME>DcdcService_SomeIp</SHORT-NAME>
+          <EVENT-DEPLOYMENTS>
+            <SOMEIP-EVENT-DEPLOYMENT>
+              <SHORT-NAME>DcdcStatus</SHORT-NAME>
+              <EVENT-REF DEST="VARIABLE-DATA-PROTOTYPE">/ServiceInterfaces/DcdcService/DcdcStatus</EVENT-REF>
+              <EVENT-ID>32769</EVENT-ID>
+              <TRANSPORT-PROTOCOL>UDP</TRANSPORT-PROTOCOL>
+            </SOMEIP-EVENT-DEPLOYMENT>
+          </EVENT-DEPLOYMENTS>
+          <FIELD-DEPLOYMENTS>
+            <SOMEIP-FIELD-DEPLOYMENT>
+              <SHORT-NAME>Setpoint</SHORT-NAME>
+              <FIELD-REF DEST="FIELD">/ServiceInterfaces/DcdcService/Setpoint</FIELD-REF>
+              <GET>
+                <SHORT-NAME>Setpoint_get</SHORT-NAME>
+                <METHOD-ID>1</METHOD-ID>
+                <TRANSPORT-PROTOCOL>UDP</TRANSPORT-PROTOCOL>
+              </GET>
+              <NOTIFIER>
+                <SHORT-NAME>Setpoint_notify</SHORT-NAME>
+                <EVENT-ID>32770</EVENT-ID>
+                <TRANSPORT-PROTOCOL>UDP</TRANSPORT-PROTOCOL>
+              </NOTIFIER>
+            </SOMEIP-FIELD-DEPLOYMENT>
+          </FIELD-DEPLOYMENTS>
+          <SERVICE-INTERFACE-REF DEST="SERVICE-INTERFACE">/ServiceInterfaces/DcdcService</SERVICE-INTERFACE-REF>
+          <EVENT-GROUPS>
+            <SOMEIP-EVENT-GROUP>
+              <SHORT-NAME>Eventgroup1</SHORT-NAME>
+              <EVENT-GROUP-ID>1</EVENT-GROUP-ID>
+              <EVENT-REFS>
+                <EVENT-REF DEST="SOMEIP-EVENT-DEPLOYMENT">/Deployments/DcdcService_SomeIp/DcdcStatus</EVENT-REF>
+                <EVENT-REF DEST="SOMEIP-EVENT-DEPLOYMENT">/Deployments/DcdcService_SomeIp/Setpoint/Setpoint_notify</EVENT-REF>
+              </EVENT-REFS>
+            </SOMEIP-EVENT-GROUP>
+          </EVENT-GROUPS>
+          <SERVICE-INTERFACE-ID>23040</SERVICE-INTERFACE-ID>
+          <SERVICE-INTERFACE-VERSION>
+            <MAJOR-VERSION>1</MAJOR-VERSION>
+            <MINOR-VERSION>0</MINOR-VERSION>
+          </SERVICE-INTERFACE-VERSION>
+        </SOMEIP-SERVICE-INTERFACE-DEPLOYMENT>
+      </ELEMENTS>
+    </AR-PACKAGE>
+    <AR-PACKAGE>
+      <SHORT-NAME>TransformationProps</SHORT-NAME>
+      <ELEMENTS>
+        <TRANSFORMATION-PROPS-SET>
+          <SHORT-NAME>SomeIpProps</SHORT-NAME>
+          <TRANSFORMATION-PROPSS>
+            <AP-SOMEIP-TRANSFORMATION-PROPS>
+              <SHORT-NAME>BigEndianNoLength</SHORT-NAME>
+              <BYTE-ORDER>MOST-SIGNIFICANT-BYTE-FIRST</BYTE-ORDER>
+              <SIZE-OF-STRUCT-LENGTH-FIELD>0</SIZE-OF-STRUCT-LENGTH-FIELD>
+            </AP-SOMEIP-TRANSFORMATION-PROPS>
+          </TRANSFORMATION-PROPSS>
+        </TRANSFORMATION-PROPS-SET>
+        <TRANSFORMATION-PROPS-TO-SERVICE-INTERFACE-ELEMENT-MAPPING-SET>
+          <SHORT-NAME>DcdcServiceProps</SHORT-NAME>
+          <MAPPINGS>
+            <TRANSFORMATION-PROPS-TO-SERVICE-INTERFACE-ELEMENT-MAPPING>
+              <SHORT-NAME>DcdcService</SHORT-NAME>
+              <EVENT-REFS>
+                <EVENT-REF DEST="VARIABLE-DATA-PROTOTYPE">/ServiceInterfaces/DcdcService/DcdcStatus</EVENT-REF>
+              </EVENT-REFS>
+              <FIELD-REFS>
+                <FIELD-REF DEST="FIELD">/ServiceInterfaces/DcdcService/Setpoint</FIELD-REF>
+              </FIELD-REFS>
+              <TRANSFORMATION-PROPS-REF DEST="AP-SOMEIP-TRANSFORMATION-PROPS">/TransformationProps/SomeIpProps/BigEndianNoLength</TRANSFORMATION-PROPS-REF>
+            </TRANSFORMATION-PROPS-TO-SERVICE-INTERFACE-ELEMENT-MAPPING>
+          </MAPPINGS>
+        </TRANSFORMATION-PROPS-TO-SERVICE-INTERFACE-ELEMENT-MAPPING-SET>
+      </ELEMENTS>
+    </AR-PACKAGE>
+    <AR-PACKAGE>
+      <SHORT-NAME>ServiceInstances</SHORT-NAME>
+      <ELEMENTS>
+        <SERVICE-INSTANCE-COLLECTION-SET>
+          <SHORT-NAME>Services</SHORT-NAME>
+          <SERVICE-INSTANCES>
+            <PROVIDED-SERVICE-INSTANCE>
+              <SHORT-NAME>DcdcService_1</SHORT-NAME>
+              <MAJOR-VERSION>1</MAJOR-VERSION>
+              <EVENT-HANDLERS>
+                <EVENT-HANDLER>
+                  <SHORT-NAME>Eventgroup1</SHORT-NAME>
+                  <EVENT-GROUP-IDENTIFIER>1</EVENT-GROUP-IDENTIFIER>
+                </EVENT-HANDLER>
+              </EVENT-HANDLERS>
+              <INSTANCE-IDENTIFIER>1</INSTANCE-IDENTIFIER>
+              <LOCAL-UNICAST-ADDRESSS>
+                <APPLICATION-ENDPOINT-REF-CONDITIONAL>
+                  <APPLICATION-ENDPOINT-REF DEST="APPLICATION-ENDPOINT">/Communication/BenchEth/BenchEthCh/SA_DcdcService/SA_DcdcService_AE</APPLICATION-ENDPOINT-REF>
+                </APPLICATION-ENDPOINT-REF-CONDITIONAL>
+              </LOCAL-UNICAST-ADDRESSS>
+              <MINOR-VERSION>0</MINOR-VERSION>
+              <SD-SERVER-TIMER-CONFIGS>
+                <SOMEIP-SD-SERVER-SERVICE-INSTANCE-CONFIG-REF-CONDITIONAL>
+                  <SOMEIP-SD-SERVER-SERVICE-INSTANCE-CONFIG-REF DEST="SOMEIP-SD-SERVER-SERVICE-INSTANCE-CONFIG">/ServiceInstances/DcdcSdServer</SOMEIP-SD-SERVER-SERVICE-INSTANCE-CONFIG-REF>
+                </SOMEIP-SD-SERVER-SERVICE-INSTANCE-CONFIG-REF-CONDITIONAL>
+              </SD-SERVER-TIMER-CONFIGS>
+              <SERVICE-IDENTIFIER>23040</SERVICE-IDENTIFIER>
+            </PROVIDED-SERVICE-INSTANCE>
+          </SERVICE-INSTANCES>
+        </SERVICE-INSTANCE-COLLECTION-SET>
+        <SOMEIP-SD-SERVER-SERVICE-INSTANCE-CONFIG>
+          <SHORT-NAME>DcdcSdServer</SHORT-NAME>
+          <INITIAL-OFFER-BEHAVIOR>
+            <INITIAL-DELAY-MAX-VALUE>0.1</INITIAL-DELAY-MAX-VALUE>
+            <INITIAL-DELAY-MIN-VALUE>0.01</INITIAL-DELAY-MIN-VALUE>
+            <INITIAL-REPETITIONS-BASE-DELAY>0.1</INITIAL-REPETITIONS-BASE-DELAY>
+            <INITIAL-REPETITIONS-MAX>3</INITIAL-REPETITIONS-MAX>
+          </INITIAL-OFFER-BEHAVIOR>
+          <OFFER-CYCLIC-DELAY>1</OFFER-CYCLIC-DELAY>
+          <REQUEST-RESPONSE-DELAY>
+            <MAX-VALUE>0.1</MAX-VALUE>
+            <MIN-VALUE>0</MIN-VALUE>
+          </REQUEST-RESPONSE-DELAY>
+          <SERVICE-OFFER-TIME-TO-LIVE>3</SERVICE-OFFER-TIME-TO-LIVE>
+        </SOMEIP-SD-SERVER-SERVICE-INSTANCE-CONFIG>
+      </ELEMENTS>
+    </AR-PACKAGE>
+    <AR-PACKAGE>
+      <SHORT-NAME>DoIp</SHORT-NAME>
+      <ELEMENTS>
+        <DO-IP-TP-CONFIG>
+          <SHORT-NAME>BenchEthDoIp</SHORT-NAME>
+          <COMMUNICATION-CLUSTER-REF DEST="ETHERNET-CLUSTER">/Communication/BenchEth</COMMUNICATION-CLUSTER-REF>
+          <DO-IP-LOGIC-ADDRESSS>
+            <DO-IP-LOGIC-ADDRESS>
+              <SHORT-NAME>DCDC</SHORT-NAME>
+              <ADDRESS>4097</ADDRESS>
+            </DO-IP-LOGIC-ADDRESS>
+            <DO-IP-LOGIC-ADDRESS>
+              <SHORT-NAME>Tester</SHORT-NAME>
+              <ADDRESS>3712</ADDRESS>
+            </DO-IP-LOGIC-ADDRESS>
+            <DO-IP-LOGIC-ADDRESS>
+              <SHORT-NAME>Functional</SHORT-NAME>
+              <ADDRESS>58368</ADDRESS>
+            </DO-IP-LOGIC-ADDRESS>
+          </DO-IP-LOGIC-ADDRESSS>
+        </DO-IP-TP-CONFIG>
+      </ELEMENTS>
+    </AR-PACKAGE>
+    <AR-PACKAGE>
       <SHORT-NAME>System</SHORT-NAME>
       <ELEMENTS>
         <SYSTEM>
           <SHORT-NAME>CanFull</SHORT-NAME>
           <DESC>
-            <L-2 L="EN">The zelos-examples can-full bench: the VCU and BMS nodes and the DC-DC of the combined image (nodes/full). bench.dbc plus the DC-DC's AUTOSAR PDUs, UDS and XCP. J1939 (genset.dbc) and CANopen (nodes/pdu/od/pdu.eds) on the same bus are described in their own files.</L-2>
+            <L-2 L="EN">The zelos-examples can-full bench: the VCU and BMS nodes and the DC-DC of the combined image (nodes/full). bench.dbc plus the DC-DC's AUTOSAR PDUs, UDS and XCP, and its SOME/IP DcdcService on BenchEth. J1939 (genset.dbc) and CANopen (nodes/pdu/od/pdu.eds) on the same bus are described in their own files.</L-2>
           </DESC>
           <CATEGORY>SYSTEM_DESCRIPTION</CATEGORY>
           <CONTAINER-I-PDU-HEADER-BYTE-ORDER>MOST-SIGNIFICANT-BYTE-FIRST</CONTAINER-I-PDU-HEADER-BYTE-ORDER>
           <FIBEX-ELEMENTS>
             <FIBEX-ELEMENT-REF-CONDITIONAL>
               <FIBEX-ELEMENT-REF DEST="CAN-CLUSTER">/Communication/CanFull</FIBEX-ELEMENT-REF>
+            </FIBEX-ELEMENT-REF-CONDITIONAL>
+            <FIBEX-ELEMENT-REF-CONDITIONAL>
+              <FIBEX-ELEMENT-REF DEST="ETHERNET-CLUSTER">/Communication/BenchEth</FIBEX-ELEMENT-REF>
             </FIBEX-ELEMENT-REF-CONDITIONAL>
             <FIBEX-ELEMENT-REF-CONDITIONAL>
               <FIBEX-ELEMENT-REF DEST="I-SIGNAL-I-PDU">/Pdus/VCU_Command</FIBEX-ELEMENT-REF>
@@ -6626,6 +7031,9 @@
             </FIBEX-ELEMENT-REF-CONDITIONAL>
             <FIBEX-ELEMENT-REF-CONDITIONAL>
               <FIBEX-ELEMENT-REF DEST="ECU-INSTANCE">/Ecus/Tester</FIBEX-ELEMENT-REF>
+            </FIBEX-ELEMENT-REF-CONDITIONAL>
+            <FIBEX-ELEMENT-REF-CONDITIONAL>
+              <FIBEX-ELEMENT-REF DEST="SERVICE-INSTANCE-COLLECTION-SET">/ServiceInstances/Services</FIBEX-ELEMENT-REF>
             </FIBEX-ELEMENT-REF-CONDITIONAL>
           </FIBEX-ELEMENTS>
           <SYSTEM-VERSION>1.0.0</SYSTEM-VERSION>
