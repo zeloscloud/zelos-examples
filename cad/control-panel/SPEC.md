@@ -13,7 +13,7 @@ cable entry is in a fixed wall. Replaces the Hammond 1554MPB6B option.
   fitted. The ridge ribs also stiffen the plates. Two knuckle hinges on brackets outside the back wall,
   each on an M3 x 50 socket screw with a nylock nut run up snug, not clamped; two bolts out and the lid
   lifts off. Two M3 thumbscrews at the front corners close it; an E-stop slap loads the front wall through
-  the plate edge, not the screws. The lid opens to 115 degrees, where the deck top meets a post on each
+  the plate edge, not the screws. The thumbscrews are M3 x 9, 5 mm into the insert. The lid opens to 115 degrees, where the deck top meets a post on each
   hinge bracket. With 60 g per operator the lid's centre of mass is then 6 mm behind the axis, so it rests
   on the stop, and its moment about the back edge is under a sixth of the body's.
 - Face at 35 degrees from horizontal, 200 mm wide, 120 mm along the slope, 4 mm thick. Operators on a 55 mm

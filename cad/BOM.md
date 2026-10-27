@@ -58,7 +58,7 @@ category pages, any supplier's equivalent is fine.
 |---|---|---|---|
 | 60 | M3 x 10 socket head | every M3 joint: console ridge, plate and rail stub, carrier boards, rig motors, hubs, block, guard, rails, feet | [McMaster M3 socket head](https://www.mcmaster.com/products/socket-head-screws/thread-size~m3/) |
 | 2 | M3 x 50 socket head | console hinge pins | same page |
-| 2 | M3 x 10 knurled thumbscrew | console lid | [McMaster thumb screws](https://www.mcmaster.com/products/thumb-screws/thread-size~m3/) |
+| 2 | M3 x 9 knurled thumbscrew, 18-8 | console lid | [McMaster 92545A115](https://www.mcmaster.com/92545A115/) |
 | 4 | M2.5 x 6 socket head | moteus-c1 to its carrier | [McMaster M2.5](https://www.mcmaster.com/products/socket-head-screws/thread-size~m2-5/) |
 | 14 | M4 x 16 socket head | stand rails 4, rig mount feet 4, hub join 4, rectifier 2 | [McMaster M4](https://www.mcmaster.com/products/socket-head-screws/thread-size~m4/) |
 | 2 | M8 x 60 hex bolt | crank axle, crank grip | [McMaster M8 hex bolts](https://www.mcmaster.com/products/hex-head-screws/thread-size~m8/) |

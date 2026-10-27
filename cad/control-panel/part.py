@@ -46,6 +46,7 @@ STOP_Y, STOP_T, STOP_H = 10.0, 5.0, 12.0      # post front face behind the axis,
 MP_T, MP_CLEAR = 3.0, 2.5                     # plate thickness, gap to the walls
 STANDOFF_D, STANDOFF_H = 8.0, 8.0             # boss, height: insert plus relief for the M3 x 10, 3 mm of floor left
 SCREW_L, RELIEF = 10.0, 1.5                   # the project's one M3 length; relief below each standoff insert
+THUMB_L = 9.0                                 # M3 x 9 knurled thumbscrew: 5 mm into the column insert, no relief needed
 STANDOFF_IN = (16.0, 8.0)                     # in from the plate's side and front/back edges; clears the columns
 GRID = 20.0
 # Waveshare Modbus RTU IO 8CH, 121 x 72 x 34, on a 75 mm TS35 stub, rail along y in the rear bay
@@ -228,7 +229,7 @@ def joints():
         {"joint": "ridge, deck rib to face rib nut", "screw": SCREW_L, "through": DECK_RIB_T + (FACE_RIB_T - NUT_SKIN - NUT_T), "kind": "nut", "nut": NUT_T, "room": NUT_T + NUT_SKIN + 50},
         {"joint": "mounting plate to standoff", "screw": SCREW_L, "through": MP_T, "kind": "insert", "room": INSERT_DEPTH + RELIEF},
         {"joint": "rail stub to plate", "screw": SCREW_L, "through": 1.0 + MP_T, "kind": "nut", "nut": 2.4, "room": STANDOFF_H},
-        {"joint": "thumbscrew to column", "screw": 10.0, "through": PLATE_T, "kind": "insert", "room": INSERT_DEPTH},
+        {"joint": "thumbscrew to column", "screw": THUMB_L, "through": PLATE_T, "kind": "insert", "room": INSERT_DEPTH},
     ]
 
 
