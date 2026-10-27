@@ -61,7 +61,7 @@ def test_coupling_bolts_up_outside_the_rotors(a, b):
         for h, s in ((hd, -1), (hg, 1)):
             x_mid, x_nut = m.X_COUPLE + s * m.HUB_T / 2, m.X_COUPLE + s * m.JOIN_NUT_DEPTH
             assert not h.is_inside((x_mid, m.AXIS_Y + dy, m.AXIS_Z + dz)), (dy, dz)                   # join hole
-            out = (m.AXIS_Y + u[0] * (r + 2), m.AXIS_Z + u[1] * (r + 2))
+            out = (m.AXIS_Y + u[0] * (r + 3), m.AXIS_Z + u[1] * (r + 3))                             # past the M4 hole, in the slot
             rim = (m.AXIS_Y + u[0] * (m.HUB_D / 2 - 0.5), m.AXIS_Z + u[1] * (m.HUB_D / 2 - 0.5))
             inn = (m.AXIS_Y + u[0] * (r - m.M4_NUT_AC / 2 - 0.8), m.AXIS_Z + u[1] * (r - m.M4_NUT_AC / 2 - 0.8))
             assert not h.is_inside((x_nut, *out)) and not h.is_inside((x_nut, *rim)), (dy, dz)         # slot open to the rim

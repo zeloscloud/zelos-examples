@@ -37,7 +37,7 @@ LEAD_L = 80.0                                      # motor pigtails
 # Motor mount: upright with the base pattern, foot under the motor with slots along x, two gussets
 MOUNT_T, MOUNT_W = 6.0, 90.0                       # 6 so an M3 x 10 reaches 4 mm into the stator
 MOUNT_TOP = AXIS_Z + MOTOR_D / 2 + 14.0
-FOOT_D, FOOT_T, FOOT_SLOT = 40.0, 8.0, 12.0
+FOOT_D, FOOT_T, FOOT_SLOT = 40.0, 6.0, 12.0        # 6 so an M4 x 16 fills its nut under the plate
 FOOT_BOLT_Y = 32.0                                 # from the axis, each side
 GUSSET_H, GUSSET_T = 40.0, 6.0
 # Flange coupling: two identical hubs, each screwed to its rotor from the mating side with three M3 x 10
@@ -77,7 +77,8 @@ MOTEUS_HOLES = [(sx * 16.0, sy * 16.0) for sx in (-1, 1) for sy in (-1, 1)]
 RELAY = (51.0, 39.0, 20.0)
 RELAY_HOLES = [(sx * 22.5, sy * 16.5) for sx in (-1, 1) for sy in (-1, 1)]
 RECTIFIER = (80.0, 36.0, 30.0)                     # MDS-type 3-phase bridge module, two M5 holes at 66, on M4 and washers
-RECTIFIER_HOLES = [(-33.0, 0.0), (33.0, 0.0)]
+RECT_Y, RECT_PAD = 2.0, 3.0                        # off the tongue's rib; pads so the M4 x 16 fills its nut in the channel
+RECTIFIER_HOLES = [(-33.0, RECT_Y), (33.0, RECT_Y)]
 PZEM = (90.0, 60.0, 23.0)                          # PZEM-017 case, dropped into a tray
 CARRIERS = {                                       # name: (rail, x centre, plate_x, plate_y)
     "carrier-moteus": (0, -88.0, 64.0, 56.0),
@@ -253,7 +254,7 @@ def build_carriers() -> dict[str, Part]:
     _, _, rx, ry = CARRIERS["carrier-relay"]
     relay = carrier(rx, ry, RELAY_HOLES, hooks(rx), boss_od=8.0, boss_h=5.0)
     _, _, cx, cy = CARRIERS["carrier-rectifier"]
-    rect = carrier(cx, cy, RECTIFIER_HOLES, hooks(cx), boss_od=12.0, boss_h=5.0, hole_d=M4_D)   # pads, M4 nuts in the rail channel
+    rect = carrier(cx, cy, RECTIFIER_HOLES, hooks(cx), boss_od=12.0, boss_h=RECT_PAD, hole_d=M4_D)   # pads, M4 nuts in the rail channel
     _, _, px, py = CARRIERS["tray-pzem"]
     tray = carrier(px, py, [], hooks(px))
     bx, by = PZEM[0] / 2 + LIP_CLEAR, PZEM[1] / 2 + LIP_CLEAR
@@ -301,8 +302,8 @@ def bought() -> dict[str, Part]:
                           + Pos(0, y, Z_TOP + RAIL_H - din.FLANGE_T) * Box(length, din.RAIL_W, din.FLANGE_T, align=(Align.CENTER, Align.CENTER, Align.MIN)))
     for name, (w, h, d) in (("carrier-moteus", MOTEUS), ("carrier-relay", RELAY), ("carrier-rectifier", RECTIFIER), ("tray-pzem", PZEM)):
         _, _, px, py = CARRIERS[name]
-        lift = 10.0                                            # plate plus 5 mm bosses or pads
-        b[name.replace("carrier-", "board-").replace("tray-", "box-")] = carrier_loc(name) * Pos(0, 0, lift) * Box(w, h, d, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        lift, dy = (5.0 + RECT_PAD, RECT_Y) if name == "carrier-rectifier" else (10.0, 0.0)   # plate plus bosses or pads
+        b[name.replace("carrier-", "board-").replace("tray-", "box-")] = carrier_loc(name) * Pos(0, dy, lift) * Box(w, h, d, align=(Align.CENTER, Align.CENTER, Align.MIN))
     bx, bt, bz = BAR
     bar_z = Z_TOP + RFOOT[2] - RFOOT_SLOT
     b["bar"] = Pos(BAR_X[0] - 20, AXIS_Y, bar_z) * Box(bx, bt, bz, align=(Align.MIN, Align.CENTER, Align.MIN))
@@ -323,7 +324,7 @@ def joints():
         {"joint": "rail to plate", "screw": SCREW_L, "through": 1.0 + PLATE_T, "kind": "nut", "nut": 2.4, "room": SKIRT_H},
         {"joint": "mount foot to plate", "screw": M4_L, "through": FOOT_T + PLATE_T, "kind": "nut", "nut": 3.2, "room": SKIRT_H},
         {"joint": "resistor foot, from below", "screw": SCREW_L, "through": PLATE_T, "kind": "insert", "room": INSERT_DEPTH + 2.5},
-        {"joint": "rectifier to pads", "screw": M4_L, "through": 4.0 + 5.0 + 5.0, "kind": "nut", "nut": 3.2, "room": RAIL_H},
+        {"joint": "rectifier to pads", "screw": M4_L, "through": 4.0 + RECT_PAD + 5.0, "kind": "nut", "nut": 3.2, "room": RAIL_H - din.RECESS_D},
         {"joint": "relay to carrier", "screw": SCREW_L, "through": 1.6, "kind": "insert", "room": 5.0 + 5.0},
         {"joint": "crank grip", "screw": 60.0, "through": ARM_T + GRIP_L, "kind": "nut", "nut": 8.0, "room": 50.0},
     ]
