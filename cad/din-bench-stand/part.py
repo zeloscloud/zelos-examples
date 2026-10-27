@@ -22,8 +22,9 @@ RAIL_S = (45.0, 135.0)                        # bottom brace rail, top device ra
 PAD_T, PAD_L, PAD_DEPTH = 16.0, 50.0, 14.0    # pad width along x (one sided), length along s, depth into the leg
 RAIL_W, RAIL_H, RAIL_CLEAR = 35.0, 7.5, 0.4   # TS35
 POCKET_D = 2.0                                # the rail sits in a pocket so one bolt per station cannot rack
-# M4 x 20 through the rail slot into a nut held in a slot open on the pad's outer face
-BOLT_D, NUT_AF, NUT_T, NUT_DEPTH = 4.5, 7.3, 3.4, 8.0
+# M4 x 16 and washer through the rail slot and the pad into a nut held in a slot open on the pad's outer face.
+# The bore runs through the pad so the bolt cannot bottom in plastic.
+BOLT_D, BOLT_L, NUT_AF, NUT_T, NUT_DEPTH = 4.5, 16.0, 7.3, 3.4, 5.0
 # Bought parts for the views and the tip-over check
 RAIL_L = 300.0
 LEG_X = (-110.0, 110.0)                       # legs 40 mm in from the rail ends
@@ -59,7 +60,7 @@ def build_leg() -> Part:
         at = face_loc(s, PAD_T / 2 - LEG_T / 2)
         leg += at * Box(PAD_T, PAD_L, PAD_DEPTH, align=(Align.CENTER, Align.CENTER, Align.MAX))
         leg -= at * Box(PAD_T + 2, RAIL_W + RAIL_CLEAR, POCKET_D, align=(Align.CENTER, Align.CENTER, Align.MAX))
-        leg -= at * Pos(0, 0, -POCKET_D) * Cylinder(BOLT_D / 2, NUT_DEPTH, align=(Align.CENTER, Align.CENTER, Align.MAX))
+        leg -= at * Pos(0, 0, -POCKET_D) * Cylinder(BOLT_D / 2, PAD_DEPTH, align=(Align.CENTER, Align.CENTER, Align.MAX))
         leg -= at * Pos(-NUT_AF / 2, 0, -NUT_DEPTH - NUT_T / 2) * Box(PAD_T, NUT_AF, NUT_T, align=(Align.MIN, Align.CENTER, Align.CENTER))
     return leg
 
@@ -74,8 +75,7 @@ def bought() -> dict[str, Part]:
     return parts
 
 
-def scene() -> list:
-    legs = build()
+def scene(legs: dict[str, Part]) -> list:
     return [Pos(LEG_X[0], 0, 0) * legs["leg-left"], Pos(LEG_X[1], 0, 0) * legs["leg-right"]] + list(bought().values())
 
 

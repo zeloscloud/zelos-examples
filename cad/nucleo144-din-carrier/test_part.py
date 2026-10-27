@@ -16,7 +16,7 @@ def test_envelope_and_flat_underside(p):
     bb = p.bounding_box()
     assert bb.size.X == pytest.approx(m.PLATE_X, abs=0.01)
     assert bb.min.Z == pytest.approx(0.0, abs=0.01)
-    assert bb.max.Z == pytest.approx(m.PLATE_T + m.BOSS_H, abs=0.01)  # pin tops out below the bosses
+    assert bb.max.Z == pytest.approx(m.PLATE_T + m.BOSS_H, abs=0.01)  # the rib tops out below the bosses
 
 
 def test_five_insert_holes_open(p):
@@ -27,14 +27,17 @@ def test_five_insert_holes_open(p):
 
 
 def test_rail_fits_and_teeth_hold(p):
-    """Flange space is open above the teeth; teeth reach under it on both flanges."""
+    """Flange space is open above the teeth; teeth reach under it on both flanges; the tongue tooth has its lead-in."""
     y = m.RAIL_W / 2 + m.CLEAR
-    z_tooth, z_flange = m.TOOTH_H / 2, m.RECESS_D - m.FLANGE_T / 2
+    z_tooth, z_flange = m.TOOTH_H - 0.15, m.RECESS_D - m.FLANGE_T / 2
     for sign in (1, -1):
         assert not p.is_inside((0, sign * (y - 0.2), z_flange)), sign
         x = m.HOOK_X[1] if sign > 0 else m.TONGUE_X[1] - m.TONGUE_TOOTH_LEN / 2
         assert p.is_inside((x, sign * (y - m.TOOTH + 0.2), z_tooth)), sign
         assert not p.is_inside((x, sign * (y - m.TOOTH - 0.3), z_tooth)), sign
+    x = m.TONGUE_X[1] - m.TONGUE_TOOTH_LEN / 2
+    assert not p.is_inside((x, -(y - m.TOOTH + 0.2), 0.2))           # bed-side inner corner cut away
+    assert p.is_inside((x, -(y - 0.2), 0.2))                          # root of the tooth still there
 
 
 def test_tongue_is_free_to_flex(p):

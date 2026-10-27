@@ -38,10 +38,14 @@ def test_rails_seat_in_pockets_over_captive_nuts(leg):
         assert not inside(0, nut) and not inside(m.NUT_AF / 2 - 0.3, nut)  # nut slot, flats across y
         assert inside(m.NUT_AF / 2 + 0.5, nut)
         assert not leg.is_inside((at * Pos(m.PAD_T / 2 - 0.5, 0, nut)).position)   # open on the outer face
-        assert leg.is_inside((at * Pos(0, 0, nut - m.NUT_T / 2 - 1)).position)     # floor under the nut
+        assert inside(m.NUT_AF / 2 - 0.3, nut - m.NUT_T / 2 - 1)                    # floor under the nut
+        tip = m.RAIL_H - m.POCKET_D - m.BOLT_L                                      # head on the rail, washer ignored
+        assert tip < nut - m.NUT_T / 2 - 1 and not inside(0, tip)                  # through the nut, into open bore
 
 
 def test_bought_parts_clear_the_legs(legs):
+    """The device span fits between the legs' flat inner faces; rails pass the pads."""
+    assert m.DEVICE[0] < m.LEG_X[1] - m.LEG_X[0] - m.LEG_T
     placed = [Pos(m.LEG_X[0], 0, 0) * legs["leg-left"], Pos(m.LEG_X[1], 0, 0) * legs["leg-right"]]
     for name, p in m.bought().items():
         for L in placed:

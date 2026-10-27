@@ -12,6 +12,7 @@ checks in CI, the agent does the typing.
 | `<part>/PRINTS.md` | One line per print: date, material, profile, what fit and what did not |
 | `<part>/build/` | STEP, STL and hidden-line views. Build output, not committed |
 | `parts/build.py` | The build runner `just build` uses |
+| `fonts/` | The face the legends are cut with, so the inlay is the same on every machine |
 | `.claude/skills/` | The build123d modeling skill, so Claude Code knows the library's idioms here |
 
 ## Working on a part
@@ -36,8 +37,8 @@ in `PRINTS.md`, and the fix is a constant, never the STL.
 
 ## Printing
 
-`just slice <part>` runs the Bambu Studio CLI with the committed H2D profiles once Bambu Studio is
-installed and the profiles are exported into `profiles/h2d/`. Sending the job is done from Bambu Studio
+`just slice <part> <print>` runs the Bambu Studio CLI on one print's STL once Bambu Studio is installed
+and the H2D profiles are exported into `profiles/h2d/` (not committed yet). Sending the job is done from Bambu Studio
 or Handy by a person who stays for the first layer.
 
 ## Parts

@@ -7,11 +7,12 @@ PLC stand. A mirror pair of printed legs and two lengths of TS35 rail; nothing e
   one. Bottom rail braces the legs and takes terminal blocks or a cable comb. Rail length sets the width;
   300 mm with the legs 40 mm in from the ends is the drawn case. End clamps are bought.
 - Leg: 8 mm plate, 200 mm foot of which 60 mm sits in front of the face under the devices, 180 mm tall,
-  A-frame with lightening windows and a diagonal strut. Prints flat on its side, no supports, about 70 cm3
+  A-frame with lightening windows and a diagonal strut. Prints flat on its side, no supports, about 75 cm3
   in PETG. The rail pads stand proud on the outer side, so the two legs are mirror images.
-- Each rail sits in a 2 mm pocket across a 16 mm pad on the face and takes one M4 x 20 and washer through a
-  rail slot into a nut held captive in a slot open on the pad's outer face. No threads in plastic, and the
-  pocket stops the frame racking; two rails make it a rigid frame.
+- Each rail sits in a 2 mm pocket across a 16 mm pad on the face and takes one M4 x 16 and washer through a
+  rail slot into a nut held captive in a slot open on the pad's outer face, 5 mm under the pocket. The bore
+  runs on through the pad, so the bolt ends in air, never in plastic. No threads in plastic, and the pocket
+  stops the frame racking; two rails make it a rigid frame.
 - Tip-over: the top-rail devices' centre of mass sits over the middle half of the foot, checked in the tests
   with a 200 x 100 x 68 mm device envelope.
 - Open: rail lengths for each bench, and whether the bottom rail wants to be a printed cable bar instead.

@@ -9,7 +9,7 @@ from pathlib import Path
 import pymupdf
 from build123d import Compound, ExportSVG, LineType, export_step, export_stl
 
-VIEWS = [("board-side", (-120, -160, 110)), ("rail-side", (-120, 160, -110))]
+VIEWS = [("front", (-120, -160, 110)), ("back", (120, 160, 110))]   # a part sets its own
 
 
 def load(part_dir: Path):
@@ -33,13 +33,13 @@ def main(part_dir: Path) -> None:
         export_step(p, str(out / f"{name}.step"))
         export_stl(p, str(out / f"{name}.stl"))
     # A part may describe the scene to draw: its prints placed with the bought parts around them.
-    assembly = Compound(mod.scene() if hasattr(mod, "scene") else list(prints.values()))
+    assembly = Compound(mod.scene(prints) if hasattr(mod, "scene") else list(prints.values()))
     pngs = []
     for view, eye in getattr(mod, "VIEWS", VIEWS):
         vis, hid = assembly.project_to_viewport(eye)
         e = ExportSVG(scale=5, line_weight=0.6)
-        e.add_layer("hidden", line_color=(170, 170, 170), line_type=LineType.ISO_DASH, line_weight=0.3)
-        e.add_layer("visible", line_color=(20, 20, 20), line_weight=0.7)
+        e.add_layer("hidden", line_color="#aaaaaa", line_type=LineType.ISO_DASH, line_weight=0.3)
+        e.add_layer("visible", line_color="#141414", line_weight=0.7)
         e.add_shape(hid, layer="hidden")
         e.add_shape(vis, layer="visible")
         svg = out / f"{view}.svg"

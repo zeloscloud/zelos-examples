@@ -22,9 +22,9 @@ test PART="*":
 build-all:
     for p in */part.py; do just build "$(dirname "$p")"; done
 
-# Slice a built STL with the committed H2D profiles. Needs Bambu Studio installed.
-slice PART PROFILE="petg":
+# Slice one built print with the H2D profiles. Needs Bambu Studio and profiles/h2d/ exported from it (not committed yet).
+slice PART PRINT PROFILE="petg":
     "/Applications/BambuStudio.app/Contents/MacOS/BambuStudio" \
         --load-settings "profiles/h2d/machine.json;profiles/h2d/process-0.2mm.json" \
         --load-filaments "profiles/h2d/{{PROFILE}}.json" \
-        --slice 0 --export-3mf "{{PART}}/build/{{PART}}.gcode.3mf" "{{PART}}/build/{{PART}}.stl"
+        --slice 0 --export-3mf "{{PART}}/build/{{PRINT}}.gcode.3mf" "{{PART}}/build/{{PRINT}}.stl"
