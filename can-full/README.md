@@ -48,7 +48,7 @@ same default, so run one bench at a time or move one.
 |---|---|---|---|
 | VCU | `../nodes/vcu` | | `0x101` |
 | BMS | `../nodes/bms` | | `0x200`-`0x202` |
-| DC-DC | `../nodes/full` (`../nodes/dcdc`, XCP, UDS, AUTOSAR and Ethernet) | XCP on CAN, UDS on ISO-TP, AUTOSAR PDUs; IPv4 on Ethernet | `0x300`; AUTOSAR `0x310`-`0x315`; CRO `0x6F0`, DTO `0x6F1`; UDS `0x7E0`, functional `0x7DF`, responses `0x7E8`; `10.1.1.75/24` |
+| DC-DC | `../nodes/full` (`../nodes/dcdc`, XCP, UDS, AUTOSAR, Ethernet and GOOSE) | XCP on CAN, UDS on ISO-TP, AUTOSAR PDUs; IPv4 and GOOSE on Ethernet | `0x300`; AUTOSAR `0x310`-`0x315`; CRO `0x6F0`, DTO `0x6F1`; UDS `0x7E0`, functional `0x7DF`, responses `0x7E8`; `10.1.1.75/24`; GOOSE APPIDs `0x0001`, `0x0002` |
 | Signal generator | `../nodes/full/src/waveform.c` | Classic CAN | `0x7F0` `Waveform` every 2 ms: sine, square and sawtooth of one phase, chirped 1 to 100 Hz over 20 s; the lowest-priority id, for plots |
 | genset | `../nodes/full` (`../nodes/genset`) | J1939 | 29-bit, source address `0x80` |
 | PDU | `../nodes/full` (`../nodes/pdu`) | CANopen, node-id `0x20` | NMT `0x000`, SYNC `0x080`, TIME `0x100`, EMCY `0x0A0`, TPDO1 `0x1A0`, RPDO1 `0x220`, TPDO2 `0x2A0`, RPDO2 `0x320`, TPDO3 `0x3A0`, SDO `0x5A0`/`0x620`, heartbeat `0x720` |
@@ -86,6 +86,24 @@ the PDU alone, without a reboot. Every protocol sends through one queue in
 XCP writes the calibration without seed and key while UDS asks level 0x01 for
 the same memory: this is a development ECU.
 
+The image also publishes IEC 61850-8-1 GOOSE on the same port (`../lib/goose`,
+IED `ZELOSFULL`, `../nodes/full/src/goose.c`): EtherType `0x88B8`, no VLAN tag,
+confRev 1.
+
+| Control block | APPID | Destination | Sent | Data set |
+|---|---|---|---|---|
+| `gcb_pdu` | `0x0001` | `01:0C:CD:01:00:01` | on change | the PDU's channels 1-8 powered (Dbpos), their trip latches (BOOLEAN), overcurrent EMCYs since boot (INT32) |
+| `gcb_dcdc` | `0x0002` | `01:0C:CD:01:00:02` | every 100 ms | the DC-DC's output V and A, input A, temperature (FLOAT32), its cycles since start (UNSIGNED); stNum counts changes of its state (idle, converting, derating) |
+
+A change goes out at once, then again 4 ms later, the interval doubling to
+512 ms, then every second; timeAllowedtoLive is twice the time to the next
+frame. The board's user button (B1) toggles PDU channel 1, so `gcb_pdu` bursts.
+UDS routine `0x6185`, in the extended session, takes one option byte and acts
+on both control blocks: `0x01` toggles simulation, `0x02` toggles ndsCom,
+`0x03` adds one to confRev. Any capture tool on a host on the same switch shows
+them, e.g. `tcpdump -i <iface> ether proto 0x88b8`, or Wireshark's GOOSE
+dissector.
+
 As an AUTOSAR ECU it sends what `../arxml/can-full.arxml` (an AUTOSAR R19-11
 System Template of this bench, `bench.dbc` included) describes: E2E profiles 1,
 2 and 5, a container with short headers, a multiplexed PDU and a SecOC profile 1
@@ -119,6 +137,7 @@ inputs and per-channel current, and trips channel 8, which is shorted.
 | `../testing/suites/eth` | DC-DC | The board's Ethernet (`../lib/eth`): link 100 Mb/s full duplex, the static address up after conflict detection, ping, the host's neighbour entry equal to the node's MAC, and the node's counters (UDS DID `0x0111`, read over CAN). The host end is whichever interface is on the node's subnet: the bench's `tap0`, or the hardware bench's own |
 | `../testing/suites/doip` | DC-DC | Its UDS server as a DoIP entity (ISO 13400-2, `../lib/doip`), checked with a client written from the standard and with zelos-can's (doipclient), as the UDS and OBD extensions connect: vehicle identification by plain request, EID and VIN, answered within 500 ms, and one responder to a broadcast; entity status, power mode, header NACKs; routing activation's codes (0x10, 0x00, 0x02, 0x03 and 0x01 decided by alive checks, 0x06), initial inactivity; diagnostic messages acknowledged, NACKed (0x02, 0x03, 0x04 above MDS) or answered; three announcements 500 ms apart after a reset. The UDS conformance suite, unchanged, over DoIP. One server, two transports: a CAN tester's session gives the DoIP tester 0x21 and only OBD, and S3 still ends it; a closed DoIP owner's output returns at once; a pending routine answers its own tester. Core: ztests in `../tests/lib/doip` |
 | `../testing/suites/someip` | DC-DC | Its SOME/IP service (DcdcService `0x5A00`, `../lib/someip`) and its SD, checked with a client written from the PRS: offers every second with TTL 3 and the service's UDP endpoint (where the SD group reaches the host: on this bench, not on the hardware bench, whose switch forwards it to IGMPv2 members only); FindService answered unicast within 100 ms; a subscription acknowledged, the Setpoint field's value at once, then DcdcStatus every 100 ms with none missing, each equal, within the frame's resolution, to the DCDC_Status of the same Counter; the getter equal to DID `0x0200`, and the notifier within 150 ms of a write over UDS; 0x28 stops the events, not SD or the getter; error codes; StopOffer at a reset, and the Reboot flag after it. Core: ztests in `../tests/lib/someip` |
+| `../testing/suites/goose` | DC-DC, PDU | Its GOOSE (`../lib/goose`) captured raw on the host interface on the node's subnet and decoded by a BER walk written from IEC 61850-8-1 Annex A: both control blocks with their destinations, references, goID and data set sizes; timeAllowedtoLive twice the period, or one of the on-change ladder's; stNum and sqNum in sequence, none missed; `gcb_dcdc` every 100 ms (within 5 % on hardware). Needs CAP_NET_RAW, which the bench's tester has. Core: ztests in `../tests/lib/goose` |
 | `../testing/suites/full` | all three | Every protocol at once for `--soak-s` (120 s here, 10 s on hardware): XCP DAQ, a UDS 64 KiB download and upload loop, CANopen operational with SYNC every 10 ms and RPDO1, J1939 and DCDC_Status. No EMCY, no DAQ sample lost, periods kept, and the node's counters (UDS DID `0x0110`) show no TX queue overflow, TX error or RX FIFO overrun |
 
 The suites drive the other nodes' roles themselves when those nodes are absent,
@@ -127,7 +146,7 @@ Every test sets its own preconditions over the bus rather than assuming a fresh
 boot.
 
 `just test`, and CI on every change, run the core: xcp, j1939, canopen, autosar,
-eth, the DoIP entity and the coexistence suite, one boot and each protocol
+eth, the DoIP entity, goose and the coexistence suite, one boot and each protocol
 touched once. The rest (UDS conformance on CAN and over DoIP, DTCs and resets,
 DoIP arbitration, SOME/IP, OBD) run with `just test-all`, on hardware with
 `just hil`, and on CI for a pull request labelled `ci-full`, on demand, and
