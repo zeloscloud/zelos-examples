@@ -87,22 +87,23 @@ XCP writes the calibration without seed and key while UDS asks level 0x01 for
 the same memory: this is a development ECU.
 
 The image also publishes IEC 61850-8-1 GOOSE on the same port (`../lib/goose`,
-IED `ZELOSFULL`, `../nodes/full/src/goose.c`): EtherType `0x88B8`, no VLAN tag,
-confRev 1.
+logical device `ZELOSFULL`, `../nodes/full/src/goose.c`): EtherType `0x88B8`, no
+VLAN tag, confRev 1.
 
 | Control block | APPID | Destination | Sent | Data set |
 |---|---|---|---|---|
 | `gcb_pdu` | `0x0001` | `01:0C:CD:01:00:01` | on change | the PDU's channels 1-8 powered (Dbpos), their trip latches (BOOLEAN), overcurrent EMCYs since boot (INT32) |
-| `gcb_dcdc` | `0x0002` | `01:0C:CD:01:00:02` | every 100 ms | the DC-DC's output V and A, input A, temperature (FLOAT32), its cycles since start (UNSIGNED); stNum counts changes of its state (idle, converting, derating) |
+| `gcb_dcdc` | `0x0002` | `01:0C:CD:01:00:02` | every 100 ms | the DC-DC's output V and A, input A, temperature (FLOAT32), its cycles since start (UNSIGNED) |
 
-A change goes out at once, then again 4 ms later, the interval doubling to
-512 ms, then every second; timeAllowedtoLive is twice the time to the next
-frame. The board's user button (B1) toggles PDU channel 1, so `gcb_pdu` bursts.
-UDS routine `0x6185`, in the extended session, takes one option byte and acts
-on both control blocks: `0x01` toggles simulation, `0x02` toggles ndsCom,
-`0x03` adds one to confRev. Any capture tool on a host on the same switch shows
-them, e.g. `tcpdump -i <iface> ether proto 0x88b8`, or Wireshark's GOOSE
-dissector.
+A change to `gcb_pdu` goes out at once, then again 4 ms later, the interval
+doubling to 512 ms, then every second; timeAllowedtoLive is twice the time to
+the next frame. `gcb_dcdc` keeps its 100 ms period, timeAllowedtoLive 200 ms;
+its members move between frames, so every frame is a new state (stNum + 1, sqNum
+0). The board's user button (B1) toggles PDU channel 1, so `gcb_pdu` bursts. UDS
+routine `0x6185`, in the extended session, takes one option byte and acts on
+both control blocks: `0x01` toggles simulation, `0x02` toggles ndsCom, `0x03`
+adds one to confRev. Any capture tool on a host on the same switch shows them,
+e.g. `tcpdump -i <iface> ether proto 0x88b8`, or Wireshark's GOOSE dissector.
 
 As an AUTOSAR ECU it sends what `../arxml/can-full.arxml` (an AUTOSAR R19-11
 System Template of this bench, `bench.dbc` included) describes: E2E profiles 1,

@@ -3,11 +3,12 @@
  * blocks on raw Ethernet, EtherType 0x88B8, no VLAN tag. Nothing is received.
  *
  * A control block publishes either on change (period_ms 0) or every
- * period_ms. stNum counts changes of the state its read() returns, and of
- * confRev: a change sets sqNum to 0 and t to now. On change, the change's
- * frame goes at once, then repeats 4, 8, 16, 32, 64, 128, 256 and 512 ms
- * apart, then every 1000 ms. timeAllowedtoLive is twice the time to the next
- * frame: 8 ms on the change's, 2000 ms once steady; 2 x period_ms otherwise.
+ * period_ms, read when its frame is due. stNum counts changes of the state its
+ * read() returns, and of confRev: a change sets sqNum to 0 and t to now. On
+ * change, the change's frame goes at once, then repeats 4, 8, 16, 32, 64, 128,
+ * 256 and 512 ms apart, then every 1000 ms. timeAllowedtoLive is twice the
+ * time to the next frame: 8 ms on the change's, 2000 ms once steady;
+ * 2 x period_ms otherwise.
  * stNum and sqNum wrap to 1, not 0 (IEC 61850-7-2). t is time since boot from
  * 1970-01-01, its quality "clock not synchronized".
  *
@@ -80,11 +81,13 @@ struct zelos_goose_cb {
 
 /**
  * Publish the control blocks once lib/eth's link is up. Call once; they must
- * outlive the node. 0, or -errno.
+ * outlive the node. 0, or -errno: -EINVAL if a block's frame could exceed
+ * ZELOS_GOOSE_FRAME_MAX, found by encoding one on the caller's stack (about
+ * 1 KB).
  */
 int zelos_goose_start(const struct zelos_goose_cb *cbs, size_t count);
 
-/* A member may have changed: read every control block now. Any context. */
+/* A member may have changed: read every on-change control block now. Any context. */
 void zelos_goose_poke(void);
 
 /* The UDS routine ZELOS_GOOSE_ROUTINE: option[0] as above; returns the result's length. */

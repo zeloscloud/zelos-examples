@@ -2,7 +2,8 @@
  * GOOSE publisher on an AF_PACKET SOCK_RAW socket: the whole frame, Ethernet
  * header included, handed to the interface. One thread below every CAN
  * protocol's priority, started once the link is up. It sleeps until the next
- * frame is due or zelos_goose_poke(); either way it reads every control block.
+ * frame is due or zelos_goose_poke(); either way it reads every on-change
+ * control block, and a periodic one whose frame is due.
  */
 
 #include <zelos/goose.h>
@@ -29,6 +30,8 @@ static struct net_if *iface;
 static struct zelos_goose_pub pubs[CBS_MAX];
 static size_t pub_count;
 static K_SEM_DEFINE(poke, 0, 1);
+/* The thread's, and zelos_goose_start()'s before the thread runs. */
+static uint8_t frame[ZELOS_GOOSE_FRAME_MAX];
 
 /* The test knobs: UDS writes them, the thread reads them. */
 static atomic_t simulation;
@@ -70,7 +73,6 @@ uint8_t zelos_goose_routine(const uint8_t *option, uint8_t *result)
  */
 static void run(void *p1, void *p2, void *p3)
 {
-	static uint8_t frame[ZELOS_GOOSE_FRAME_MAX];
 	struct net_sockaddr_ll to = {
 		.sll_family = NET_AF_PACKET,
 		.sll_protocol = net_htons(ZELOS_GOOSE_ETHERTYPE),
@@ -101,14 +103,21 @@ static void run(void *p1, void *p2, void *p3)
 
 		for (size_t i = 0; i < pub_count; i++) {
 			struct zelos_goose_pub *pub = &pubs[i];
-			const uint32_t state = pub->cb->read(pub->values);
 			const uint32_t st_num = pub->st_num;
+			uint32_t state;
 			size_t len;
 
+			/* Periodic: read when due, so each frame's stNum is the last's + 1. */
+			if (pub->cb->period_ms != 0 && st_num != 0 && now < pub->next_us) {
+				next = MIN(next, pub->next_us);
+				continue;
+			}
+			state = pub->cb->read(pub->values);
 			pub->simulation = atomic_get(&simulation) != 0;
 			pub->nds_com = atomic_get(&nds_com) != 0;
 			zelos_goose_update(pub, state, (uint32_t)atomic_get(&conf_rev), now);
-			if (pub->st_num != st_num) {
+			/* A periodic block's stNum may change every frame. */
+			if (pub->st_num != st_num && pub->cb->period_ms == 0) {
 				LOG_INF("%s stNum %u", pub->cb->go_id, pub->st_num);
 			}
 			memcpy(to.sll_addr, pub->cb->dst, sizeof(pub->cb->dst));
@@ -128,6 +137,28 @@ static void run(void *p1, void *p2, void *p3)
 
 K_THREAD_DEFINE(goose_tid, STACK_SIZE, run, NULL, NULL, NULL, PRIORITY, 0, SYS_FOREVER_MS);
 
+/* Whether pub's longest frame fits: every counter and integer at its longest encoding. */
+static bool fits(struct zelos_goose_pub *pub)
+{
+	static const uint8_t mac[6];
+
+	(void)pub->cb->read(pub->values);
+	for (size_t k = 0; k < pub->cb->count; k++) {
+		struct zelos_goose_value *v = &pub->values[k];
+
+		if (v->type == ZELOS_GOOSE_INT32 || v->type == ZELOS_GOOSE_UINT32) {
+			/* INT32_MIN, or 2^31: 4 and 5 octets. */
+			v->u32 = 0x80000000U;
+		}
+	}
+	zelos_goose_update(pub, 0, UINT32_MAX, 0);
+	pub->st_num = UINT32_MAX;
+	pub->sq_num = UINT32_MAX;
+	/* timeAllowedtoLive at its steady 2000 ms, on change. */
+	pub->step = ZELOS_GOOSE_BURST;
+	return zelos_goose_poll(pub, 0, mac, frame, sizeof(frame)) > 0;
+}
+
 int zelos_goose_start(const struct zelos_goose_cb *cbs, size_t count)
 {
 	if (count == 0 || count > CBS_MAX) {
@@ -137,7 +168,12 @@ int zelos_goose_start(const struct zelos_goose_cb *cbs, size_t count)
 		if (cbs[i].count > ZELOS_GOOSE_MEMBERS_MAX) {
 			return -EINVAL;
 		}
-		pubs[i].cb = &cbs[i];
+		pubs[i] = (struct zelos_goose_pub){.cb = &cbs[i]};
+		if (!fits(&pubs[i])) {
+			LOG_ERR("%s: frame over %d octets", cbs[i].go_id, ZELOS_GOOSE_FRAME_MAX);
+			return -EINVAL;
+		}
+		pubs[i] = (struct zelos_goose_pub){.cb = &cbs[i]};
 	}
 	iface = net_if_get_first_by_type(&NET_L2_GET_NAME(ETHERNET));
 	if (iface == NULL) {

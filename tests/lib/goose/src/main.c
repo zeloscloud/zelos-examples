@@ -168,6 +168,10 @@ ZTEST(goose, test_frame)
 	zassert_equal(ST_NUM(), 1);
 	zassert_equal(SQ_NUM(), 0);
 	zassert_equal(f[n - 5], 0xAB, "allData last");
+
+	/* One octet short: no frame, the dry run zelos_goose_start() relies on. */
+	zelos_goose_update(&pub, 1, 7, MS(1500));
+	zassert_equal(zelos_goose_poll(&pub, MS(1500), mac, f, n - 1), 0);
 }
 
 ZTEST(goose, test_retransmission_and_tal)

@@ -1,5 +1,6 @@
 /*
- * The image's GOOSE (lib/goose): IED ZELOSFULL, LD LLN0, confRev 1, no VLAN.
+ * The image's GOOSE (lib/goose): logical device ZELOSFULL, logical node LLN0,
+ * confRev 1, no VLAN.
  *
  *   gcb_pdu, APPID 0x0001 to 01:0C:CD:01:00:01, data set ds_pdu, goID
  *   zelos-pdu, on change: the PDU's channels 1-8 powered (Dbpos, on 10 closed,
@@ -8,8 +9,8 @@
  *   gcb_dcdc, APPID 0x0002 to 01:0C:CD:01:00:02, data set ds_dcdc, goID
  *   zelos-dcdc, every 100 ms: the DC-DC's output V, output A, input A and
  *   temperature degC (FLOAT32), then its 50 ms cycles since start (UNSIGNED).
- *   stNum counts changes of DcdcState (Idle, Converting, Derating, as its
- *   SOME/IP event and AUTOSAR PDUs have it), not of the values.
+ *   Its members move between frames, so each frame is a new state: stNum + 1,
+ *   sqNum 0.
  *
  * The user button (sw0) toggles PDU channel 1's commanded state, 50 ms after
  * the last edge if still pressed.
@@ -30,8 +31,7 @@ LOG_MODULE_REGISTER(full_goose, LOG_LEVEL_INF);
 
 #define CHANNELS 8
 #define DEBOUNCE_MS 50
-
-enum { IDLE, CONVERTING, DERATING };
+#define DCDC_MEMBERS 5
 
 static uint32_t read_pdu(struct zelos_goose_value *v)
 {
@@ -58,6 +58,7 @@ static uint32_t read_pdu(struct zelos_goose_value *v)
 static uint32_t read_dcdc(struct zelos_goose_value *v)
 {
 	struct dcdc_sample s;
+	uint32_t state = 2166136261U;
 
 	dcdc_latest(&s);
 	v[0] = (struct zelos_goose_value){.type = ZELOS_GOOSE_FLOAT32, .f32 = s.output_v};
@@ -65,7 +66,11 @@ static uint32_t read_dcdc(struct zelos_goose_value *v)
 	v[2] = (struct zelos_goose_value){.type = ZELOS_GOOSE_FLOAT32, .f32 = s.input_a};
 	v[3] = (struct zelos_goose_value){.type = ZELOS_GOOSE_FLOAT32, .f32 = s.temperature_c};
 	v[4] = (struct zelos_goose_value){.type = ZELOS_GOOSE_UINT32, .u32 = s.cycles};
-	return s.derating ? DERATING : s.input_a > 0.0f ? CONVERTING : IDLE;
+	/* Every member's bits, folded (FNV-1a): any member's change is a new state. */
+	for (int i = 0; i < DCDC_MEMBERS; i++) {
+		state = (state ^ v[i].u32) * 16777619U;
+	}
+	return state;
 }
 
 static const struct zelos_goose_cb cbs[] = {
@@ -85,7 +90,7 @@ static const struct zelos_goose_cb cbs[] = {
 		.dat_set = "ZELOSFULL/LLN0$ds_dcdc",
 		.go_id = "zelos-dcdc",
 		.period_ms = 100,
-		.count = 5,
+		.count = DCDC_MEMBERS,
 		.read = read_dcdc,
 	},
 };
