@@ -50,4 +50,4 @@ or Handy by a person who stays for the first layer.
 | [`nucleo144-din-carrier`](nucleo144-din-carrier/) | A NUCLEO-144 (H753ZI and siblings) on a TS35 rail | Designed and tested, awaiting its first print |
 | [`din-bench-stand`](din-bench-stand/) | Two printed legs and two TS35 lengths: a leaning desk stand for the EK1100, CX9240 or RevPi | Designed and tested, awaiting its first print |
 | [`control-panel`](control-panel/) | Desk console: six 22 mm operators on a hinged lid, Modbus IO module on a removable mounting plate | Designed and tested; operator part numbers and legends to confirm |
-| [`energy-rig`](energy-rig/) | Motor and generator on a baseplate with a flange coupling, crank module, guard, DIN carriers and a resistor bar | Designed and tested; relay and rectifier modules are placeholders |
+| [`energy-rig`](energy-rig/) | Motor and generator on a baseplate with a flange coupling, crank module, guard, DIN carriers and a resistor bar | Later: designed and tested, relay and rectifier modules are placeholders |

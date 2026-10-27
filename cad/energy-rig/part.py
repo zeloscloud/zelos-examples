@@ -17,13 +17,11 @@ PLATE_X, PLATE_Y, PLATE_T = 260.0, 240.0, 5.0
 SKIRT_H, SKIRT_T = 10.0, 3.0
 Z_TOP = SKIRT_H + PLATE_T                          # plate top
 # Fasteners: M3 everywhere but the mount feet (M4) and the crank axle (M8). Nuts under the plate.
-SCREW_D, M25_D, M4_D, M8_D = 3.4, 2.8, 4.5, 8.4
-SCREW_L, M4_L = 10.0, 16.0                         # the project's two bolt lengths besides the axles
+SCREW_D, M25_D, M8_D = 3.4, 2.8, 8.4
+SCREW_L = 10.0                                     # the project's one M3 length
 INSERT_D, INSERT_DEPTH = 4.0, 6.0                  # M3 x 5.7 heat-set, blind joints only
 NUT_AF, NUT_T = 5.7, 2.6
-M4_NUT_AF, M4_NUT_T = 7.3, 3.4
 NUT_AC = NUT_AF / cos(radians(30))
-M4_NUT_AC = M4_NUT_AF / cos(radians(30))
 # Motor train along x at the front; axis high enough for the crank to swing clear of the desk
 AXIS_Y = 60.0
 AXIS_Z = Z_TOP + 75.0
@@ -37,15 +35,16 @@ LEAD_L = 80.0                                      # motor pigtails
 # Motor mount: upright with the base pattern, foot under the motor with slots along x, two gussets
 MOUNT_T, MOUNT_W = 6.0, 90.0                       # 6 so an M3 x 10 reaches 4 mm into the stator
 MOUNT_TOP = AXIS_Z + MOTOR_D / 2 + 14.0
-FOOT_D, FOOT_T, FOOT_SLOT = 40.0, 6.0, 12.0        # 6 so an M4 x 16 fills its nut under the plate
+FOOT_D, FOOT_T, FOOT_SLOT = 40.0, 6.0, 12.0
+FOOT_CBORE = 4.0                                   # heads sink into the foot so the M3 x 10 fills its nut under the plate
 FOOT_BOLT_Y = 32.0                                 # from the axis, each side
 GUSSET_H, GUSSET_T = 40.0, 6.0
 # Flange coupling: two identical hubs, each screwed to its rotor from the mating side with three M3 x 10
-# counterbored to reach 3.5 mm, joined by four M4 x 16 outside the rotor bell. Join nuts sit in slots
-# entered from the rim, so the bolt cannot push them out.
+# counterbored to reach 3.5 mm, joined by four M3 x 10 outside the rotor bell: two heads from each side,
+# sunk 6 mm, into nuts in slots entered from the rim 2.5 mm behind the other hub's mating face.
 HUB_D, HUB_T = 84.0, 10.0
-JOIN_BC, JOIN_N, JOIN_HEAD_R = 76.0, 4, 3.5
-JOIN_NUT_DEPTH = 4.0                               # slot centre in from the mating face: M4 x 16 fills the nut
+JOIN_BC, JOIN_N, JOIN_HEAD_R = 76.0, 4, 2.75
+JOIN_CBORE, JOIN_NUT_DEPTH = 6.0, 2.5
 CBORE_D, ROTOR_REACH = 6.0, 3.5
 CBORE_DEPTH = HUB_T - (SCREW_L - ROTOR_REACH)      # what the M3 x 10 leaves under its head sets the reach
 # Positions along x: the drive mount sits at the crank end of the plate
@@ -77,7 +76,7 @@ MOTEUS_HOLES = [(sx * 16.0, sy * 16.0) for sx in (-1, 1) for sy in (-1, 1)]
 RELAY = (51.0, 39.0, 20.0)
 RELAY_HOLES = [(sx * 22.5, sy * 16.5) for sx in (-1, 1) for sy in (-1, 1)]
 RECTIFIER = (80.0, 36.0, 30.0)                     # MDS-type 3-phase bridge module, two M5 holes at 66, on M4 and washers
-RECT_Y, RECT_PAD = 2.0, 3.0                        # off the tongue's rib; pads so the M4 x 16 fills its nut in the channel
+RECT_Y = 2.0                                       # off the tongue's rib; bolted from below, heads in the rail channel
 RECTIFIER_HOLES = [(-33.0, RECT_Y), (33.0, RECT_Y)]
 PZEM = (90.0, 60.0, 23.0)                          # PZEM-017 case, dropped into a tray
 CARRIERS = {                                       # name: (rail, x centre, plate_x, plate_y)
@@ -118,7 +117,7 @@ def plate_holes():
     for xm, s in ((X_DRIVE, 1), (X_GEN, -1)):                  # mount feet, slotted along x
         xf = xm + s * FOOT_D / 2
         for sy in (-1, 1):
-            holes.append((xf, AXIS_Y + sy * FOOT_BOLT_Y, M4_D, FOOT_SLOT))
+            holes.append((xf, AXIS_Y + sy * FOOT_BOLT_Y, SCREW_D, FOOT_SLOT))
     for x in (X_DRIVE + 1 + TAB_L / 2 + 1, X_GEN - 1 - TAB_L / 2 - 1):   # guard tabs
         for sy in (-1, 1):
             holes.append((x, AXIS_Y + sy * (GUARD_R + GUARD_T + TAB_W / 2), SCREW_D, 0))
@@ -156,23 +155,35 @@ def build_mount() -> Part:
     for dy, dz in ring(BASE_N, BASE_BC, 45):
         part -= x_cyl(x0 - 1, AXIS_Y + dy, AXIS_Z + dz, SCREW_D, MOUNT_T + 2, Align.MIN)
     for sy in (-1, 1):
-        part -= Pos(X_DRIVE + FOOT_D / 2, AXIS_Y + sy * FOOT_BOLT_Y, Z_TOP - 1) * Box(FOOT_SLOT, M4_D, FOOT_T + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        part -= z_cyl(X_DRIVE + FOOT_D / 2 - FOOT_SLOT / 2, AXIS_Y + sy * FOOT_BOLT_Y, Z_TOP - 1, M4_D, FOOT_T + 2)
-        part -= z_cyl(X_DRIVE + FOOT_D / 2 + FOOT_SLOT / 2, AXIS_Y + sy * FOOT_BOLT_Y, Z_TOP - 1, M4_D, FOOT_T + 2)
+        y = AXIS_Y + sy * FOOT_BOLT_Y
+        for w, d, z0 in ((SCREW_D, FOOT_T + 2, Z_TOP - 1), (CBORE_D, FOOT_CBORE + 1, Z_TOP + FOOT_T - FOOT_CBORE)):
+            part -= Pos(X_DRIVE + FOOT_D / 2, y, z0) * Box(FOOT_SLOT, w, d, align=(Align.CENTER, Align.CENTER, Align.MIN))
+            part -= z_cyl(X_DRIVE + FOOT_D / 2 - FOOT_SLOT / 2, y, z0, w, d)
+            part -= z_cyl(X_DRIVE + FOOT_D / 2 + FOOT_SLOT / 2, y, z0, w, d)
     return part
 
 
+def join_kind(i: int, s: int) -> str:
+    """Join hole i on a hub facing +s: heads at 45 and 225 degrees on the drive side, nuts at the other two,
+    so the generator hub is the same print turned round."""
+    return "head" if (i % 2 == 0) == (s > 0) else "nut"
+
+
 def _hub_blank(x_mate: float, s: int) -> Part:
-    """Flange hub whose mating face is at x_mate, body extending toward -s. Join holes and rim nut slots."""
+    """Flange hub whose mating face is at x_mate, body extending toward -s. Join holes, head counterbores
+    from the outer face and rim nut slots, alternating."""
     hub = x_cyl(x_mate, AXIS_Y, AXIS_Z, HUB_D, HUB_T, Align.MAX if s > 0 else Align.MIN)
     xm = x_mate - s * HUB_T / 2                                   # mid-thickness
     xn = x_mate - s * JOIN_NUT_DEPTH                              # nut slot centre
-    for dy, dz in ring(JOIN_N, JOIN_BC, 45):
-        hub -= x_cyl(xm, AXIS_Y + dy, AXIS_Z + dz, M4_D, HUB_T + 2)
-        # nut slot from the rim, radial, flats across the thickness
-        reach = HUB_D / 2 - JOIN_BC / 2 + 1
-        hub -= Pos(0, AXIS_Y + dy, AXIS_Z + dz) * Rot(degrees(atan2(dz, dy)) - 90, 0, 0) * Pos(xn, 0, -M4_NUT_AC / 2) * Box(
-            M4_NUT_T, M4_NUT_AF, M4_NUT_AC / 2 + reach, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    x_out = x_mate - s * HUB_T                                    # outer face, against the rotor
+    for i, (dy, dz) in enumerate(ring(JOIN_N, JOIN_BC, 45)):
+        hub -= x_cyl(xm, AXIS_Y + dy, AXIS_Z + dz, SCREW_D, HUB_T + 2)
+        if join_kind(i, s) == "head":
+            hub -= x_cyl(x_out, AXIS_Y + dy, AXIS_Z + dz, CBORE_D, JOIN_CBORE, Align.MIN if s > 0 else Align.MAX)
+        else:                                                     # nut slot from the rim, radial, flats across the thickness
+            reach = HUB_D / 2 - JOIN_BC / 2 + 1
+            hub -= Pos(0, AXIS_Y + dy, AXIS_Z + dz) * Rot(degrees(atan2(dz, dy)) - 90, 0, 0) * Pos(xn, 0, -NUT_AC / 2) * Box(
+                NUT_T, NUT_AF, NUT_AC / 2 + reach, align=(Align.CENTER, Align.CENTER, Align.MIN))
     return hub
 
 
@@ -254,7 +265,7 @@ def build_carriers() -> dict[str, Part]:
     _, _, rx, ry = CARRIERS["carrier-relay"]
     relay = carrier(rx, ry, RELAY_HOLES, hooks(rx), boss_od=8.0, boss_h=5.0)
     _, _, cx, cy = CARRIERS["carrier-rectifier"]
-    rect = carrier(cx, cy, RECTIFIER_HOLES, hooks(cx), boss_od=12.0, boss_h=RECT_PAD, hole_d=M4_D)   # pads, M4 nuts in the rail channel
+    rect = carrier(cx, cy, RECTIFIER_HOLES, hooks(cx), boss_h=0.0, hole_d=SCREW_D)   # flat; M3 x 10 up from the rail channel, nut on the flange
     _, _, px, py = CARRIERS["tray-pzem"]
     tray = carrier(px, py, [], hooks(px))
     bx, by = PZEM[0] / 2 + LIP_CLEAR, PZEM[1] / 2 + LIP_CLEAR
@@ -284,9 +295,10 @@ def build_rfoot(x) -> Part:
 def assembly() -> dict[str, Part]:
     """Every print, in place. Two mounts and two hubs are the same print placed twice."""
     parts = {"plate": build_plate(), "mount-drive": build_mount(), "hub-drive": build_hub(X_COUPLE, 1),
-             "hub-gen": build_hub(X_COUPLE, -1), "crank-hub": build_crank_hub(), "crank-block": build_block(),
+             "crank-hub": build_crank_hub(), "crank-block": build_block(),
              "crank-arm": build_arm(), "crank-sleeve": build_sleeve(), "crank-grip": build_grip(), "guard": build_guard()}
     parts["mount-gen"] = Pos(X_GEN + X_DRIVE, 2 * AXIS_Y, 0) * Rot(0, 0, 180) * parts["mount-drive"]
+    parts["hub-gen"] = Pos(2 * X_COUPLE, 2 * AXIS_Y, 0) * Rot(0, 0, 180) * parts["hub-drive"]
     parts.update(build_carriers())
     for i, x in enumerate(BAR_X):
         parts[f"resistor-foot-{i}"] = build_rfoot(x)
@@ -302,7 +314,7 @@ def bought() -> dict[str, Part]:
                           + Pos(0, y, Z_TOP + RAIL_H - din.FLANGE_T) * Box(length, din.RAIL_W, din.FLANGE_T, align=(Align.CENTER, Align.CENTER, Align.MIN)))
     for name, (w, h, d) in (("carrier-moteus", MOTEUS), ("carrier-relay", RELAY), ("carrier-rectifier", RECTIFIER), ("tray-pzem", PZEM)):
         _, _, px, py = CARRIERS[name]
-        lift, dy = (5.0 + RECT_PAD, RECT_Y) if name == "carrier-rectifier" else (10.0, 0.0)   # plate plus bosses or pads
+        lift, dy = (5.0, RECT_Y) if name == "carrier-rectifier" else (10.0, 0.0)   # on the plate, or on 5 mm bosses or pads
         b[name.replace("carrier-", "board-").replace("tray-", "box-")] = carrier_loc(name) * Pos(0, dy, lift) * Box(w, h, d, align=(Align.CENTER, Align.CENTER, Align.MIN))
     bx, bt, bz = BAR
     bar_z = Z_TOP + RFOOT[2] - RFOOT_SLOT
@@ -318,13 +330,13 @@ def joints():
     return [
         {"joint": "motor to mount", "screw": SCREW_L, "through": MOUNT_T, "kind": "tapped", "reach": 4.0},
         {"joint": "hub to rotor", "screw": SCREW_L, "through": HUB_T - CBORE_DEPTH, "kind": "tapped", "reach": ROTOR_REACH},
-        {"joint": "hub join", "screw": M4_L, "through": HUB_T + JOIN_NUT_DEPTH - M4_NUT_T / 2, "kind": "nut", "nut": M4_NUT_T, "room": HUB_T - JOIN_NUT_DEPTH + 50},
+        {"joint": "hub join", "screw": SCREW_L, "through": HUB_T - JOIN_CBORE + JOIN_NUT_DEPTH - NUT_T / 2, "kind": "nut", "nut": NUT_T, "room": HUB_T - JOIN_NUT_DEPTH + 50},
         {"joint": "crank block to mount", "screw": SCREW_L, "through": MOUNT_T, "kind": "insert", "room": INSERT_DEPTH},
         {"joint": "guard flange to plate", "screw": SCREW_L, "through": FLANGE_T + PLATE_T, "kind": "nut", "nut": 2.4, "room": SKIRT_H},
         {"joint": "rail to plate", "screw": SCREW_L, "through": 1.0 + PLATE_T, "kind": "nut", "nut": 2.4, "room": SKIRT_H},
-        {"joint": "mount foot to plate", "screw": M4_L, "through": FOOT_T + PLATE_T, "kind": "nut", "nut": 3.2, "room": SKIRT_H},
+        {"joint": "mount foot to plate", "screw": SCREW_L, "through": FOOT_T - FOOT_CBORE + PLATE_T, "kind": "nut", "nut": 2.4, "room": SKIRT_H},
         {"joint": "resistor foot, from below", "screw": SCREW_L, "through": PLATE_T, "kind": "insert", "room": INSERT_DEPTH + 2.5},
-        {"joint": "rectifier to pads", "screw": M4_L, "through": 4.0 + RECT_PAD + 5.0, "kind": "nut", "nut": 3.2, "room": RAIL_H - din.RECESS_D},
+        {"joint": "rectifier, from the rail channel", "screw": SCREW_L, "through": (5.0 - din.RECESS_D) + 4.0, "kind": "nut", "nut": 2.4, "room": 50.0},
         {"joint": "relay to carrier", "screw": SCREW_L, "through": 1.6, "kind": "insert", "room": 5.0 + 5.0},
         {"joint": "crank grip", "screw": 60.0, "through": ARM_T + GRIP_L, "kind": "nut", "nut": 8.0, "room": 50.0},
     ]

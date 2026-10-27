@@ -28,7 +28,8 @@ def carrier(plate_x, plate_y, holes, hook_x, boss_od=8.0, boss_h=7.0, insert=(4.
     plate = fillet(plate.edges().filter_by(Axis.Z), CORNER_R)
     part = plate - Box(plate_x + 2, 2 * y_out, RECESS_D, align=(Align.CENTER, Align.CENTER, Align.MIN))
     for x, y in holes:
-        part += Pos(x, y, plate_t) * Cylinder(boss_od / 2, boss_h, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        if boss_h > 0:
+            part += Pos(x, y, plate_t) * Cylinder(boss_od / 2, boss_h, align=(Align.CENTER, Align.CENTER, Align.MIN))
         if hole_d:
             part -= Pos(x, y, -1) * Cylinder(hole_d / 2, plate_t + boss_h + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
         else:

@@ -39,7 +39,7 @@ def test_rails_seat_in_pockets_over_captive_nuts(leg):
         assert inside(m.NUT_AF / 2 + 0.5, nut)
         assert not leg.is_inside((at * Pos(m.PAD_T / 2 - 0.5, 0, nut)).position)   # open on the outer face
         assert inside(m.NUT_AF / 2 - 0.3, nut - m.NUT_T / 2 - 1)                    # floor under the nut
-        tip = m.RAIL_H - m.POCKET_D - m.BOLT_L                                      # head on the rail, washer ignored
+        tip = -m.POCKET_D + m.CROWN_T - m.BOLT_L                                   # head on the crown, washer ignored
         assert tip < nut - m.NUT_T / 2 - 1 and not inside(0, tip)                  # through the nut, into open bore
 
 
@@ -56,3 +56,9 @@ def test_loaded_stand_stands_on_its_foot():
     """Centre of mass of the device envelope lands on the middle half of the foot."""
     c = m.bought()["device"].center()
     assert 0.25 * m.FOOT_D < c.Y < 0.75 * m.FOOT_D
+
+
+def test_one_screw_length_reaches_every_joint():
+    for j in m.joints():
+        past = j["screw"] - j["through"]
+        assert j["nut"] <= past <= j["room"], j

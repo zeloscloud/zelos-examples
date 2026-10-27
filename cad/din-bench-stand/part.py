@@ -22,9 +22,10 @@ RAIL_S = (45.0, 135.0)                        # bottom brace rail, top device ra
 PAD_T, PAD_L, PAD_DEPTH = 16.0, 50.0, 14.0    # pad width along x (one sided), length along s, depth into the leg
 RAIL_W, RAIL_H, RAIL_CLEAR = 35.0, 7.5, 0.4   # TS35
 POCKET_D = 2.0                                # the rail sits in a pocket so one bolt per station cannot rack
-# M4 x 16 and washer through the rail slot and the pad into a nut held in a slot open on the pad's outer face.
-# The bore runs through the pad so the bolt cannot bottom in plastic.
-BOLT_D, BOLT_L, NUT_AF, NUT_T, NUT_DEPTH = 4.5, 16.0, 7.3, 3.4, 5.0
+# M3 x 10 and washer, head on the rail's crown inside the channel, through the pad into a nut held in a slot
+# open on the pad's outer face. The bore runs through the pad so the bolt cannot bottom in plastic.
+BOLT_D, BOLT_L, NUT_AF, NUT_T, NUT_DEPTH = 3.4, 10.0, 5.7, 2.4, 5.0
+CROWN_T = 1.0                                 # TS35 crown, where the head seats
 # Bought parts for the views and the tip-over check
 RAIL_L = 300.0
 LEG_X = (-110.0, 110.0)                       # legs 40 mm in from the rail ends
@@ -80,6 +81,11 @@ def scene(legs: dict[str, Part]) -> list:
 
 
 VIEWS = [("front", (220, -260, 160)), ("side", (300, 20, 40))]
+
+
+def joints():
+    """Each screwed joint: what the screw passes before its target, and what the target offers."""
+    return [{"joint": "rail to pad", "screw": BOLT_L, "through": NUT_DEPTH + CROWN_T, "kind": "nut", "nut": NUT_T, "room": PAD_DEPTH - NUT_DEPTH}]
 
 
 def build() -> dict[str, Part]:

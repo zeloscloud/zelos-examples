@@ -54,19 +54,27 @@ def test_coupling_bolts_up_outside_the_rotors(a, b):
         assert not hd.is_inside((m.X_COUPLE - 1, m.AXIS_Y + dy, m.AXIS_Z + dz))      # counterbore from the mating face
         assert not hd.is_inside((m.X_COUPLE - m.HUB_T + 0.5, m.AXIS_Y + dy, m.AXIS_Z + dz))   # screw out the rotor face
         assert not hg.is_inside((m.X_COUPLE + 1, m.AXIS_Y + dy, m.AXIS_Z + dz))
-    for dy, dz in m.ring(m.JOIN_N, m.JOIN_BC, 45):
+    for i, (dy, dz) in enumerate(m.ring(m.JOIN_N, m.JOIN_BC, 45)):
         r = m.JOIN_BC / 2
         u = (dy / r, dz / r)
-        xm = m.X_COUPLE - m.HUB_T / 2
-        for h, s in ((hd, -1), (hg, 1)):
-            x_mid, x_nut = m.X_COUPLE + s * m.HUB_T / 2, m.X_COUPLE + s * m.JOIN_NUT_DEPTH
-            assert not h.is_inside((x_mid, m.AXIS_Y + dy, m.AXIS_Z + dz)), (dy, dz)                   # join hole
-            out = (m.AXIS_Y + u[0] * (r + 3), m.AXIS_Z + u[1] * (r + 3))                             # past the M4 hole, in the slot
-            rim = (m.AXIS_Y + u[0] * (m.HUB_D / 2 - 0.5), m.AXIS_Z + u[1] * (m.HUB_D / 2 - 0.5))
-            inn = (m.AXIS_Y + u[0] * (r - m.M4_NUT_AC / 2 - 0.8), m.AXIS_Z + u[1] * (r - m.M4_NUT_AC / 2 - 0.8))
-            assert not h.is_inside((x_nut, *out)) and not h.is_inside((x_nut, *rim)), (dy, dz)         # slot open to the rim
-            assert h.is_inside((x_nut, *inn)), (dy, dz)                                               # closed inboard
-            assert h.is_inside((m.X_COUPLE + s * 1.0, *out)), (dy, dz)                                # skin on the mating face
+        out = (m.AXIS_Y + u[0] * (r + 2.5), m.AXIS_Z + u[1] * (r + 2.5))                             # past the hole, in the slot
+        rim = (m.AXIS_Y + u[0] * (m.HUB_D / 2 - 0.5), m.AXIS_Z + u[1] * (m.HUB_D / 2 - 0.5))
+        inn = (m.AXIS_Y + u[0] * (r - m.NUT_AC / 2 - 0.8), m.AXIS_Z + u[1] * (r - m.NUT_AC / 2 - 0.8))
+        kinds = set()
+        for h, s in ((hd, 1), (hg, -1)):                                  # s: which side the mating face faces
+            x_mid, x_nut, x_cb = (m.X_COUPLE - s * m.HUB_T / 2, m.X_COUPLE - s * m.JOIN_NUT_DEPTH, m.X_COUPLE - s * (m.HUB_T - 1.0))
+            assert not h.is_inside((x_mid, m.AXIS_Y + dy, m.AXIS_Z + dz)), (i, s)                     # join hole
+            kind = m.join_kind(i, s)
+            kinds.add(kind)
+            if kind == "nut":
+                assert not h.is_inside((x_nut, *out)) and not h.is_inside((x_nut, *rim)), (i, s)       # slot open to the rim
+                assert h.is_inside((x_nut, *inn)), (i, s)                                             # closed inboard
+                assert h.is_inside((m.X_COUPLE - s * 1.0, *out)), (i, s)                              # skin on the mating face
+                assert h.is_inside((x_cb, m.AXIS_Y + dy + 2.2, m.AXIS_Z + dz)), (i, s)               # no counterbore on the nut side
+            else:
+                assert not h.is_inside((x_cb, m.AXIS_Y + dy + 2.2, m.AXIS_Z + dz)), (i, s)           # counterbore from the outer face
+                assert h.is_inside((x_nut, *out)), (i, s)                                             # no slot on the head side
+        assert kinds == {"head", "nut"}, i                                                            # a head meets a nut at every hole
     for name in ("mount-drive", "mount-gen", "guard"):
         for h in (hd, hg):
             assert (a[name] & h).volume < 0.01, name
