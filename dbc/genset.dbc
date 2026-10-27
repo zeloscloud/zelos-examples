@@ -16,8 +16,124 @@ BO_ 2364540032 EEC1: 8 GENSET
  SG_ ActualEnginePercentTorque : 16|8@1+ (1,-125) [-125|125] "%" Vector__XXX
  SG_ EngineSpeed : 24|16@1+ (0.125,0) [0|8031.875] "rpm" Vector__XXX
 
+BO_ 2364539776 EEC2: 8 GENSET
+ SG_ AcceleratorPedalPosition1 : 8|8@1+ (0.4,0) [0|100] "%" Vector__XXX
+ SG_ EnginePercentLoadAtCurrentSpeed : 16|8@1+ (1,0) [0|250] "%" Vector__XXX
+
 BO_ 2566844032 ET1: 8 GENSET
  SG_ EngineCoolantTemp : 0|8@1+ (1,-40) [-40|210] "degC" Vector__XXX
+ SG_ EngineFuelTemp1 : 8|8@1+ (1,-40) [-40|210] "degC" Vector__XXX
+ SG_ EngineOilTemp1 : 16|16@1+ (0.03125,-273) [-273|1735] "degC" Vector__XXX
+
+BO_ 2566844288 EFL_P1: 8 GENSET
+ SG_ EngineFuelDeliveryPressure : 0|8@1+ (4,0) [0|1000] "kPa" Vector__XXX
+ SG_ EngineOilLevel : 16|8@1+ (0.4,0) [0|100] "%" Vector__XXX
+ SG_ EngineOilPressure : 24|8@1+ (4,0) [0|1000] "kPa" Vector__XXX
+ SG_ EngineCoolantPressure : 48|8@1+ (2,0) [0|500] "kPa" Vector__XXX
+ SG_ EngineCoolantLevel : 56|8@1+ (0.4,0) [0|100] "%" Vector__XXX
+
+BO_ 2566846336 VEP1: 8 GENSET
+ SG_ NetBatteryCurrent : 0|8@1+ (1,-125) [-125|125] "A" Vector__XXX
+ SG_ AlternatorCurrent : 8|8@1+ (1,0) [0|250] "A" Vector__XXX
+ SG_ AlternatorPotential : 16|16@1+ (0.05,0) [0|3212.75] "V" Vector__XXX
+ SG_ ElectricalPotential : 32|16@1+ (0.05,0) [0|3212.75] "V" Vector__XXX
+
+BO_ 2566841728 HOURS: 8 GENSET
+ SG_ EngineTotalHoursOfOperation : 0|32@1+ (0.05,0) [0|210554060.75] "h" Vector__XXX
+ SG_ EngineTotalRevolutions : 32|32@1+ (1000,0) [0|4211081215000] "r" Vector__XXX
+
+BO_ 2566842752 LFC: 8 GENSET
+ SG_ EngineTripFuel : 0|32@1+ (0.5,0) [0|2105540607.5] "L" Vector__XXX
+ SG_ EngineTotalFuelUsed : 32|32@1+ (0.5,0) [0|2105540607.5] "L" Vector__XXX
+
+BO_ 2566845056 LFE: 8 GENSET
+ SG_ EngineFuelRate : 0|16@1+ (0.05,0) [0|3212.75] "L/h" Vector__XXX
+ SG_ EngineInstantaneousFuelEconomy : 16|16@1+ (0.001953125,0) [0|125.5] "km/L" Vector__XXX
+ SG_ EngineThrottleValve1Position1 : 48|8@1+ (0.4,0) [0|100] "%" Vector__XXX
+
+BO_ 2566845824 AMB: 8 GENSET
+ SG_ BarometricPressure : 0|8@1+ (0.5,0) [0|125] "kPa" Vector__XXX
+ SG_ AmbientAirTemp : 24|16@1+ (0.03125,-273) [-273|1735] "degC" Vector__XXX
+ SG_ EngineAirInletTemp : 40|8@1+ (1,-40) [-40|210] "degC" Vector__XXX
+
+BO_ 2566846080 IC1: 8 GENSET
+ SG_ EngineIntakeManifold1Pressure : 8|8@1+ (2,0) [0|500] "kPa" Vector__XXX
+ SG_ EngineIntakeManifold1Temp : 16|8@1+ (1,-40) [-40|210] "degC" Vector__XXX
+
+BO_ 2365458048 GAAC: 8 GENSET
+ SG_ GeneratorAverageLineLineACRMSVoltage : 0|16@1+ (1,0) [0|64255] "V" Vector__XXX
+ SG_ GeneratorAverageLineNeutralACRMSVoltage : 16|16@1+ (1,0) [0|64255] "V" Vector__XXX
+ SG_ GeneratorAverageACFrequency : 32|16@1+ (0.0078125,0) [0|501.9921875] "Hz" Vector__XXX
+ SG_ GeneratorAverageACRMSCurrent : 48|16@1+ (1,0) [0|64255] "A" Vector__XXX
+
+BO_ 2365457280 GPAAC: 8 GENSET
+ SG_ GeneratorPhaseALineLineACRMSVoltage : 0|16@1+ (1,0) [0|64255] "V" Vector__XXX
+ SG_ GeneratorPhaseALineNeutralACRMSVoltage : 16|16@1+ (1,0) [0|64255] "V" Vector__XXX
+ SG_ GeneratorPhaseAACFrequency : 32|16@1+ (0.0078125,0) [0|501.9921875] "Hz" Vector__XXX
+ SG_ GeneratorPhaseAACRMSCurrent : 48|16@1+ (1,0) [0|64255] "A" Vector__XXX
+
+BO_ 2365456512 GPBAC: 8 GENSET
+ SG_ GeneratorPhaseBLineLineACRMSVoltage : 0|16@1+ (1,0) [0|64255] "V" Vector__XXX
+ SG_ GeneratorPhaseBLineNeutralACRMSVoltage : 16|16@1+ (1,0) [0|64255] "V" Vector__XXX
+ SG_ GeneratorPhaseBACFrequency : 32|16@1+ (0.0078125,0) [0|501.9921875] "Hz" Vector__XXX
+ SG_ GeneratorPhaseBACRMSCurrent : 48|16@1+ (1,0) [0|64255] "A" Vector__XXX
+
+BO_ 2365455744 GPCAC: 8 GENSET
+ SG_ GeneratorPhaseCLineLineACRMSVoltage : 0|16@1+ (1,0) [0|64255] "V" Vector__XXX
+ SG_ GeneratorPhaseCLineNeutralACRMSVoltage : 16|16@1+ (1,0) [0|64255] "V" Vector__XXX
+ SG_ GeneratorPhaseCACFrequency : 32|16@1+ (0.0078125,0) [0|501.9921875] "Hz" Vector__XXX
+ SG_ GeneratorPhaseCACRMSCurrent : 48|16@1+ (1,0) [0|64255] "A" Vector__XXX
+
+BO_ 2365457792 GTACP: 8 GENSET
+ SG_ GeneratorTotalRealPower : 0|32@1+ (1,-2000000000) [-2000000000|2211081215] "W" Vector__XXX
+ SG_ GeneratorTotalApparentPower : 32|32@1+ (1,-2000000000) [-2000000000|2211081215] "VA" Vector__XXX
+
+BO_ 2365457536 GTACR: 8 GENSET
+ SG_ GeneratorTotalReactivePower : 0|32@1+ (1,-2000000000) [-2000000000|2211081215] "VAr" Vector__XXX
+ SG_ GeneratorOverallPowerFactor : 32|16@1+ (0.00006103515625,-1) [-1|1] "" Vector__XXX
+ SG_ GeneratorOverallPowerFactorLagging : 48|2@1+ (1,0) [0|3] "" Vector__XXX
+
+BO_ 2365454976 GTACE: 8 GENSET
+ SG_ GeneratorTotalkWhExport : 0|32@1+ (1,0) [0|4211081215] "kWh" Vector__XXX
+ SG_ GeneratorTotalkWhImport : 32|32@1+ (1,0) [0|4211081215] "kWh" Vector__XXX
+
+BO_ 2565406592 ACKM: 8 GENSET
+ SG_ ControlByte : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ GroupFunctionValue : 8|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ AddressAcknowledged : 32|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ ParameterGroupNumber : 40|24@1+ (1,0) [0|262143] "" Vector__XXX
+
+BO_ 2566834816 DM1: 10 GENSET
+ SG_ ProtectLamp : 0|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ AmberWarningLamp : 2|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ RedStopLamp : 4|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ MalfunctionIndicatorLamp : 6|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ DTC1_SPN_Low : 16|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ DTC1_FMI : 32|5@1+ (1,0) [0|31] "" Vector__XXX
+ SG_ DTC1_SPN_High : 37|3@1+ (1,0) [0|7] "" Vector__XXX
+ SG_ DTC1_OC : 40|7@1+ (1,0) [0|127] "" Vector__XXX
+ SG_ DTC1_CM : 47|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ DTC2_SPN_Low : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ DTC2_FMI : 64|5@1+ (1,0) [0|31] "" Vector__XXX
+ SG_ DTC2_SPN_High : 69|3@1+ (1,0) [0|7] "" Vector__XXX
+ SG_ DTC2_OC : 72|7@1+ (1,0) [0|127] "" Vector__XXX
+ SG_ DTC2_CM : 79|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 2566835072 DM2: 10 GENSET
+ SG_ ProtectLamp : 0|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ AmberWarningLamp : 2|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ RedStopLamp : 4|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ MalfunctionIndicatorLamp : 6|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ DTC1_SPN_Low : 16|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ DTC1_FMI : 32|5@1+ (1,0) [0|31] "" Vector__XXX
+ SG_ DTC1_SPN_High : 37|3@1+ (1,0) [0|7] "" Vector__XXX
+ SG_ DTC1_OC : 40|7@1+ (1,0) [0|127] "" Vector__XXX
+ SG_ DTC1_CM : 47|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ DTC2_SPN_Low : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ DTC2_FMI : 64|5@1+ (1,0) [0|31] "" Vector__XXX
+ SG_ DTC2_SPN_High : 69|3@1+ (1,0) [0|7] "" Vector__XXX
+ SG_ DTC2_OC : 72|7@1+ (1,0) [0|127] "" Vector__XXX
+ SG_ DTC2_CM : 79|1@1+ (1,0) [0|1] "" Vector__XXX
 
 BO_ 2566838912 SOFT: 48 GENSET
  SG_ NumberOfSoftwareIdFields : 0|8@1+ (1,0) [0|255] "" Vector__XXX
@@ -69,9 +185,28 @@ BO_ 2566838912 SOFT: 48 GENSET
  SG_ SoftwareIdByte46 : 368|8@1+ (1,0) [0|255] "" Vector__XXX
  SG_ SoftwareIdByte47 : 376|8@1+ (1,0) [0|255] "" Vector__XXX
 
-CM_ BU_ GENSET "Range extender engine ECU. J1939, preferred source address 0x80, arbitrary-address capable.";
-CM_ BO_ 2364540032 "Electronic Engine Controller 1, PGN 61444.";
-CM_ BO_ 2566844032 "Engine Temperature 1, PGN 65262.";
+CM_ "Layouts per SAE J1939-71 (engine), J1939-75 (generator set) and J1939-21 (ACKM, Request), each checked against two public sources. Engine PGs: voltage-j1939 src/database.rs (github.com/EvanL1/voltage-j1939) and the Dafulai J1939 simulator manual (dafulaielectronics.com/DFLSJ1939BV1.pdf), the Hatz H50/E1 CAN protocol sheets (dsp.hatz.com) for rates. Generator PGs: Mecc Alte MxK CAN-Bus technical guide (meccalte.com/downloads/MxKs_CANBus_Tech_Guide_Eng.pdf) and Leroy-Somer D500 J1939 manual (leroy-somer.com/documentation_pdf/4971_en.pdf), with canboat (canboat.github.io/canboat) and isobus.net for the SPN numbers; GTACE bytes from canboat only. ACKM and Request: Wandfluh MKY45 J1939 specification and python-can-j1939 j1939_21.py. Byte n of a PG is bits 8(n-1)..8n-1 here. Unused bytes carry 0xFF; 0xFF-wide (not available) and 0xFE-wide (error) values decode to null. J1939-73 DM1/DM2, checked against the Wandfluh MKY45 J1939 specification and Open-SAE-J1939 DM1.c/DM2.c (github.com/DanielMartensson/Open-SAE-J1939): byte 1 lamps (bits 1-2 protect, 3-4 amber warning, 5-6 red stop, 7-8 MIL), byte 2 flash lamps, then 4-byte DTCs: SPN bits 1-16 in bytes 3-4, byte 5 bits 1-5 FMI and bits 6-8 SPN 17-19, byte 6 bits 1-7 occurrence count and bit 8 conversion method. 0 DTCs: 8 bytes, bytes 3-6 zero and 7-8 0xFF. 1 DTC: one 8-byte frame. 2+ DTCs: 2 + 4n bytes by transport protocol. The DBC holds two DTC slots: a shorter PG decodes what fits and leaves the rest null; a third DTC is not decoded. Every row above, DM1 and DM2 included, checked again against the SAE J1939DA extract the Equipment and Tool Institute ships in its J1939-84 tool (github.com/Equipment-and-Tool-Institute/j1939-84, j1939da-extract.csv and j1939da-slots.csv), the ISOBUS data dictionary (isobus.net, J1939DA PG pages), the Wireshark ISOBUS PGN table (epan/dissectors/data-isobus.c), the FMS-Standard v02.00 interface description and the Hatz H50/E1 CAN protocol sheets. The DA rates EEC1/EEC2 10 to 50 ms, HOURS and LFC on request and GTACE 100 ms; the bench sends what GenMsgCycleTime says.";
+CM_ BU_ GENSET "Genset engine and generator ECU. J1939, preferred source address 0x80, arbitrary-address capable.";
+CM_ BO_ 2364540032 "Electronic Engine Controller 1, PGN 61444, 100 ms (bench), priority 3. Byte 3 torque, bytes 4-5 speed.";
+CM_ BO_ 2364539776 "Electronic Engine Controller 2, PGN 61443, 50 ms, priority 3. Byte 2 pedal position, byte 3 percent load.";
+CM_ BO_ 2566844032 "Engine Temperature 1, PGN 65262, 1 s. Byte 1 coolant, byte 2 fuel, bytes 3-4 oil.";
+CM_ BO_ 2566844288 "Engine Fluid Level/Pressure 1, PGN 65263, 500 ms. Byte 1 fuel delivery pressure, 3 oil level, 4 oil pressure, 7 coolant pressure, 8 coolant level.";
+CM_ BO_ 2566846336 "Vehicle Electrical Power 1, PGN 65271, 1 s. Byte 1 net battery current, 2 alternator current, 3-4 alternator potential, 5-6 electrical potential.";
+CM_ BO_ 2566841728 "Engine Hours, Revolutions, PGN 65253, on request per spec; the bench broadcasts it every 1 s. Bytes 1-4 hours, 5-8 revolutions.";
+CM_ BO_ 2566842752 "Fuel Consumption (Liquid), PGN 65257, 1 s. Bytes 1-4 trip fuel, 5-8 total fuel used.";
+CM_ BO_ 2566845056 "Fuel Economy (Liquid), PGN 65266, 100 ms. Bytes 1-2 fuel rate, 3-4 instantaneous economy, 7 throttle position.";
+CM_ BO_ 2566845824 "Ambient Conditions, PGN 65269, 1 s. Byte 1 barometric pressure, 4-5 ambient air temp, 6 air inlet temp.";
+CM_ BO_ 2566846080 "Inlet/Exhaust Conditions 1, PGN 65270, 500 ms. Byte 2 boost pressure, 3 intake manifold temp.";
+CM_ BO_ 2365458048 "Generator Average Basic AC Quantities, PGN 65030, 100 ms, priority 3. Bytes 1-2 L-L V, 3-4 L-N V, 5-6 frequency, 7-8 current.";
+CM_ BO_ 2365457280 "Generator Phase A Basic AC Quantities, PGN 65027, 100 ms. Same layout as GAAC; L-L is A-B.";
+CM_ BO_ 2365456512 "Generator Phase B Basic AC Quantities, PGN 65024, 100 ms. Same layout as GAAC; L-L is B-C.";
+CM_ BO_ 2365455744 "Generator Phase C Basic AC Quantities, PGN 65021, 100 ms. Same layout as GAAC; L-L is C-A.";
+CM_ BO_ 2365457792 "Generator Total AC Power, PGN 65029, 100 ms, priority 3. Bytes 1-4 real power, 5-8 apparent power, both offset -2e9.";
+CM_ BO_ 2365457536 "Generator Total AC Reactive Power, PGN 65028, 100 ms, priority 3. Bytes 1-4 reactive power (offset -2e9), 5-6 power factor (1/16384, offset -1), byte 7 bits 1-2 lagging (0 leading, 1 lagging).";
+CM_ BO_ 2365454976 "Generator Total AC Energy, PGN 65018, 1 s, priority 3. Bytes 1-4 kWh export, 5-8 kWh import.";
+CM_ BO_ 2565406592 "Acknowledgment, PGN 59392 (J1939-21 5.4.4), sent to the global address per the spec, to the requester by some stacks. Byte 1 control (0 ACK, 1 NACK, 2 access denied, 3 cannot respond), 2 group function, 5 address of the requester, 6-8 the PGN acknowledged.";
+CM_ BO_ 2566834816 "Active diagnostic trouble codes, PGN 65226, 1 s.";
+CM_ BO_ 2566835072 "Previously active diagnostic trouble codes, PGN 65227, on request only.";
 CM_ BO_ 2566838912 "Software Identification, PGN 65242, on request only: RTS/CTS to a requester, BAM to a global request. The ASCII fields, each ending in '*', byte by byte.";
 
 BA_DEF_ "ProtocolType" STRING ;
@@ -84,11 +219,93 @@ BA_DEF_DEF_ "GenMsgCycleTime" 0;
 BA_DEF_DEF_ "SPN" 0;
 BA_ "ProtocolType" "J1939";
 BA_ "VFrameFormat" BO_ 2364540032 3;
+BA_ "VFrameFormat" BO_ 2364539776 3;
 BA_ "VFrameFormat" BO_ 2566844032 3;
+BA_ "VFrameFormat" BO_ 2566844288 3;
+BA_ "VFrameFormat" BO_ 2566846336 3;
+BA_ "VFrameFormat" BO_ 2566841728 3;
+BA_ "VFrameFormat" BO_ 2566842752 3;
+BA_ "VFrameFormat" BO_ 2566845056 3;
+BA_ "VFrameFormat" BO_ 2566845824 3;
+BA_ "VFrameFormat" BO_ 2566846080 3;
+BA_ "VFrameFormat" BO_ 2365458048 3;
+BA_ "VFrameFormat" BO_ 2365457280 3;
+BA_ "VFrameFormat" BO_ 2365456512 3;
+BA_ "VFrameFormat" BO_ 2365455744 3;
+BA_ "VFrameFormat" BO_ 2365457792 3;
+BA_ "VFrameFormat" BO_ 2365457536 3;
+BA_ "VFrameFormat" BO_ 2365454976 3;
+BA_ "VFrameFormat" BO_ 2565406592 3;
+BA_ "VFrameFormat" BO_ 2566834816 3;
+BA_ "VFrameFormat" BO_ 2566835072 3;
 BA_ "VFrameFormat" BO_ 2566838912 3;
 BA_ "GenMsgCycleTime" BO_ 2364540032 100;
+BA_ "GenMsgCycleTime" BO_ 2364539776 50;
 BA_ "GenMsgCycleTime" BO_ 2566844032 1000;
+BA_ "GenMsgCycleTime" BO_ 2566844288 500;
+BA_ "GenMsgCycleTime" BO_ 2566846336 1000;
+BA_ "GenMsgCycleTime" BO_ 2566841728 1000;
+BA_ "GenMsgCycleTime" BO_ 2566842752 1000;
+BA_ "GenMsgCycleTime" BO_ 2566845056 100;
+BA_ "GenMsgCycleTime" BO_ 2566845824 1000;
+BA_ "GenMsgCycleTime" BO_ 2566846080 500;
+BA_ "GenMsgCycleTime" BO_ 2365458048 100;
+BA_ "GenMsgCycleTime" BO_ 2365457280 100;
+BA_ "GenMsgCycleTime" BO_ 2365456512 100;
+BA_ "GenMsgCycleTime" BO_ 2365455744 100;
+BA_ "GenMsgCycleTime" BO_ 2365457792 100;
+BA_ "GenMsgCycleTime" BO_ 2365457536 100;
+BA_ "GenMsgCycleTime" BO_ 2365454976 1000;
+BA_ "GenMsgCycleTime" BO_ 2566834816 1000;
 BA_ "SPN" SG_ 2364540032 ActualEnginePercentTorque 513;
 BA_ "SPN" SG_ 2364540032 EngineSpeed 190;
+BA_ "SPN" SG_ 2364539776 AcceleratorPedalPosition1 91;
+BA_ "SPN" SG_ 2364539776 EnginePercentLoadAtCurrentSpeed 92;
 BA_ "SPN" SG_ 2566844032 EngineCoolantTemp 110;
+BA_ "SPN" SG_ 2566844032 EngineFuelTemp1 174;
+BA_ "SPN" SG_ 2566844032 EngineOilTemp1 175;
+BA_ "SPN" SG_ 2566844288 EngineFuelDeliveryPressure 94;
+BA_ "SPN" SG_ 2566844288 EngineOilLevel 98;
+BA_ "SPN" SG_ 2566844288 EngineOilPressure 100;
+BA_ "SPN" SG_ 2566844288 EngineCoolantPressure 109;
+BA_ "SPN" SG_ 2566844288 EngineCoolantLevel 111;
+BA_ "SPN" SG_ 2566846336 NetBatteryCurrent 114;
+BA_ "SPN" SG_ 2566846336 AlternatorCurrent 115;
+BA_ "SPN" SG_ 2566846336 AlternatorPotential 167;
+BA_ "SPN" SG_ 2566846336 ElectricalPotential 168;
+BA_ "SPN" SG_ 2566841728 EngineTotalHoursOfOperation 247;
+BA_ "SPN" SG_ 2566841728 EngineTotalRevolutions 249;
+BA_ "SPN" SG_ 2566842752 EngineTripFuel 182;
+BA_ "SPN" SG_ 2566842752 EngineTotalFuelUsed 250;
+BA_ "SPN" SG_ 2566845056 EngineFuelRate 183;
+BA_ "SPN" SG_ 2566845056 EngineInstantaneousFuelEconomy 184;
+BA_ "SPN" SG_ 2566845056 EngineThrottleValve1Position1 51;
+BA_ "SPN" SG_ 2566845824 BarometricPressure 108;
+BA_ "SPN" SG_ 2566845824 AmbientAirTemp 171;
+BA_ "SPN" SG_ 2566845824 EngineAirInletTemp 172;
+BA_ "SPN" SG_ 2566846080 EngineIntakeManifold1Pressure 102;
+BA_ "SPN" SG_ 2566846080 EngineIntakeManifold1Temp 105;
+BA_ "SPN" SG_ 2365458048 GeneratorAverageLineLineACRMSVoltage 2440;
+BA_ "SPN" SG_ 2365458048 GeneratorAverageLineNeutralACRMSVoltage 2444;
+BA_ "SPN" SG_ 2365458048 GeneratorAverageACFrequency 2436;
+BA_ "SPN" SG_ 2365458048 GeneratorAverageACRMSCurrent 2448;
+BA_ "SPN" SG_ 2365457280 GeneratorPhaseALineLineACRMSVoltage 2441;
+BA_ "SPN" SG_ 2365457280 GeneratorPhaseALineNeutralACRMSVoltage 2445;
+BA_ "SPN" SG_ 2365457280 GeneratorPhaseAACFrequency 2437;
+BA_ "SPN" SG_ 2365457280 GeneratorPhaseAACRMSCurrent 2449;
+BA_ "SPN" SG_ 2365456512 GeneratorPhaseBLineLineACRMSVoltage 2442;
+BA_ "SPN" SG_ 2365456512 GeneratorPhaseBLineNeutralACRMSVoltage 2446;
+BA_ "SPN" SG_ 2365456512 GeneratorPhaseBACFrequency 2438;
+BA_ "SPN" SG_ 2365456512 GeneratorPhaseBACRMSCurrent 2450;
+BA_ "SPN" SG_ 2365455744 GeneratorPhaseCLineLineACRMSVoltage 2443;
+BA_ "SPN" SG_ 2365455744 GeneratorPhaseCLineNeutralACRMSVoltage 2447;
+BA_ "SPN" SG_ 2365455744 GeneratorPhaseCACFrequency 2439;
+BA_ "SPN" SG_ 2365455744 GeneratorPhaseCACRMSCurrent 2451;
+BA_ "SPN" SG_ 2365457792 GeneratorTotalRealPower 2452;
+BA_ "SPN" SG_ 2365457792 GeneratorTotalApparentPower 2460;
+BA_ "SPN" SG_ 2365457536 GeneratorTotalReactivePower 2456;
+BA_ "SPN" SG_ 2365457536 GeneratorOverallPowerFactor 2464;
+BA_ "SPN" SG_ 2365457536 GeneratorOverallPowerFactorLagging 2518;
+BA_ "SPN" SG_ 2365454976 GeneratorTotalkWhExport 2468;
+BA_ "SPN" SG_ 2365454976 GeneratorTotalkWhImport 2469;
 BA_ "SPN" SG_ 2566838912 NumberOfSoftwareIdFields 965;

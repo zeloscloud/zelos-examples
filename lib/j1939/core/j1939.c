@@ -423,7 +423,7 @@ void zelos_j1939_poll(struct zelos_j1939 *j, uint32_t now_ms)
 		j->state = ZELOS_J1939_CLAIMED;
 		/* Periods run from here, so a move neither bunches nor shifts them. */
 		for (size_t i = 0; i < j->n_msgs; i++) {
-			j->msgs[i].due_ms = now_ms;
+			j->msgs[i].due_ms = now_ms + j->msgs[i].offset_ms;
 		}
 	}
 	if (j->state != ZELOS_J1939_CLAIMED) {

@@ -75,6 +75,12 @@ struct zelos_j1939_msg {
 	uint8_t priority;
 	/* 0: only on request. */
 	uint16_t period_ms;
+	/*
+	 * Phase of the first send after the claim. Periods all start at the
+	 * claim, so without offsets every periodic message of a node falls due
+	 * on the same tick; spread them and the bus sees a few frames per tick.
+	 */
+	uint16_t offset_ms;
 	/* At most ZELOS_J1939_MAX_LEN. */
 	uint16_t len;
 	uint8_t *data;
@@ -159,7 +165,7 @@ void zelos_j1939_poll(struct zelos_j1939 *j, uint32_t now_ms);
 /*
  * Zephyr glue. Needs zelos_can_init() first. One J1939 node per firmware: this
  * subscribes to requests, claims and TP.CM, sets j->send, and runs the core on its own
- * thread every CONFIG_ZELOS_J1939_TICK_MS. At most 8 messages.
+ * thread every CONFIG_ZELOS_J1939_TICK_MS. At most 24 messages.
  */
 int zelos_j1939_start(struct zelos_j1939 *j);
 
