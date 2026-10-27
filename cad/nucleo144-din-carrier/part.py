@@ -1,6 +1,4 @@
 """NUCLEO-144 DIN carrier. Every dimension that matters is named here."""
-from math import cos, radians
-
 from build123d import *
 
 # Plate, underside on the bed
@@ -9,12 +7,9 @@ CORNER_R = 4.0
 # Board and its hole pattern, board frame (x from left, y from bottom), mm
 BOARD_X, BOARD_Y = 70.0, 133.34
 HOLES_BOARD = [(10.87, 105.7), (59.13, 105.08), (43.89, 54.28), (12.14, 29.21), (57.86, 29.21)]
-# Bosses: M3 x 8 from the board into a nut held in a slot entered from the boss's +x side; the hole runs
-# through the plate so the screw never bottoms. 7 mm tall so the bottom-side pins clear the plate.
-BOSS_OD, BOSS_H = 11.0, 7.0
-SCREW_D = 3.4
-NUT_AF, NUT_T, NUT_Z = 5.7, 2.6, 2.0          # M3 nut, flats across y, NUT_Z above the plate top
-NUT_AC = NUT_AF / cos(radians(30))
+# Bosses, M3 x 5.7 heat-set insert
+BOSS_OD, BOSS_H = 8.0, 7.0                    # 7 leaves 3.6 mm under the insert over the recess bridge
+INSERT_D, INSERT_DEPTH = 4.0, 5.8
 # TS35 rail in a recess cut into the underside; flange rides up to the recess ceiling
 RAIL_W, FLANGE_T, CLEAR = 35.0, 1.0, 0.3
 RECESS_D = 2.6
@@ -42,8 +37,7 @@ def build() -> Part:
 
     for x, y in carrier_holes():
         part += Pos(x, y, PLATE_T) * Cylinder(BOSS_OD / 2, BOSS_H, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        part -= Pos(x, y, -1) * Cylinder(SCREW_D / 2, PLATE_T + BOSS_H + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        part -= Pos(x - NUT_AC / 2, y, PLATE_T + NUT_Z) * Box(BOSS_OD, NUT_AF, NUT_T, align=(Align.MIN, Align.CENTER, Align.MIN))
+        part -= Pos(x, y, PLATE_T + BOSS_H) * Cylinder(INSERT_D / 2, INSERT_DEPTH, align=(Align.CENTER, Align.CENTER, Align.MAX))
 
     # Fixed teeth on the top flange, sitting on the bed
     for x in HOOK_X:

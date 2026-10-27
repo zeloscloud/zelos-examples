@@ -19,16 +19,11 @@ def test_envelope_and_flat_underside(p):
     assert bb.max.Z == pytest.approx(m.PLATE_T + m.BOSS_H, abs=0.01)  # the rib tops out below the bosses
 
 
-def test_five_bolt_holes_and_nut_slots(p):
-    """Hole runs from the boss top out the underside; nut slot open from +x, closed at -x, boss solid above it."""
-    zn = m.PLATE_T + m.NUT_Z + m.NUT_T / 2
+def test_five_insert_holes_open(p):
+    z = m.PLATE_T + m.BOSS_H - 1.0
     for x, y in m.carrier_holes():
-        for z in (m.PLATE_T + m.BOSS_H - 1.0, m.PLATE_T / 2, 0.2):
-            assert not p.is_inside((x, y, z)), (x, y, z)
-        assert not p.is_inside((x + m.NUT_AF / 2 - 0.3, y, zn)), (x, y)
-        assert not p.is_inside((x + m.BOSS_OD / 2 - 0.3, y, zn)), (x, y)
-        assert p.is_inside((x - m.NUT_AC / 2 - 0.6, y, zn)), (x, y)
-        assert p.is_inside((x + m.BOSS_OD / 2 - 0.5, y, m.PLATE_T + m.BOSS_H - 1.0)), (x, y)
+        assert not p.is_inside((x, y, z)), (x, y)
+        assert p.is_inside((x + m.BOSS_OD / 2 - 0.5, y, z)), (x, y)
 
 
 def test_rail_fits_and_teeth_hold(p):

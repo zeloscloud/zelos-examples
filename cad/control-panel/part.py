@@ -20,7 +20,8 @@ FRONT_H = 75.0                                # front wall height at the lid und
 FACE_DEG = 35.0                               # face slope from horizontal
 FACE_L = 120.0                                # face plate underside length along the slope
 PLATE_T = 4.0                                 # inside the 22 mm operators' clamp range
-COL = 10.0                                    # thumbscrew column cross-section, front corners
+COL = 8.0                                     # thumbscrew column cross-section, front corners
+INSERT_D, INSERT_DEPTH = 4.0, 6.0             # M3 x 5.7 heat-set inserts
 SCREW_D = 3.4
 EDGE = 7.0                                    # lid thumbscrews, in from the plate's front edge
 # 22 mm operators: IEC 22.3 hole, anti-rotation notch at the top. Confirm against the chosen parts.
@@ -34,8 +35,6 @@ LEGEND_H, LEGEND_DEPTH, LEGEND_DROP = 7.0, 0.6, 20.0        # 5 mm strokes fall 
 # face, open under the flat deck for a straight driver; nuts in slots entered from the face rib's bottom edge.
 RIB_H, FACE_RIB_T, DECK_RIB_T = 13.0, 6.0, 4.0
 NUT_AF, NUT_T, NUT_SKIN = 5.7, 2.6, 1.5       # M3 nut, flats across x; skin left on the rib's front face
-# Every other joint is the same: a nut in a slot entered from the side, the screw through a clear hole
-NUT_UNDER = 2.0                               # thumbscrew nuts, this far under the face plate in the columns
 JOIN_X = (-84.0, -28.0, 28.0, 84.0)           # between the operator blocks, so a nut goes in with them fitted
 # Deck hinge along the back wall: two knuckle pairs on brackets outside it, deck knuckle outboard, body
 # knuckle inboard. An M3 x 50 bolt and nylock nut is the pin, snug not clamped; two bolts out, lid off.
@@ -43,9 +42,9 @@ HINGE_R, HINGE_L, HINGE_GAP, HINGE_HOLE = 4.0, 20.0, 0.4, 3.3
 HINGE_X = 25.0                                # hinge centre line in from each side
 # Lid stop: a post behind the axis on each bracket. The deck top meets its front top edge at STOP_DEG.
 STOP_Y, STOP_T, STOP_H = 10.0, 5.0, 12.0      # post front face behind the axis, thickness, height above the axis
-# Mounting plate on four square posts, M3 x 10 into nuts slotted into the posts; perforated at a 20 mm pitch
+# Mounting plate on four standoffs, perforated at a 20 mm pitch; the rail stub screws to it
 MP_T, MP_CLEAR = 3.0, 2.5                     # plate thickness, gap to the walls
-POST, POST_H, POST_NUT_Z = 10.0, 8.0, 2.5     # post side, height, nut slot floor above the body floor
+STANDOFF_D, STANDOFF_H = 8.0, 7.0             # boss, height: leaves 1 mm of boss under the insert, above the floor
 STANDOFF_IN = (16.0, 8.0)                     # in from the plate's side and front/back edges; clears the columns
 GRID = 20.0
 # Waveshare Modbus RTU IO 8CH, 121 x 72 x 34, on a 75 mm TS35 stub, rail along y in the rear bay
@@ -69,7 +68,7 @@ HINGES = [(-(W / 2 - HINGE_X), -1), (W / 2 - HINGE_X, 1)]   # (centre, outboard 
 STOP_DEG = degrees(pi - asin(PLATE_T / hypot(STOP_Y, STOP_H)) - atan2(STOP_H, STOP_Y))
 LID_SCREWS = [(-XC, EDGE), (XC, EDGE)]
 MP_W, MP_D = W - 2 * T - 2 * MP_CLEAR, D - 2 * T - 2 * MP_CLEAR
-MP_Y0, MP_Z = T + MP_CLEAR, T + POST_H        # plate front edge, plate underside
+MP_Y0, MP_Z = T + MP_CLEAR, T + STANDOFF_H    # plate front edge, plate underside
 STANDOFFS = [(sx * (MP_W / 2 - STANDOFF_IN[0]), MP_Y0 + y) for sx in (-1, 1) for y in (STANDOFF_IN[1], MP_D - STANDOFF_IN[1])]
 MODULE_Y = (Y_R + D - T) / 2                  # rail centre, rear bay
 RAIL_HOLES = [(0.0, MODULE_Y - RAIL_PITCH / 2), (0.0, MODULE_Y + RAIL_PITCH / 2)]
@@ -107,31 +106,22 @@ def _y_cyl(x, y, z, d, length) -> Part:
     return Pos(x, y, z) * Rot(90, 0, 0) * Cylinder(d / 2, length)
 
 
-def nut_slot(reach: float, open_sign: float) -> Part:
-    """A nut slot in the local frame: screw along z, nut centred on it, slot open along x toward open_sign,
-    reaching `reach` from the axis. Flats across y, slot floor at z = 0."""
-    length = NUT_AC / 2 + reach
-    return Pos(open_sign * (reach - NUT_AC / 2) / 2, 0, 0) * Box(length, NUT_AF, NUT_T, align=(Align.CENTER, Align.CENTER, Align.MIN))
-
-
 def build_body() -> Part:
     outer = _prism([(0, 0), (D, 0), (D, Z_R), (Y_R, Z_R), (0, FRONT_H)])
     cavity = extrude(Plane.YZ * Polygon((T, T), (D - T, T), (D - T, Z_R + 50), (T, Z_R + 50), align=None),
                      amount=W / 2 - T, both=True)
     body = outer - cavity
-    # Thumbscrew columns in the front corners, trimmed to the slope; nut slot opens toward the cavity centre
+    # Thumbscrew columns in the front corners, trimmed to the slope
     cols = Part()
     for x in (-XC, XC):
         cols += Pos(x, T + 6, T) * Box(COL, 12, Z_R + 10, align=(Align.CENTER, Align.CENTER, Align.MIN))
     body += cols & outer
     for u, v in LID_SCREWS:
-        body -= FACE_LOC * Pos(u, v, 0) * Cylinder(SCREW_D / 2, 12, align=(Align.CENTER, Align.CENTER, Align.MAX))
-        body -= FACE_LOC * Pos(u, v, -NUT_UNDER - NUT_T) * nut_slot(COL / 2 + 1, 1 if u < 0 else -1)
-    # Posts for the mounting plate, hole blind to the floor, nut slot opens toward the cavity centre
+        body -= FACE_LOC * Pos(u, v, 0) * Cylinder(INSERT_D / 2, INSERT_DEPTH, align=(Align.CENTER, Align.CENTER, Align.MAX))
+    # Standoffs for the mounting plate
     for x, y in STANDOFFS:
-        body += Pos(x, y, T) * Box(POST, POST, POST_H, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        body -= Pos(x, y, MP_Z) * Cylinder(SCREW_D / 2, POST_H, align=(Align.CENTER, Align.CENTER, Align.MAX))
-        body -= Pos(x, y, T + POST_NUT_Z) * nut_slot(POST / 2 + 1, 1 if x < 0 else -1)
+        body += Pos(x, y, T) * Cylinder(STANDOFF_D / 2, STANDOFF_H, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        body -= Pos(x, y, MP_Z) * Cylinder(INSERT_D / 2, INSERT_DEPTH, align=(Align.CENTER, Align.CENTER, Align.MAX))
     # Gland holes through the back wall
     for sx in (-1, 1):
         body -= _y_cyl(sx * GLAND_X, D, GLAND_Z, GLAND_D, 3 * T)
