@@ -140,8 +140,8 @@ host's as long as the host can run the bench's three machines at full speed;
 a slower host slows every node together. So the suites assert timing relative to the nodes' own frames: ten EEC1 per ET1,
 one DAQ sample per DC-DC cycle, heartbeats never faster than declared. Waits
 end on frames counted in the node's time; host seconds only bound them, scaled
-by pytest's `--time-scale`: 1 on a physical channel, 5 on vcan, enough for a
-host that runs the bench at a fifth of real time. Absolute periods and
+by pytest's `--time-scale`: 1 on a physical channel, 10 on vcan, twice what a
+host that runs the bench at a fifth of real time needs. Absolute periods and
 latencies are asserted on hardware only: a host timestamp can lead or trail
 the node's clock by tens of milliseconds while Renode catches up after a pause.
 

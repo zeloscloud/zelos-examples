@@ -161,7 +161,7 @@ def keep_session(bus: can.BusABC) -> frames.Periodic:
     """Hold a non-default session through a wait timed on the host, as a tester does.
 
     S3 runs on the node's clock, which a host wait does not bound: under Renode
-    bound() stretches the wait fivefold, and the emulation runs up to about
+    bound() stretches the wait tenfold, and the emulation runs up to about
     twice the host's pace while it catches up on time it fell behind.
     """
     return frames.Periodic(bus, lambda: TESTER_PRESENT, 0.1)
