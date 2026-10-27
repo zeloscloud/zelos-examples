@@ -11,6 +11,7 @@ checks in CI, the agent does the typing.
 | `<part>/test_part.py` | The spec's promises as assertions: valid single solid, envelope, hole pattern, clearances |
 | `<part>/PRINTS.md` | One line per print: date, material, profile, what fit and what did not |
 | `<part>/build/` | STEP, STL and hidden-line views. Build output, not committed |
+| `BOM.md` | Everything to buy for the three designs, with links |
 | `parts/build.py` | The build runner `just build` uses |
 | `fonts/` | The face the legends are cut with, so the inlay is the same on every machine |
 | `.claude/skills/` | The build123d modeling skill, so Claude Code knows the library's idioms here |
