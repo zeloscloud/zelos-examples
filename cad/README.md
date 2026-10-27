@@ -12,6 +12,7 @@ checks in CI, the agent does the typing.
 | `<part>/PRINTS.md` | One line per print: date, material, profile, what fit and what did not |
 | `<part>/build/` | STEP, STL and hidden-line views. Build output, not committed |
 | `BOM.md` | Everything to buy for the three designs, with links |
+| `parts/din.py` | The TS35 clip every board carrier is built from |
 | `parts/build.py` | The build runner `just build` uses |
 | `fonts/` | The face the legends are cut with, so the inlay is the same on every machine |
 | `.claude/skills/` | The build123d modeling skill, so Claude Code knows the library's idioms here |
@@ -49,3 +50,4 @@ or Handy by a person who stays for the first layer.
 | [`nucleo144-din-carrier`](nucleo144-din-carrier/) | A NUCLEO-144 (H753ZI and siblings) on a TS35 rail | Designed and tested, awaiting its first print |
 | [`din-bench-stand`](din-bench-stand/) | Two printed legs and two TS35 lengths: a leaning desk stand for the EK1100, CX9240 or RevPi | Designed and tested, awaiting its first print |
 | [`control-panel`](control-panel/) | Desk console: six 22 mm operators on a hinged lid, Modbus IO module on a removable mounting plate | Designed and tested; operator part numbers and legends to confirm |
+| [`energy-rig`](energy-rig/) | Motor and generator on a baseplate with a flange coupling, crank module, guard, DIN carriers and a resistor bar | Designed and tested; relay and rectifier modules are placeholders |

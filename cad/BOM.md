@@ -1,8 +1,7 @@
 # Bought parts
 
 Everything the three designs need besides the prints. The mounting plate (backplane) in the console is a print,
-not a purchase. Quantities are for one of each design; one 1 m rail covers the stand's two 300 mm lengths and
-the console's 75 mm stub.
+not a purchase. Quantities are for one of each design.
 
 ## Operators, 22 mm (control panel)
 
@@ -29,11 +28,35 @@ the chosen family's clamp range against the 4 mm plate and its notch against the
 | 1 | 24 V supply, stays outside the box | existing |
 | as needed | 22 AWG hookup wire, ferrules, twisted pair for RS485 | existing |
 
+## Energy rig
+
+| Qty | Part | Link |
+|---|---|---|
+| 2 | mjbots mj5208 brushless motor, 63 x 25, 330 Kv | [mjbots](https://mjbots.com/products/mj5208) |
+| 1 | mjbots moteus-c1 controller, 38 x 38 | [mjbots](https://mjbots.com/products/moteus-c1) |
+| 1 | 3-phase bridge rectifier module, MDS type, 50 A | [MDS50-16 at RS](https://uk.rs-online.com/web/p/bridge-rectifiers/0192764), confirm the footprint |
+| 1 | PZEM-017 DC meter with 50 A shunt | [robu.in listing](https://st.robu.in/product/pzem-017-module50a-shunt-dc-meter), or any Peacefair seller |
+| 1 | 2-channel relay module, 24 V coil | to choose; the carrier takes 51 x 39 with holes at 45 x 33 |
+| 2 | Arcol HS50 10R J, 10 ohm 50 W chassis mount | [RS 166-4187](https://uk.rs-online.com/web/p/chassis-mount-resistors/1664187) |
+| 1 | Aluminium flat bar, 1/8 x 2 in, 120 mm long | [McMaster aluminium bars](https://www.mcmaster.com/products/aluminum-bars/) |
+| 2 | 608 bearings, 8 x 22 x 7 | [McMaster 608 ball bearings](https://www.mcmaster.com/products/ball-bearings/trade-number~608/) |
+| 1 | M8 x 60 hex bolt + nylock + 2 washers, crank axle | [McMaster M8 hex bolts](https://www.mcmaster.com/products/hex-head-screws/thread-size~m8/) |
+| 1 | M6 x 40 bolt + nylock, crank grip | [McMaster M6](https://www.mcmaster.com/products/hex-head-screws/thread-size~m6/) |
+| 8 | M3 x 12 socket head, motors to mounts | same M3 page as above |
+| 6 | M3 x 8 socket head, hubs to rotors | same |
+| 4 | M3 x 16 socket head + M3 nuts, hub join | same |
+| 4 | M3 x 16 socket head, block to mount inserts | same |
+| 4 | M4 x 16 socket head + M4 nuts, mount feet | same M4 page |
+| 2 | M5 x 20 socket head + M5 nuts, rectifier to pads | [McMaster M5](https://www.mcmaster.com/products/socket-head-screws/thread-size~m5/) |
+| 16 | M3 x 12 socket head + M3 nuts, guard, rails, resistor feet | same |
+| 8 | M3 heat-set inserts, block 4, relay carrier 4 | as above |
+| 4 | M2.5 heat-set inserts + M2.5 x 6 screws, moteus carrier | [ruthex M2.5](https://www.3djake.com/ruthex/threaded-insert-m2-5-100-pieces) |
+
 ## Rail
 
 | Qty | Part | Link |
 |---|---|---|
-| 1 m | TS35 slotted steel DIN rail, 35 x 7.5 | [McMaster 8961K15](https://www.mcmaster.com/8961K15/) |
+| 2 m | TS35 slotted steel DIN rail, 35 x 7.5 (console 75, stand 2 x 300, rig 2 x 240) | [McMaster 8961K15](https://www.mcmaster.com/8961K15/) |
 | 4 | DIN rail end clamp, screwless | [Phoenix CLIPFIX 35, 3022218](https://rspsupply.com/p-1838-phoenix-contact-3022218-end-bracket-clipfix-35.aspx) |
 
 ## Fasteners
@@ -57,7 +80,7 @@ All M3 x 0.5 and M4 x 0.7, socket head, stainless or zinc. McMaster category pag
 
 ## Print material
 
-PETG, about 700 g for everything (console 600 g, stand 190 g, carrier 50 g, at 1.27 g/cm3). A second colour for
+PETG, about 1.8 kg for everything (console 600 g, stand 190 g, carrier 50 g, rig 1.1 kg, at 1.27 g/cm3). A second colour for
 the legend inlay, a few grams.
 
 ## Not bought yet

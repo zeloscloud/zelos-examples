@@ -7,3 +7,6 @@ dependencies = [
     "pytest>=8",
     "pymupdf>=1.25",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
