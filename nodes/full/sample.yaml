@@ -1,5 +1,5 @@
 sample:
-  name: Combined bench image (DC-DC + XCP + UDS + AUTOSAR + Ethernet, genset J1939, PDU CANopen)
+  name: Combined bench image (DC-DC + XCP + UDS + AUTOSAR + Ethernet + GOOSE, genset J1939, PDU CANopen)
 common:
   platform_allow: nucleo_h753zi
   integration_platforms:
@@ -11,3 +11,4 @@ tests:
       - uds
       - autosar
       - ethernet
+      - goose

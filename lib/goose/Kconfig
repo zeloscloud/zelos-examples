@@ -1,0 +1,14 @@
+config ZELOS_GOOSE
+	bool "IEC 61850 GOOSE publisher"
+	depends on ZELOS_ETH && NET_SOCKETS && NET_SOCKETS_PACKET
+	select ZELOS_GOOSE_CORE
+	help
+	  Control blocks on an AF_PACKET raw socket, on change or
+	  periodic, from one thread. See include/zelos/goose.h;
+	  snippets/goose turns it on.
+
+config ZELOS_GOOSE_CORE
+	bool "GOOSE publisher core"
+	help
+	  The schedule and frame encoder without sockets. ZELOS_GOOSE
+	  selects it; on its own it is only useful to unit tests.

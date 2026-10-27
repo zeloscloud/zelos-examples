@@ -134,6 +134,19 @@ static int64_t limits_at_ms;
 #include "someip.h"
 #endif
 
+#if defined(CONFIG_ZELOS_GOOSE)
+/* Built with `-S goose`, the latest cycle for GOOSE (nodes/full). */
+static struct k_spinlock latest_lock;
+static struct dcdc_sample latest;
+
+void dcdc_latest(struct dcdc_sample *out)
+{
+	K_SPINLOCK(&latest_lock) {
+		*out = latest;
+	}
+}
+#endif
+
 /* Demand and slew rate, as one pair: a tool's write lands whole or not yet. */
 static struct dcdc_calibration calibration(void)
 {
@@ -351,6 +364,18 @@ static void run(void *p1, void *p2, void *p3)
 					       ? BENCH_DCDC_STATUS_DERATE_ACTIVE_ACTIVE_CHOICE
 					       : BENCH_DCDC_STATUS_DERATE_ACTIVE_INACTIVE_CHOICE;
 		status.counter = counter & 0x7FU;
+#if defined(CONFIG_ZELOS_GOOSE)
+		K_SPINLOCK(&latest_lock) {
+			latest = (struct dcdc_sample){
+				.output_v = rail_voltage_v,
+				.output_a = rail_current_a,
+				.input_a = input_current_a,
+				.temperature_c = temperature_c,
+				.derating = temperature_c > DERATE_ABOVE_C,
+				.cycles = latest.cycles + 1U,
+			};
+		}
+#endif
 #if defined(CONFIG_ZELOS_SOMEIP)
 		/* The same sample and Counter as this cycle's DCDC_Status. */
 		dcdc_someip_sample(&state, temperature_c > DERATE_ABOVE_C, status.counter);

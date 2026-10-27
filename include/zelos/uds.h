@@ -170,18 +170,25 @@ struct zelos_uds_io {
 };
 
 #define ZELOS_UDS_ROUTINE_RESULT_MAX 8
+#define ZELOS_UDS_ROUTINE_OPTION_MAX 4
 
 /*
- * A node's routine: started with 0x31 0x01 and no option record in one
- * session, answered 0x78 at once and its result after duration_ms. 0x03
- * repeats the last result; neither 0x03 before a run nor 0x02 is in sequence.
+ * A node's routine: started with 0x31 0x01 and an option record of exactly
+ * option_len bytes in one session, answered 0x78 at once and its result after
+ * duration_ms. 0x03 repeats the last result; neither 0x03 before a run nor
+ * 0x02 is in sequence.
  */
 struct zelos_uds_routine {
 	uint16_t id;
 	uint8_t session;
 	uint32_t duration_ms;
-	/* Fill the result, at most ZELOS_UDS_ROUTINE_RESULT_MAX bytes; return its length. */
-	uint8_t (*run)(uint8_t *result);
+	/*
+	 * Fill the result, at most ZELOS_UDS_ROUTINE_RESULT_MAX bytes; return its
+	 * length. option: the start's option record.
+	 */
+	uint8_t (*run)(const uint8_t *option, uint8_t *result);
+	/* At most ZELOS_UDS_ROUTINE_OPTION_MAX. */
+	uint8_t option_len;
 };
 
 /*
@@ -374,6 +381,7 @@ struct zelos_uds_core {
 	/* A routine answered 0x78 and not yet finished; its result is pending. */
 	uint16_t pending;
 	const struct zelos_uds_routine *pending_routine;
+	uint8_t pending_option[ZELOS_UDS_ROUTINE_OPTION_MAX];
 	int64_t pending_done;
 	int64_t pending_sent;
 	/* The last finished routine, for requestResults. */

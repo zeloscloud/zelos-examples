@@ -1,0 +1,3 @@
+name: goose
+append:
+  EXTRA_CONF_FILE: goose.conf

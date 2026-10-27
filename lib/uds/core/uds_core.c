@@ -888,10 +888,11 @@ static uint8_t routine_control(struct zelos_uds_core *uds, const uint8_t *req, s
 		if (routine == NULL || routine->session != uds->session) {
 			return NRC_OUT_OF_RANGE;
 		}
-		if (len != 4) {
+		if (len != 4U + (type == 0x01 ? routine->option_len : 0U)) {
 			return NRC_INCORRECT_LENGTH;
 		}
 		if (type == 0x01) {
+			memcpy(uds->pending_option, &req[4], routine->option_len);
 			uds->pending = id;
 			uds->pending_routine = routine;
 			uds->pending_done = now + routine->duration_ms;
@@ -1175,6 +1176,11 @@ int zelos_uds_core_init(struct zelos_uds_core *uds, const struct zelos_uds_confi
 	    snapshot_length(config) > ZELOS_UDS_SNAPSHOT_MAX) {
 		return -EINVAL;
 	}
+	for (size_t i = 0; i < config->routine_count; i++) {
+		if (config->routines[i].option_len > ZELOS_UDS_ROUTINE_OPTION_MAX) {
+			return -EINVAL;
+		}
+	}
 	/* Every PID reads a DID of the node's, into at most 4 bytes. */
 	for (size_t i = 0; i < config->pid_count; i++) {
 		if (config->pids[i].size > 4 || uds_find_did(config, config->pids[i].did) == NULL) {
@@ -1343,7 +1349,7 @@ static void finish_pending(struct zelos_uds_core *uds)
 		uds->last_result[0] = 0x00;
 		uds->last_len = 1;
 	} else {
-		uds->last_len = uds->pending_routine->run(uds->last_result);
+		uds->last_len = uds->pending_routine->run(uds->pending_option, uds->last_result);
 	}
 	uds->last = uds->pending;
 	uds->pending = 0;
