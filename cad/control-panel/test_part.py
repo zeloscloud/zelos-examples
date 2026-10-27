@@ -68,8 +68,12 @@ def test_lid_sits_on_the_body_and_bolts_together(parts):
         assert (body & parts[name]).volume < 1.0, name
     assert (face & deck).volume < 1.0
     for u, v in m.LID_SCREWS:
-        assert not body.is_inside(m.pt(u, v, -2)), (u, v)
-        assert body.is_inside(m.pt(u, v, -m.INSERT_DEPTH - 2)), (u, v)
+        s, wn = (-1 if u < 0 else 1), -m.NUT_UNDER - m.NUT_T / 2
+        assert not body.is_inside(m.pt(u, v, -1)), (u, v)                               # thumbscrew hole
+        assert not body.is_inside(m.pt(u, v, wn - m.NUT_T / 2 - 1)), (u, v)             # and on past the nut
+        assert not body.is_inside(m.pt(u, v + m.NUT_AF / 2 - 0.3, wn)), (u, v)          # nut slot, flats across v
+        assert not body.is_inside(m.pt(u - s * (m.COL / 2 - 0.3), v, wn)), (u, v)       # open on the inner face
+        assert body.is_inside(m.pt(u + s * (m.NUT_AC / 2 + 0.6), v, wn)), (u, v)        # closed toward the wall
     z, y_slot = m.JOIN_Z, m.Y_R - m.FACE_RIB_T + m.NUT_SKIN + m.NUT_T / 2
     for x in m.JOIN_X:
         assert not deck.is_inside((x, m.Y_R + 2.0, z)), x                              # bolt through the deck rib
@@ -118,15 +122,19 @@ def test_lid_plates_print_face_down(parts):
 
 
 def test_mounting_plate_lifts_out(parts):
-    """Plate rests on the standoffs with a hole over each insert; the insert hole stops above the floor;
-    rail holes open; fits the top opening."""
+    """Plate rests on the posts with a hole over each screw hole; nuts slot into the posts; rail holes open;
+    fits the top opening."""
     body, mp = parts["body"], parts["mounting-plate"]
     assert (body & mp).volume < 1.0
     for x, y in m.STANDOFFS:
+        s, zn = (-1 if x < 0 else 1), m.T + m.POST_NUT_Z + m.NUT_T / 2
         assert not mp.is_inside((x, y, m.MP_Z + m.MP_T / 2)), (x, y)
-        assert not body.is_inside((x, y, m.MP_Z - 2)), (x, y)
-        assert body.is_inside((x + m.STANDOFF_D / 2 - 0.5, y, m.MP_Z - 2)), (x, y)
-        assert body.is_inside((x, y, m.T + 0.5)), (x, y)
+        assert not body.is_inside((x, y, m.MP_Z - 2)), (x, y)                            # screw hole
+        assert body.is_inside((x + m.POST / 2 - 0.5, y, m.MP_Z - 2)), (x, y)             # post around it
+        assert body.is_inside((x, y, m.T / 2)), (x, y)                                   # floor under it
+        assert not body.is_inside((x, y + m.NUT_AF / 2 - 0.3, zn)), (x, y)               # nut slot
+        assert not body.is_inside((x - s * (m.POST / 2 - 0.3), y, zn)), (x, y)           # open toward the centre
+        assert body.is_inside((x + s * (m.NUT_AC / 2 + 0.6), y, zn)), (x, y)             # closed on the outer side
     for x, y in m.RAIL_HOLES:
         assert not mp.is_inside((x, y, m.MP_Z + m.MP_T / 2)), (x, y)
     bb = mp.bounding_box().size

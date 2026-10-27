@@ -23,7 +23,8 @@ cable entry is in a fixed wall. Replaces the Hammond 1554MPB6B option.
   not chosen yet: confirm the notch and the clamp range (most take 1 to 6 mm) against the datasheets.
 - Clearance behind the plate is modelled as a 32 x 44 x 65 mm block per operator and checked against every
   print and the module, closed and through the whole swing. Datasheet depth for a block plus lamp holder is 50 to 60 mm.
-- Mounting plate: 190 x 170 x 3 on four floor standoffs with M3 inserts, perforated at 20 mm for whatever
+- Mounting plate: 190 x 170 x 3 on four 10 mm square posts, M3 x 10 into nuts slotted into the posts,
+  perforated at 20 mm for whatever
   comes next (terminal strip for the operator loom, duct). The rail stub (75 mm TS35) bolts to it with two
   M3 in the rail slots, nuts under the plate; the module sits in the rear bay with 15 mm wire room past each terminal end.
 - Cable entry: two 16.5 mm holes in the back wall for M16 glands, above the module. The operator loom gets a
@@ -33,9 +34,10 @@ cable entry is in a fixed wall. Replaces the Hammond 1554MPB6B option.
   stand on them); face and deck outer face down so the ribs and knuckles stand up, which puts the legend
   inlay in the first layers; mounting plate flat. PETG or ASA. Body about 335 cm3, face about 100 cm3,
   deck about 80 cm3.
-- Fasteners: through-bolts and nuts wherever both sides are reachable (ridge, hinges); heat-set inserts only
-  for the blind joints (lid thumbscrews into the front columns, mounting plate onto its 7 mm standoffs,
-  which keep the insert hole clear of the floor).
+- Fasteners: M3 and M4 screws and nuts only, no inserts. Where both sides are reachable the nut is free
+  (hinges, rail stub). Where the joint is blind the nut sits in a slot entered from the side, perpendicular
+  to the screw, so the screw cannot push it out: the ridge ribs, the thumbscrew columns (slot opens into the
+  cavity, 2 mm under the plate) and the mounting plate posts. Nothing threads into plastic.
 - Open: whether the plate flexes under an E-stop slap at 4 mm (the test print settles it; PLATE_T goes
   to 5 if so), the legend wording, and the operator loom: lifting the mounting plate out means unplugging
   it at the module, until a pluggable terminal strip lands on the plate.
