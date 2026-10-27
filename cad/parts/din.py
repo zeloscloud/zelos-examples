@@ -16,6 +16,7 @@ HOOK_LEN = 12.0
 TONGUE_T, TONGUE_GAP = 1.6, 1.5
 TONGUE_TOOTH_LEN = 9.0
 RIB_LEN, RIB_H = 6.0, 4.0                         # release rib on the free end, tongue-thick
+SCREW_D = 3.4                                     # relief below every insert: the one M3 x 10 never bottoms
 
 
 def carrier(plate_x, plate_y, holes, hook_x, boss_od=8.0, boss_h=7.0, insert=(4.0, 5.8), plate_t=5.0,
@@ -32,6 +33,7 @@ def carrier(plate_x, plate_y, holes, hook_x, boss_od=8.0, boss_h=7.0, insert=(4.
             part -= Pos(x, y, -1) * Cylinder(hole_d / 2, plate_t + boss_h + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
         else:
             part -= Pos(x, y, plate_t + boss_h) * Cylinder(insert[0] / 2, insert[1], align=(Align.CENTER, Align.CENTER, Align.MAX))
+            part -= Pos(x, y, -1) * Cylinder(SCREW_D / 2, plate_t + boss_h + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
     for x in hook_x:
         part += Pos(x, y_out - TOOTH / 2, 0) * Box(HOOK_LEN, TOOTH, TOOTH_H, align=(Align.CENTER, Align.CENTER, Align.MIN))
     # Tongue: a strip of the recess wall freed on three sides by through-slots, attached only at its root

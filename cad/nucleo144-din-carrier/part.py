@@ -21,6 +21,15 @@ def carrier_holes():
     return [(by - BOARD_Y / 2, bx - BOARD_X / 2) for bx, by in HOLES_BOARD]
 
 
+SCREW_L = 10.0                                # the project's one M3 length
+BOARD_T = 1.6
+
+
+def joints():
+    """Each screwed joint: what the screw passes before its target, and what the target offers."""
+    return [{"joint": "board to boss", "screw": SCREW_L, "through": BOARD_T, "kind": "insert", "room": INSERT_DEPTH + PLATE_T + BOSS_H - INSERT_DEPTH}]
+
+
 VIEWS = [("board-side", (-120, -160, 110)), ("rail-side", (-120, 160, -110))]
 
 

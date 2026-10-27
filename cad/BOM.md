@@ -40,17 +40,6 @@ the chosen family's clamp range against the 4 mm plate and its notch against the
 | 2 | Arcol HS50 10R J, 10 ohm 50 W chassis mount | [RS 166-4187](https://uk.rs-online.com/web/p/chassis-mount-resistors/1664187) |
 | 1 | Aluminium flat bar, 1/8 x 2 in, 120 mm long | [McMaster aluminium bars](https://www.mcmaster.com/products/aluminum-bars/) |
 | 2 | 608 bearings, 8 x 22 x 7 | [McMaster 608 ball bearings](https://www.mcmaster.com/products/ball-bearings/trade-number~608/) |
-| 1 | M8 x 60 hex bolt + nylock + 2 washers, crank axle | [McMaster M8 hex bolts](https://www.mcmaster.com/products/hex-head-screws/thread-size~m8/) |
-| 1 | M6 x 40 bolt + nylock, crank grip | [McMaster M6](https://www.mcmaster.com/products/hex-head-screws/thread-size~m6/) |
-| 8 | M3 x 12 socket head, motors to mounts | same M3 page as above |
-| 6 | M3 x 8 socket head, hubs to rotors | same |
-| 4 | M3 x 16 socket head + M3 nuts, hub join | same |
-| 4 | M3 x 16 socket head, block to mount inserts | same |
-| 4 | M4 x 16 socket head + M4 nuts, mount feet | same M4 page |
-| 2 | M5 x 20 socket head + M5 nuts, rectifier to pads | [McMaster M5](https://www.mcmaster.com/products/socket-head-screws/thread-size~m5/) |
-| 16 | M3 x 12 socket head + M3 nuts, guard, rails, resistor feet | same |
-| 8 | M3 heat-set inserts, block 4, relay carrier 4 | as above |
-| 4 | M2.5 heat-set inserts + M2.5 x 6 screws, moteus carrier | [ruthex M2.5](https://www.3djake.com/ruthex/threaded-insert-m2-5-100-pieces) |
 
 ## Rail
 
@@ -61,22 +50,25 @@ the chosen family's clamp range against the 4 mm plate and its notch against the
 
 ## Fasteners
 
-All M3 x 0.5 and M4 x 0.7, socket head, stainless or zinc. McMaster category pages; any supplier's equivalent is fine.
+Six screw kinds cover every design. The prints set each screw's reach (counterbores, relief holes under
+inserts, nut slots), so one length per thread works everywhere. Socket head, stainless or zinc; McMaster
+category pages, any supplier's equivalent is fine.
 
 | Qty | Part | Where it goes | Link |
 |---|---|---|---|
-| 11 | M3 heat-set insert, 5.7 long, 4.0 hole | console columns 2, console standoffs 4, carrier bosses 5 | [McMaster 94459A140](https://www.mcmaster.com/94459A140/) or [ruthex RX-M3x5.7](https://3djake.com/ruthex/threaded-insert-m3-100-pieces) |
-| 1 | heat-set insert tip for the soldering iron, M3 | install | [McMaster heat-set insert tips](https://www.mcmaster.com/products/heat-set-insert-tips/) |
-| 4 | M3 x 10 socket head | console ridge, face to deck | [McMaster M3 socket head screws](https://www.mcmaster.com/products/socket-head-screws/thread-size~m3/) |
+| 60 | M3 x 10 socket head | every M3 joint: console ridge, plate and rail stub, carrier boards, rig motors, hubs, block, guard, rails, feet | [McMaster M3 socket head](https://www.mcmaster.com/products/socket-head-screws/thread-size~m3/) |
 | 2 | M3 x 50 socket head | console hinge pins | same page |
-| 6 | M3 x 8 socket head | console plate to standoffs 4, rail stub to plate 2 | same page, [91292A112](https://www.mcmaster.com/91292A112/) is the 18-8 pack of 100 |
-| 5 | M3 x 6 socket head | carrier board to inserts | same page |
-| 2 | M3 x 10 knurled thumbscrew | console lid, front corners | [McMaster thumb screws](https://www.mcmaster.com/products/thumb-screws/thread-size~m3/) |
-| 6 | M3 hex nut | ridge 4, rail stub 2 | [McMaster hex nuts](https://www.mcmaster.com/products/hex-nuts/thread-size~m3/) |
+| 2 | M3 x 10 knurled thumbscrew | console lid | [McMaster thumb screws](https://www.mcmaster.com/products/thumb-screws/thread-size~m3/) |
+| 4 | M2.5 x 6 socket head | moteus-c1 to its carrier | [McMaster M2.5](https://www.mcmaster.com/products/socket-head-screws/thread-size~m2-5/) |
+| 14 | M4 x 16 socket head | stand rails 4, rig mount feet 4, hub join 4, rectifier 2 | [McMaster M4](https://www.mcmaster.com/products/socket-head-screws/thread-size~m4/) |
+| 2 | M8 x 60 hex bolt | crank axle, crank grip | [McMaster M8 hex bolts](https://www.mcmaster.com/products/hex-head-screws/thread-size~m8/) |
+| 30 | M3 hex nut | ridge, rail stubs, guard, rails | [McMaster hex nuts](https://www.mcmaster.com/products/hex-nuts/thread-size~m3/) |
 | 2 | M3 nylon-insert locknut | hinge pins | [McMaster hex locknuts](https://www.mcmaster.com/products/hex-locknuts/thread-size~m3/) |
-| 4 | M4 x 16 socket head | stand, rail to leg | [McMaster M4 socket head screws](https://www.mcmaster.com/products/socket-head-screws/thread-size~m4/) |
-| 4 | M4 flat washer | under the M4 heads on the rail | [McMaster washers](https://www.mcmaster.com/products/washers/thread-size~m4/) |
-| 4 | M4 hex nut | stand pad slots | [McMaster hex nuts](https://www.mcmaster.com/products/hex-nuts/thread-size~m4/) |
+| 14 | M4 hex nut + flat washer | with the M4 x 16 | [McMaster M4 nuts](https://www.mcmaster.com/products/hex-nuts/thread-size~m4/) |
+| 2 | M8 nylon-insert locknut + washers | crank axle and grip | same locknut page, M8 |
+| 23 | M3 heat-set insert, 5.7 long, 4.0 hole | console 6, carrier 5, rig block 4, relay carrier 4, resistor feet 4 | [McMaster 94459A140](https://www.mcmaster.com/94459A140/) or [ruthex RX-M3x5.7](https://3djake.com/ruthex/threaded-insert-m3-100-pieces) |
+| 4 | M2.5 heat-set insert | moteus carrier | [ruthex M2.5](https://www.3djake.com/ruthex/threaded-insert-m2-5-100-pieces) |
+| 1 | heat-set insert tip for the soldering iron, M3 | install | [McMaster heat-set insert tips](https://www.mcmaster.com/products/heat-set-insert-tips/) |
 
 ## Print material
 

@@ -49,7 +49,7 @@ def test_coupling_bolts_up_outside_the_rotors(a, b):
     hd, hg = a["hub-drive"], a["hub-gen"]
     assert (hd & hg).volume < 0.01
     assert hd.bounding_box().max.X == pytest.approx(m.X_COUPLE) and hg.bounding_box().min.X == pytest.approx(m.X_COUPLE)
-    assert m.JOIN_BC / 2 - 2.75 > m.MOTOR_D / 2 + 1                                    # heads and nuts clear the bells
+    assert m.JOIN_BC / 2 - m.JOIN_HEAD_R > m.MOTOR_D / 2 + 1                                    # heads and nuts clear the bells
     for dy, dz in m.ring(m.ROTOR_N, m.ROTOR_BC, 90):
         assert not hd.is_inside((m.X_COUPLE - 1, m.AXIS_Y + dy, m.AXIS_Z + dz))      # counterbore from the mating face
         assert not hd.is_inside((m.X_COUPLE - m.HUB_T + 0.5, m.AXIS_Y + dy, m.AXIS_Z + dz))   # screw out the rotor face
@@ -59,13 +59,13 @@ def test_coupling_bolts_up_outside_the_rotors(a, b):
         u = (dy / r, dz / r)
         xm = m.X_COUPLE - m.HUB_T / 2
         for h, s in ((hd, -1), (hg, 1)):
-            x_mid = m.X_COUPLE + s * m.HUB_T / 2
+            x_mid, x_nut = m.X_COUPLE + s * m.HUB_T / 2, m.X_COUPLE + s * m.JOIN_NUT_DEPTH
             assert not h.is_inside((x_mid, m.AXIS_Y + dy, m.AXIS_Z + dz)), (dy, dz)                   # join hole
             out = (m.AXIS_Y + u[0] * (r + 2), m.AXIS_Z + u[1] * (r + 2))
             rim = (m.AXIS_Y + u[0] * (m.HUB_D / 2 - 0.5), m.AXIS_Z + u[1] * (m.HUB_D / 2 - 0.5))
-            inn = (m.AXIS_Y + u[0] * (r - m.NUT_AC / 2 - 0.8), m.AXIS_Z + u[1] * (r - m.NUT_AC / 2 - 0.8))
-            assert not h.is_inside((x_mid, *out)) and not h.is_inside((x_mid, *rim)), (dy, dz)         # slot open to the rim
-            assert h.is_inside((x_mid, *inn)), (dy, dz)                                               # closed inboard
+            inn = (m.AXIS_Y + u[0] * (r - m.M4_NUT_AC / 2 - 0.8), m.AXIS_Z + u[1] * (r - m.M4_NUT_AC / 2 - 0.8))
+            assert not h.is_inside((x_nut, *out)) and not h.is_inside((x_nut, *rim)), (dy, dz)         # slot open to the rim
+            assert h.is_inside((x_nut, *inn)), (dy, dz)                                               # closed inboard
             assert h.is_inside((m.X_COUPLE + s * 1.0, *out)), (dy, dz)                                # skin on the mating face
     for name in ("mount-drive", "mount-gen", "guard"):
         for h in (hd, hg):
@@ -151,3 +151,16 @@ def test_hot_bar_keeps_its_distance(a, b):
             continue
         for h in hot:
             assert p.distance_to(h) >= m.HOT_CLEAR, name
+
+
+def test_one_screw_length_reaches_every_joint():
+    """M3 x 10 and M4 x 16 everywhere: into an insert 3.5 mm or more and never to the bottom; through a nut
+    fully and into free room; into a motor exactly as far as the counterbore allows."""
+    for j in m.joints():
+        past = j["screw"] - j["through"]
+        if j["kind"] == "insert":
+            assert 3.5 <= past <= j["room"], j
+        elif j["kind"] == "nut":
+            assert j["nut"] <= past <= j["room"], j
+        else:
+            assert past == pytest.approx(j["reach"]), j

@@ -49,3 +49,11 @@ def test_tongue_is_free_to_flex(p):
     assert not p.is_inside((xm, ty + m.TONGUE_T, z))
     assert not p.is_inside((m.TONGUE_X[1] + m.TONGUE_GAP / 2, ty, z))
     assert p.is_inside((m.TONGUE_X[0] - 1.0, ty, z))
+
+
+def test_one_screw_length_reaches_every_joint(p):
+    for j in m.joints():
+        past = j["screw"] - j["through"]
+        assert 3.5 <= past <= j["room"], j
+    x, y = m.carrier_holes()[2]                                   # the boss over the rail recess: tip ends in the channel
+    assert not p.is_inside((x, y, 0.5)) and not p.is_inside((x, y, m.PLATE_T + 1))

@@ -17,10 +17,13 @@ PLATE_X, PLATE_Y, PLATE_T = 260.0, 240.0, 5.0
 SKIRT_H, SKIRT_T = 10.0, 3.0
 Z_TOP = SKIRT_H + PLATE_T                          # plate top
 # Fasteners: M3 everywhere but the mount feet (M4) and the crank axle (M8). Nuts under the plate.
-SCREW_D, M25_D, M4_D, M5_D, M8_D = 3.4, 2.8, 4.5, 5.5, 8.4
+SCREW_D, M25_D, M4_D, M8_D = 3.4, 2.8, 4.5, 8.4
+SCREW_L, M4_L = 10.0, 16.0                         # the project's two bolt lengths besides the axles
 INSERT_D, INSERT_DEPTH = 4.0, 6.0                  # M3 x 5.7 heat-set, blind joints only
 NUT_AF, NUT_T = 5.7, 2.6
+M4_NUT_AF, M4_NUT_T = 7.3, 3.4
 NUT_AC = NUT_AF / cos(radians(30))
+M4_NUT_AC = M4_NUT_AF / cos(radians(30))
 # Motor train along x at the front; axis high enough for the crank to swing clear of the desk
 AXIS_Y = 60.0
 AXIS_Z = Z_TOP + 75.0
@@ -32,16 +35,19 @@ BASE_BC, BASE_N = 25.0, 4
 AXLE_CLEAR = 12.0                                  # hole in the mount for the axle stub
 LEAD_L = 80.0                                      # motor pigtails
 # Motor mount: upright with the base pattern, foot under the motor with slots along x, two gussets
-MOUNT_T, MOUNT_W = 8.0, 90.0
+MOUNT_T, MOUNT_W = 6.0, 90.0                       # 6 so an M3 x 10 reaches 4 mm into the stator
 MOUNT_TOP = AXIS_Z + MOTOR_D / 2 + 14.0
 FOOT_D, FOOT_T, FOOT_SLOT = 40.0, 8.0, 12.0
 FOOT_BOLT_Y = 32.0                                 # from the axis, each side
 GUSSET_H, GUSSET_T = 40.0, 6.0
-# Flange coupling: two identical hubs, each screwed to its rotor from the mating side, joined by four M3
-# outside the rotor bell. Join nuts sit in slots entered from the rim, so the bolt cannot push them out.
-HUB_D, HUB_T = 84.0, 8.0
-JOIN_BC, JOIN_N = 76.0, 4
-CBORE_D, CBORE_DEPTH = 6.0, 3.5
+# Flange coupling: two identical hubs, each screwed to its rotor from the mating side with three M3 x 10
+# counterbored to reach 3.5 mm, joined by four M4 x 16 outside the rotor bell. Join nuts sit in slots
+# entered from the rim, so the bolt cannot push them out.
+HUB_D, HUB_T = 84.0, 10.0
+JOIN_BC, JOIN_N, JOIN_HEAD_R = 76.0, 4, 3.5
+JOIN_NUT_DEPTH = 4.0                               # slot centre in from the mating face: M4 x 16 fills the nut
+CBORE_D, ROTOR_REACH = 6.0, 3.5
+CBORE_DEPTH = HUB_T - (SCREW_L - ROTOR_REACH)      # what the M3 x 10 leaves under its head sets the reach
 # Positions along x: the drive mount sits at the crank end of the plate
 X_DRIVE = -PLATE_X / 2 + 1 + MOUNT_T              # drive motor base plane (mount inner face)
 X_COUPLE = X_DRIVE + MOTOR_L + HUB_T               # hubs' mating plane
@@ -56,9 +62,9 @@ BOSS_D, BOSS_H = 11.5, 1.0                         # hub boss bears on the inner
 SLEEVE_OD, SLEEVE_ID = 11.0, M8_D
 ARM_GAP = 5.0                                      # arm plane off the mount's back face, clears the screw heads
 ARM_R, ARM_W, ARM_T = 70.0, 18.0, 8.0
-GRIP_D, GRIP_L, GRIP_BORE = 20.0, 24.0, 6.4         # on an M6 x 40
+GRIP_D, GRIP_L, GRIP_BORE = 20.0, 42.0, M8_D        # on a second M8 x 60 and nylock
 # Guard: a U hood between the mounts, a flange along each bottom edge bolted to the plate, slots on top
-GUARD_R, GUARD_T = 50.0, 2.5
+GUARD_R, GUARD_T, FLANGE_T = 50.0, 2.5, 2.0
 TAB_L, TAB_W = 14.0, 20.0                        # bolt positions in from each end, flange width
 VENT_W, VENT_L = 4.0, 40.0
 # Electronics: two TS35 stubs across the back, carriers from parts.din
@@ -70,7 +76,7 @@ MOTEUS = (38.0, 38.0, 9.0)
 MOTEUS_HOLES = [(sx * 16.0, sy * 16.0) for sx in (-1, 1) for sy in (-1, 1)]
 RELAY = (51.0, 39.0, 20.0)
 RELAY_HOLES = [(sx * 22.5, sy * 16.5) for sx in (-1, 1) for sy in (-1, 1)]
-RECTIFIER = (80.0, 36.0, 30.0)                     # MDS-type 3-phase bridge module, two M5 at 66
+RECTIFIER = (80.0, 36.0, 30.0)                     # MDS-type 3-phase bridge module, two M5 holes at 66, on M4 and washers
 RECTIFIER_HOLES = [(-33.0, 0.0), (33.0, 0.0)]
 PZEM = (90.0, 60.0, 23.0)                          # PZEM-017 case, dropped into a tray
 CARRIERS = {                                       # name: (rail, x centre, plate_x, plate_y)
@@ -159,12 +165,13 @@ def _hub_blank(x_mate: float, s: int) -> Part:
     """Flange hub whose mating face is at x_mate, body extending toward -s. Join holes and rim nut slots."""
     hub = x_cyl(x_mate, AXIS_Y, AXIS_Z, HUB_D, HUB_T, Align.MAX if s > 0 else Align.MIN)
     xm = x_mate - s * HUB_T / 2                                   # mid-thickness
+    xn = x_mate - s * JOIN_NUT_DEPTH                              # nut slot centre
     for dy, dz in ring(JOIN_N, JOIN_BC, 45):
-        hub -= x_cyl(xm, AXIS_Y + dy, AXIS_Z + dz, SCREW_D, HUB_T + 2)
+        hub -= x_cyl(xm, AXIS_Y + dy, AXIS_Z + dz, M4_D, HUB_T + 2)
         # nut slot from the rim, radial, flats across the thickness
         reach = HUB_D / 2 - JOIN_BC / 2 + 1
-        hub -= Pos(0, AXIS_Y + dy, AXIS_Z + dz) * Rot(degrees(atan2(dz, dy)) - 90, 0, 0) * Pos(xm, 0, -NUT_AC / 2) * Box(
-            NUT_T, NUT_AF, NUT_AC / 2 + reach, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        hub -= Pos(0, AXIS_Y + dy, AXIS_Z + dz) * Rot(degrees(atan2(dz, dy)) - 90, 0, 0) * Pos(xn, 0, -M4_NUT_AC / 2) * Box(
+            M4_NUT_T, M4_NUT_AF, M4_NUT_AC / 2 + reach, align=(Align.CENTER, Align.CENTER, Align.MIN))
     return hub
 
 
@@ -226,9 +233,9 @@ def build_guard() -> Part:
     shell = Pos(x0, 0, 0) * shell
     shell -= Pos(0, AXIS_Y, -1) * Box(PLATE_X, 2 * ro + 2, Z_TOP + 1, align=(Align.CENTER, Align.CENTER, Align.MIN))  # nothing below the plate top
     for sy in (-1, 1):
-        shell += Pos((x0 + x1) / 2, AXIS_Y + sy * (ro + TAB_W / 2 - 0.01), Z_TOP) * Box(x1 - x0, TAB_W, GUARD_T, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        shell += Pos((x0 + x1) / 2, AXIS_Y + sy * (ro + TAB_W / 2 - 0.01), Z_TOP) * Box(x1 - x0, TAB_W, FLANGE_T, align=(Align.CENTER, Align.CENTER, Align.MIN))
         for x in (x0 + 1 + TAB_L / 2, x1 - 1 - TAB_L / 2):
-            shell -= z_cyl(x, AXIS_Y + sy * (ro + TAB_W / 2), Z_TOP - 1, SCREW_D, GUARD_T + 2)
+            shell -= z_cyl(x, AXIS_Y + sy * (ro + TAB_W / 2), Z_TOP - 1, SCREW_D, FLANGE_T + 2)
     for dy in (-20.0, 0.0, 20.0):
         shell -= Pos((x0 + x1) / 2, AXIS_Y + dy, AXIS_Z + GUARD_R - 10) * Box(VENT_L, VENT_W, 20, align=(Align.CENTER, Align.CENTER, Align.MIN))
     return shell
@@ -246,7 +253,7 @@ def build_carriers() -> dict[str, Part]:
     _, _, rx, ry = CARRIERS["carrier-relay"]
     relay = carrier(rx, ry, RELAY_HOLES, hooks(rx), boss_od=8.0, boss_h=5.0)
     _, _, cx, cy = CARRIERS["carrier-rectifier"]
-    rect = carrier(cx, cy, RECTIFIER_HOLES, hooks(cx), boss_od=12.0, boss_h=5.0, hole_d=M5_D)   # pads, M5 nuts in the rail channel
+    rect = carrier(cx, cy, RECTIFIER_HOLES, hooks(cx), boss_od=12.0, boss_h=5.0, hole_d=M4_D)   # pads, M4 nuts in the rail channel
     _, _, px, py = CARRIERS["tray-pzem"]
     tray = carrier(px, py, [], hooks(px))
     bx, by = PZEM[0] / 2 + LIP_CLEAR, PZEM[1] / 2 + LIP_CLEAR
@@ -267,8 +274,9 @@ def build_rfoot(x) -> Part:
     fx, fy, fz = RFOOT
     foot = Pos(x, AXIS_Y, Z_TOP) * Box(fx, fy, fz, align=(Align.CENTER, Align.CENTER, Align.MIN))
     foot -= Pos(x, AXIS_Y, Z_TOP + fz - RFOOT_SLOT) * Box(fx + 2, BAR[1] + 0.4, RFOOT_SLOT + 1, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    for sy in (-1, 1):
-        foot -= z_cyl(x, AXIS_Y + sy * 12.0, Z_TOP - 1, SCREW_D, fz - RFOOT_SLOT - 2.5 + 1)
+    for sy in (-1, 1):                                            # inserts set from the bottom, screwed from under the plate
+        foot -= z_cyl(x, AXIS_Y + sy * 12.0, Z_TOP - 1, INSERT_D, INSERT_DEPTH + 1)
+        foot -= z_cyl(x, AXIS_Y + sy * 12.0, Z_TOP - 1, SCREW_D, INSERT_DEPTH + 2.5 + 1)
     return foot
 
 
@@ -302,6 +310,23 @@ def bought() -> dict[str, Part]:
     for s in (-1, 1):
         b[f"resistor-{'front' if s < 0 else 'back'}"] = Pos(BAR_X[0] - 20 + bx / 2, AXIS_Y + s * (bt / 2 + rt / 2), bar_z + bz - 5 - rz) * Box(rx, rt, rz, align=(Align.CENTER, Align.CENTER, Align.MIN))
     return b
+
+
+def joints():
+    """Each screwed joint: what the screw passes before its target, and what the target offers."""
+    return [
+        {"joint": "motor to mount", "screw": SCREW_L, "through": MOUNT_T, "kind": "tapped", "reach": 4.0},
+        {"joint": "hub to rotor", "screw": SCREW_L, "through": HUB_T - CBORE_DEPTH, "kind": "tapped", "reach": ROTOR_REACH},
+        {"joint": "hub join", "screw": M4_L, "through": HUB_T + JOIN_NUT_DEPTH - M4_NUT_T / 2, "kind": "nut", "nut": M4_NUT_T, "room": HUB_T - JOIN_NUT_DEPTH + 50},
+        {"joint": "crank block to mount", "screw": SCREW_L, "through": MOUNT_T, "kind": "insert", "room": INSERT_DEPTH},
+        {"joint": "guard flange to plate", "screw": SCREW_L, "through": FLANGE_T + PLATE_T, "kind": "nut", "nut": 2.4, "room": SKIRT_H},
+        {"joint": "rail to plate", "screw": SCREW_L, "through": 1.0 + PLATE_T, "kind": "nut", "nut": 2.4, "room": SKIRT_H},
+        {"joint": "mount foot to plate", "screw": M4_L, "through": FOOT_T + PLATE_T, "kind": "nut", "nut": 3.2, "room": SKIRT_H},
+        {"joint": "resistor foot, from below", "screw": SCREW_L, "through": PLATE_T, "kind": "insert", "room": INSERT_DEPTH + 2.5},
+        {"joint": "rectifier to pads", "screw": M4_L, "through": 4.0 + 5.0 + 5.0, "kind": "nut", "nut": 3.2, "room": RAIL_H},
+        {"joint": "relay to carrier", "screw": SCREW_L, "through": 1.6, "kind": "insert", "room": 5.0 + 5.0},
+        {"joint": "crank grip", "screw": 60.0, "through": ARM_T + GRIP_L, "kind": "nut", "nut": 8.0, "room": 50.0},
+    ]
 
 
 # Print orientation for each in-place part: rotate, then (in build) drop onto the bed and centre

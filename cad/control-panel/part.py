@@ -44,7 +44,8 @@ HINGE_X = 25.0                                # hinge centre line in from each s
 STOP_Y, STOP_T, STOP_H = 10.0, 5.0, 12.0      # post front face behind the axis, thickness, height above the axis
 # Mounting plate on four standoffs, perforated at a 20 mm pitch; the rail stub screws to it
 MP_T, MP_CLEAR = 3.0, 2.5                     # plate thickness, gap to the walls
-STANDOFF_D, STANDOFF_H = 8.0, 7.0             # boss, height: leaves 1 mm of boss under the insert, above the floor
+STANDOFF_D, STANDOFF_H = 8.0, 8.0             # boss, height: insert plus relief for the M3 x 10, 3 mm of floor left
+SCREW_L, RELIEF = 10.0, 1.5                   # the project's one M3 length; relief below each standoff insert
 STANDOFF_IN = (16.0, 8.0)                     # in from the plate's side and front/back edges; clears the columns
 GRID = 20.0
 # Waveshare Modbus RTU IO 8CH, 121 x 72 x 34, on a 75 mm TS35 stub, rail along y in the rear bay
@@ -122,6 +123,7 @@ def build_body() -> Part:
     for x, y in STANDOFFS:
         body += Pos(x, y, T) * Cylinder(STANDOFF_D / 2, STANDOFF_H, align=(Align.CENTER, Align.CENTER, Align.MIN))
         body -= Pos(x, y, MP_Z) * Cylinder(INSERT_D / 2, INSERT_DEPTH, align=(Align.CENTER, Align.CENTER, Align.MAX))
+        body -= Pos(x, y, MP_Z) * Cylinder(SCREW_D / 2, INSERT_DEPTH + RELIEF, align=(Align.CENTER, Align.CENTER, Align.MAX))
     # Gland holes through the back wall
     for sx in (-1, 1):
         body -= _y_cyl(sx * GLAND_X, D, GLAND_Z, GLAND_D, 3 * T)
@@ -218,6 +220,16 @@ def envelopes() -> dict[str, Part]:
     mx, my, mz = MODULE
     env["module"] = Pos(0, MODULE_Y, MP_Z + MP_T + RAIL_H) * Box(mx + 2 * WIRE_ROOM, my, mz, align=(Align.CENTER, Align.CENTER, Align.MIN))
     return env
+
+
+def joints():
+    """Each screwed joint: what the screw passes before its target, and what the target offers."""
+    return [
+        {"joint": "ridge, deck rib to face rib nut", "screw": SCREW_L, "through": DECK_RIB_T + (FACE_RIB_T - NUT_SKIN - NUT_T), "kind": "nut", "nut": NUT_T, "room": NUT_T + NUT_SKIN + 50},
+        {"joint": "mounting plate to standoff", "screw": SCREW_L, "through": MP_T, "kind": "insert", "room": INSERT_DEPTH + RELIEF},
+        {"joint": "rail stub to plate", "screw": SCREW_L, "through": 1.0 + MP_T, "kind": "nut", "nut": 2.4, "room": STANDOFF_H},
+        {"joint": "thumbscrew to column", "screw": 10.0, "through": PLATE_T, "kind": "insert", "room": INSERT_DEPTH},
+    ]
 
 
 VIEWS = [("front", (-160, -220, 140)), ("back-open", (160, 220, 120))]

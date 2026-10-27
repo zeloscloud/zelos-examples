@@ -131,3 +131,12 @@ def test_mounting_plate_lifts_out(parts):
         assert not mp.is_inside((x, y, m.MP_Z + m.MP_T / 2)), (x, y)
     bb = mp.bounding_box().size
     assert bb.X < m.W - 2 * m.T and bb.Y < m.D - 2 * m.T
+
+
+def test_one_screw_length_reaches_every_joint():
+    for j in m.joints():
+        past = j["screw"] - j["through"]
+        if j["kind"] == "insert":
+            assert 3.5 <= past <= j["room"], j
+        else:
+            assert j["nut"] <= past <= j["room"], j
