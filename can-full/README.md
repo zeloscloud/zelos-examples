@@ -33,7 +33,8 @@ toolchain and the Zephyr workspace.
 ```bash
 just build      # build vcu, bms and full, and full's A2L, into build/
 just up         # bus, Renode, agent
-just test       # the protocol suites against the running bench
+just test       # the core suites against the running bench
+just test-all   # every suite, about three times as long under Renode
 just down
 ```
 
@@ -124,6 +125,13 @@ The suites drive the other nodes' roles themselves when those nodes are absent,
 so the same suites run here, with every node present, and against one board.
 Every test sets its own preconditions over the bus rather than assuming a fresh
 boot.
+
+`just test`, and CI on every change, run the core: xcp, j1939, canopen, autosar,
+eth, the DoIP entity and the coexistence suite, one boot and each protocol
+touched once. The rest (UDS conformance on CAN and over DoIP, DTCs and resets,
+DoIP arbitration, SOME/IP, OBD) run with `just test-all`, on hardware with
+`just hil`, and on CI for a pull request labelled `ci-full`, on demand, and
+weekly.
 
 The raw-CAN DC-DC suite, `../testing/suites/can_raw`, plays the BMS, so it runs
 only where there is none: on hardware, or on a bench of its own, which CI runs

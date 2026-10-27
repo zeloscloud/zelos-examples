@@ -5,6 +5,11 @@ name: can-full
 #
 # The bench's firmware, Renode bench and suites are shared at the root, so a
 # change there runs this workflow too.
+#
+# Every push and pull request runs the core suites (`just test`, about ten
+# minutes). The whole set (`just test-all`, three times that under Renode) runs
+# on a pull request labelled `ci-full`, on demand, and weekly, so the suites
+# that only their own area's work exercises cannot rot unseen.
 on:
   push:
     paths: &paths
@@ -28,6 +33,13 @@ on:
       - ".github/workflows/can-full.yml"
   pull_request:
     paths: *paths
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1"
+
+env:
+  FULL: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'ci-full') }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -81,7 +93,10 @@ jobs:
           path: can-full/build
 
       - run: just up
-      - run: just test
+      - if: env.FULL != 'true'
+        run: just test
+      - if: env.FULL == 'true'
+        run: just test-all
       - if: failure()
         run: docker compose logs
       - if: always()
@@ -94,6 +109,6 @@ jobs:
         run: just test-bench can_raw can-full/build/full.elf
         working-directory: .
       # The OBD suite's fault tests fall silent as the BMS; same bench of its own.
-      - if: "!cancelled()"
+      - if: "!cancelled() && env.FULL == 'true'"
         run: just test-bench obd can-full/build/full.elf
         working-directory: .
