@@ -475,7 +475,7 @@ struct genset_hours_t {
 /**
  * Signals in message LFC.
  *
- * Fuel Consumption (Liquid), PGN 65257, 1 s. Bytes 1-4 trip fuel, 5-8 total fuel used.
+ * Fuel Consumption (Liquid), PGN 65257, on request per spec; the bench broadcasts it every 1 s. Bytes 1-4 trip fuel, 5-8 total fuel used.
  *
  * All signal values are as on the CAN bus.
  */

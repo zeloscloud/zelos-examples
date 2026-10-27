@@ -22,7 +22,6 @@
 #include "genset_node.h"
 
 #include <math.h>
-#include <string.h>
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -64,7 +63,7 @@ LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 /*
  * Coolant: thermostat-held near 88 degC, higher with load, back to ambient
  * when stopped. The time constant is compressed so one drive phase of the
- * VCU's cycle shows the whole story: hot after 3 to 4 s, oil low 2 s later.
+ * VCU's cycle shows the whole story: hot after 3 to 4 s, oil low 2 to 3 s later.
  */
 #define AMBIENT_C     25.0f
 #define THERMOSTAT_C  88.0f
@@ -73,10 +72,10 @@ LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 #define HOT_ON_C      105.0f
 #define HOT_OFF_C     100.0f
 
-/* Oil: runs 8 degC over the coolant, lagging it; thins from 95 degC and loses pressure. */
+/* Oil: runs 8 degC over the coolant, lagging it; thins from 98 degC and loses pressure. */
 #define OIL_RISE_C        8.0f
 #define OIL_TAU_S         2.0f
-#define OIL_THIN_C        95.0f
+#define OIL_THIN_C        98.0f
 #define OIL_THIN_SPAN_C   15.0f
 #define OIL_THIN_LOSS     0.6f
 #define OIL_KPA_IDLE      150.0f
@@ -177,8 +176,9 @@ BUILD_ASSERT(SOFT_LEN > 8U && SOFT_LEN <= ZELOS_J1939_MAX_LEN, "SOFT goes by tra
 
 /*
  * Offsets spread the periodic sends over the 10 ms ticks: the eight 100 ms
- * PGs one per tick, EEC2 (50 ms) and the slower ones in between, so no tick
- * carries more than three frames. The bus sees about 111 frames a second.
+ * PGs one per tick, EEC2 (50 ms) at 30 and 80 ms of each 100, the slower ones
+ * at 90 in turn, so no tick carries more than two periodic frames. The bus
+ * sees about 111 frames a second.
  */
 static struct zelos_j1939_msg msgs[N_MSGS] = {
 	PG(M_EEC1, EEC1, 0),
@@ -189,7 +189,7 @@ static struct zelos_j1939_msg msgs[N_MSGS] = {
 	PG(M_GPCAC, GPCAC, 50),
 	PG(M_GTACP, GTACP, 60),
 	PG(M_GTACR, GTACR, 70),
-	PG(M_EEC2, EEC2, 80),
+	PG(M_EEC2, EEC2, 30),
 	PG(M_EFLP1, EFL_P1, 90),
 	PG(M_IC1, IC1, 190),
 	PG(M_ET1, ET1, 290),
@@ -310,7 +310,9 @@ static void step(struct engine *e)
 	switch (e->mode) {
 	case BENCH_VCU_COMMAND_REQUESTED_MODE_DRIVE_CHOICE:
 		target_rpm = RATED_RPM;
-		e->torque_pct = e->hot ? DERATE_TORQUE_PCT : RUN_TORQUE_PCT;
+		/* The load closes at rated speed. */
+		e->torque_pct = e->rpm >= RATED_RPM ? (e->hot ? DERATE_TORQUE_PCT : RUN_TORQUE_PCT)
+						    : IDLE_TORQUE_PCT;
 		break;
 	case BENCH_VCU_COMMAND_REQUESTED_MODE_STANDBY_CHOICE:
 		target_rpm = IDLE_RPM;

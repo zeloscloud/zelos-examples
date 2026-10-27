@@ -46,10 +46,9 @@ BY_PGN = {pgn_of(m.frame_id): m for m in GENSET.messages}
 PERIODIC = [m for m in GENSET.messages if m.cycle_time]
 EEC1, ET1, DM1, DM2 = (GENSET.get_message_by_name(n) for n in ("EEC1", "ET1", "DM1", "DM2"))
 PGN_EEC1, PGN_ET1, PGN_DM1, PGN_DM2 = (pgn_of(m.frame_id) for m in (EEC1, ET1, DM1, DM2))
-PGN_GAAC, PGN_GTACP, PGN_GTACR, PGN_HOURS, PGN_LFC, PGN_LFE, PGN_GTACE = (
-    pgn_of(GENSET.get_message_by_name(n).frame_id) for n in ("GAAC", "GTACP", "GTACR", "HOURS", "LFC", "LFE", "GTACE")
+PGN_GAAC, PGN_GTACP, PGN_GTACR, PGN_HOURS, PGN_LFC, PGN_LFE, PGN_GTACE, PGN_SOFT = (
+    pgn_of(GENSET.get_message_by_name(n).frame_id) for n in ("GAAC", "GTACP", "GTACR", "HOURS", "LFC", "LFE", "GTACE", "SOFT")
 )
-PGN_SOFT = 65242
 # Vehicle Identification: a PGN this node has no answer for.
 PGN_VI = 65260
 PGN = j1939.ParameterGroupNumber.PGN
@@ -471,7 +470,7 @@ def test_dm1_one_dtc_in_a_frame_then_two_by_bam(bus, node):
         return frames[-1]
 
     def one_dtc(m):
-        return is_from(PGN_DM1, sa)(m) and len(dtcs_of(m.data)) == 1
+        return is_from(PGN_DM1, sa)(m) and {d[:2] for d in dtcs_of(m.data)} == {DTC_COOLANT}
 
     def no_dtc(m):
         return is_from(PGN_DM1, sa)(m) and not dtcs_of(m.data)
@@ -479,8 +478,8 @@ def test_dm1_one_dtc_in_a_frame_then_two_by_bam(bus, node):
     with vcu(bus, sa) as set_mode:
         set_mode(DRIVE)
         single = within(2, one_dtc)
-        ((spn, fmi, oc),) = dtcs_of(single.data)
-        assert (spn, fmi) == DTC_COOLANT and lamps(single.data) == (1, 0), bytes(single.data).hex()
+        ((*_, oc),) = dtcs_of(single.data)
+        assert lamps(single.data) == (1, 0), bytes(single.data).hex()
         assert len(single.data) == 8 and bytes(single.data[6:8]) == b"\xff\xff"
 
         data = reassemble_bam(bus, sa, within(1, bam_of(PGN_DM1, sa)))

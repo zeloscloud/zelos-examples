@@ -193,7 +193,7 @@ CM_ BO_ 2566844032 "Engine Temperature 1, PGN 65262, 1 s. Byte 1 coolant, byte 2
 CM_ BO_ 2566844288 "Engine Fluid Level/Pressure 1, PGN 65263, 500 ms. Byte 1 fuel delivery pressure, 3 oil level, 4 oil pressure, 7 coolant pressure, 8 coolant level.";
 CM_ BO_ 2566846336 "Vehicle Electrical Power 1, PGN 65271, 1 s. Byte 1 net battery current, 2 alternator current, 3-4 alternator potential, 5-6 electrical potential.";
 CM_ BO_ 2566841728 "Engine Hours, Revolutions, PGN 65253, on request per spec; the bench broadcasts it every 1 s. Bytes 1-4 hours, 5-8 revolutions.";
-CM_ BO_ 2566842752 "Fuel Consumption (Liquid), PGN 65257, 1 s. Bytes 1-4 trip fuel, 5-8 total fuel used.";
+CM_ BO_ 2566842752 "Fuel Consumption (Liquid), PGN 65257, on request per spec; the bench broadcasts it every 1 s. Bytes 1-4 trip fuel, 5-8 total fuel used.";
 CM_ BO_ 2566845056 "Fuel Economy (Liquid), PGN 65266, 100 ms. Bytes 1-2 fuel rate, 3-4 instantaneous economy, 7 throttle position.";
 CM_ BO_ 2566845824 "Ambient Conditions, PGN 65269, 1 s. Byte 1 barometric pressure, 4-5 ambient air temp, 6 air inlet temp.";
 CM_ BO_ 2566846080 "Inlet/Exhaust Conditions 1, PGN 65270, 500 ms. Byte 2 boost pressure, 3 intake manifold temp.";
