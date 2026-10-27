@@ -1,0 +1,9 @@
+[project]
+name = "cad"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "build123d>=0.13",
+    "pytest>=8",
+    "pymupdf>=1.25",
+]

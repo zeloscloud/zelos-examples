@@ -1,0 +1,30 @@
+# Printed parts for the lab: one directory per part, each a build123d script with its own tests.
+
+set shell := ["bash", "--noprofile", "--norc", "-euo", "pipefail", "-c"]
+
+# Show the available recipes.
+default:
+    @just --list --unsorted
+
+# Create the venv with build123d and pytest.
+init:
+    uv sync
+
+# Build one part: STEP, STL and hidden-line views into <part>/build.
+build PART:
+    uv run python -m parts.build {{PART}}
+
+# Run every part's tests, or one part's. One pytest per part: each dir has its own part.py.
+test PART="*":
+    for d in {{PART}}; do if [ -f "$d/test_part.py" ]; then uv run pytest -q "$d"; fi; done
+
+# Build every part, as CI does.
+build-all:
+    for p in */part.py; do just build "$(dirname "$p")"; done
+
+# Slice a built STL with the committed H2D profiles. Needs Bambu Studio installed.
+slice PART PROFILE="petg":
+    "/Applications/BambuStudio.app/Contents/MacOS/BambuStudio" \
+        --load-settings "profiles/h2d/machine.json;profiles/h2d/process-0.2mm.json" \
+        --load-filaments "profiles/h2d/{{PROFILE}}.json" \
+        --slice 0 --export-3mf "{{PART}}/build/{{PART}}.gcode.3mf" "{{PART}}/build/{{PART}}.stl"

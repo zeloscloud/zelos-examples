@@ -10,6 +10,7 @@ and is checked in CI.
 | [`serial-bench`](serial-bench/) | A Zephyr node and a Linux machine in Renode whose only interface is a console, recorded by the Serial extension. One notebook shows their logs, values and command replies. |
 | [`serial-board`](serial-board/) | A NUCLEO-H723ZG on your desk running a motor controller whose debug interface is its console, recorded by the Serial extension: tune its speed loop live, crash it on purpose, read the crash back. Needs the board; CI builds its firmware. |
 | [`how-to`](how-to/) | The code the Zelos How-To blog posts run, one folder per post: Python scripts, notebooks, a pytest suite and two extension projects. Not Docker benches; each folder says how to run it. |
+| [`cad`](cad/) | Printed parts for the lab as build123d code: a spec, tests and a print log per part, STEP and STL built in CI. Not a Docker bench. |
 
 Using a bench is always `cd <bench> && just up`. The nodes, the Renode bench
 and the test suites are shared at the root, so benches compose the same pieces
