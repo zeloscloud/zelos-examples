@@ -31,6 +31,8 @@
  *              slew rate A/s, float32 little-endian (struct dcdc_calibration)
  * Routine 0x0201: self-test, extended, about 2 s. Result: one byte, bit n set
  * while DTC n below is failing; 0x00 passed.
+ * Routine 0x6185, with lib/goose: GOOSE test knobs, extended, one option byte
+ * (include/zelos/goose.h).
  * DTCs, from the model, each tested every 50 ms cycle (SAE J2012 generic
  * numbers, failure type 00):
  *   0 0x0A9400 P0A94 DC/DC converter performance: temperature above 70 degC
@@ -68,6 +70,7 @@
 #include <zelos/can.h>
 #include <zelos/doip.h>
 #include <zelos/eth.h>
+#include <zelos/goose.h>
 #include <zelos/someip.h>
 #include <zelos/uds.h>
 
@@ -321,6 +324,9 @@ static uint8_t self_test(const uint8_t *option, uint8_t *result)
 
 static const struct zelos_uds_routine routines[] = {
 	{0x0201, ZELOS_UDS_SESSION_EXTENDED, 2000, self_test},
+#if defined(CONFIG_ZELOS_GOOSE)
+	{ZELOS_GOOSE_ROUTINE, ZELOS_UDS_SESSION_EXTENDED, 0, zelos_goose_routine, 1},
+#endif
 };
 
 static const struct zelos_uds_memory memories[] = {

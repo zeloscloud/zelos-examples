@@ -36,6 +36,7 @@
 #include <CO_OD.h>
 
 #include <zephyr/kernel.h>
+#include <zephyr/sys/atomic.h>
 #include <zephyr/version.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
@@ -43,6 +44,10 @@
 #include <stdio.h>
 
 #include "pdu_node.h"
+
+#if defined(CONFIG_ZELOS_GOOSE)
+#include <zelos/goose.h>
+#endif
 
 LOG_MODULE_REGISTER(pdu, LOG_LEVEL_INF);
 
@@ -59,6 +64,10 @@ static uint8_t *const current_od[CHANNELS] = {
 	&OD_channelCurrent.channel4, &OD_channelCurrent.channel5, &OD_channelCurrent.channel6,
 	&OD_channelCurrent.channel7, &OD_channelCurrent.channel8,
 };
+
+/* For pdu_status(): powered | tripped << 8, and trips reported since boot. */
+static atomic_t status;
+static atomic_t trips;
 
 /*
  * Runs with the object dictionary locked. TPDOs go out when what they carry
@@ -97,6 +106,7 @@ static void tick(void)
 		if ((outputs & bit) != 0U && !is_tripped) {
 			if (load_da[ch] > TRIP_DA) {
 				CO_errorReport(CO->em, error_bit, CO_EMC_CURRENT_OUTPUT, ch + 1);
+				(void)atomic_inc(&trips);
 				LOG_WRN("channel %d tripped at %d.%d A", ch + 1, load_da[ch] / 10,
 					load_da[ch] % 10);
 				is_tripped = true;
@@ -117,6 +127,12 @@ static void tick(void)
 	}
 
 	OD_readInput8Bit.input1To8 = powered;
+	/* A change wakes the GOOSE publisher, where there is one. */
+	if (atomic_set(&status, powered | tripped << 8) != (powered | tripped << 8)) {
+#if defined(CONFIG_ZELOS_GOOSE)
+		zelos_goose_poke();
+#endif
+	}
 
 	/* Free-running, so TPDO3 shows when the node sampled each SYNC. */
 	OD_millisecondCounter = (uint16_t)k_uptime_get_32();
@@ -145,6 +161,22 @@ static void run(void *p1, void *p2, void *p3)
  * CO_process needs.
  */
 K_THREAD_DEFINE(pdu_tid, 2048, run, NULL, NULL, NULL, 0, 0, SYS_FOREVER_MS);
+
+void pdu_status(uint8_t *powered, uint8_t *tripped, int32_t *emcy)
+{
+	const atomic_val_t now = atomic_get(&status);
+
+	*powered = (uint8_t)now;
+	*tripped = (uint8_t)(now >> 8);
+	*emcy = (int32_t)atomic_get(&trips);
+}
+
+void pdu_toggle_output(int channel)
+{
+	CO_LOCK_OD();
+	OD_writeOutput8Bit.output1To8 ^= BIT(channel - 1);
+	CO_UNLOCK_OD();
+}
 
 int pdu_start(void)
 {
