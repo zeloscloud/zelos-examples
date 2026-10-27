@@ -214,7 +214,14 @@ class UdsEcu:
             self.bus,
             self.notifier,
             address=isotp.Address(isotp.AddressingMode.Normal_11bits, txid=txid, rxid=RESPONSE),
-            params={"tx_padding": 0xCC, "tx_data_min_length": 8, "blocking_send": True},
+            params={
+                "tx_padding": 0xCC,
+                "tx_data_min_length": 8,
+                "blocking_send": True,
+                # N_Bs and N_Cr: the node answers in its own time, stretched under Renode.
+                "rx_flowcontrol_timeout": int(frames.bound(1.0) * 1000),
+                "rx_consecutive_frame_timeout": int(frames.bound(1.0) * 1000),
+            },
         )
         client = Client(PythonIsoTpConnection(stack), config=self._config())
         client.open()

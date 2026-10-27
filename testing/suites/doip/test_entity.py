@@ -203,16 +203,16 @@ def test_zelos_can_identifies_and_connects(host, identity):
     from zelos_can import doip as zdoip
 
     vin, eid = identity
-    vehicle = zdoip.identify(host)
+    vehicle = zdoip.identify(host, timeout=frames.bound(2.0))
     assert (vehicle.ip, vehicle.logical_address, vehicle.vin, vehicle.eid) == (host, ECU, vin.decode(), eid)
     cfg = zdoip.config({"doip": {"host": host, "ecu_address": "0x1001"}})
     client, ecu = zdoip.connect(cfg, vehicle)
     try:
-        conn = zdoip.Connection(client, TESTER, ecu, ack_timeout=2.0)
+        conn = zdoip.Connection(client, TESTER, ecu, ack_timeout=frames.bound(2.0))
         conn.open()
         conn.send(b"\x22\xf1\x90")
-        assert conn.wait_frame(timeout=2.0) == b"\x62\xf1\x90" + vin
+        assert conn.wait_frame(timeout=frames.bound(2.0)) == b"\x62\xf1\x90" + vin
         conn.send(b"\x01\x00")  # OBD over DoIP: PIDs supported
-        assert conn.wait_frame(timeout=2.0)[:2] == b"\x41\x00"
+        assert conn.wait_frame(timeout=frames.bound(2.0))[:2] == b"\x41\x00"
     finally:
         client.close()
