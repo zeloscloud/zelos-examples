@@ -37,8 +37,7 @@ cable entry is in a fixed wall. Replaces the Hammond 1554MPB6B option.
 - Fasteners: M3 and M4 screws and nuts only, no inserts. Where both sides are reachable the nut is free
   (hinges, rail stub). Where the joint is blind the nut sits in a slot entered from the side, perpendicular
   to the screw, so the screw cannot push it out: the ridge ribs, the thumbscrew columns (slot opens into the
-  cavity, 2 mm under the plate) and the mounting plate posts. Nothing threads into plastic. The slot
-  ceilings are 5.7 mm bridges and print unsupported.
+  cavity, 2 mm under the plate) and the mounting plate posts. Nothing threads into plastic.
 - Open: whether the plate flexes under an E-stop slap at 4 mm (the test print settles it; PLATE_T goes
   to 5 if so), the legend wording, and the operator loom: lifting the mounting plate out means unplugging
   it at the module, until a pluggable terminal strip lands on the plate.
