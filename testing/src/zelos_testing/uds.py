@@ -161,7 +161,7 @@ def keep_session(bus: can.BusABC) -> frames.Periodic:
     """Hold a non-default session through a wait timed on the host, as a tester does.
 
     S3 runs on the node's clock, which a host wait does not bound: under Renode
-    bound() stretches the wait fivefold, and the emulation runs up to about
+    bound() stretches the wait tenfold, and the emulation runs up to about
     twice the host's pace while it catches up on time it fell behind.
     """
     return frames.Periodic(bus, lambda: TESTER_PRESENT, 0.1)
@@ -214,7 +214,14 @@ class UdsEcu:
             self.bus,
             self.notifier,
             address=isotp.Address(isotp.AddressingMode.Normal_11bits, txid=txid, rxid=RESPONSE),
-            params={"tx_padding": 0xCC, "tx_data_min_length": 8, "blocking_send": True},
+            params={
+                "tx_padding": 0xCC,
+                "tx_data_min_length": 8,
+                "blocking_send": True,
+                # N_Bs and N_Cr: the node answers in its own time, stretched under Renode.
+                "rx_flowcontrol_timeout": int(frames.bound(1.0) * 1000),
+                "rx_consecutive_frame_timeout": int(frames.bound(1.0) * 1000),
+            },
         )
         client = Client(PythonIsoTpConnection(stack), config=self._config())
         client.open()
