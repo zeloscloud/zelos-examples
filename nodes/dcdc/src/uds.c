@@ -312,8 +312,9 @@ static const struct zelos_uds_io ios[] = {
 	{0x0300, 2, read_output, control_output},
 };
 
-static uint8_t self_test(uint8_t *result)
+static uint8_t self_test(const uint8_t *option, uint8_t *result)
 {
+	ARG_UNUSED(option);
 	result[0] = failing;
 	return 1;
 }

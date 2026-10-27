@@ -54,10 +54,18 @@ static uint8_t control_io(uint8_t param, const uint8_t *in)
 	return 0;
 }
 
-static uint8_t self_test(uint8_t *result)
+static uint8_t self_test(const uint8_t *option, uint8_t *result)
 {
+	ARG_UNUSED(option);
 	result[0] = 0x00;
 	return 1;
+}
+
+/* Its option record, back. */
+static uint8_t echo(const uint8_t *option, uint8_t *result)
+{
+	memcpy(result, option, 2);
+	return 2;
 }
 
 #define VIN "1ZLSDCDC0BENCH001"
@@ -94,6 +102,7 @@ static const struct zelos_uds_pid pids[] = {
 static const struct zelos_uds_io ios[] = {{0x0300, 1, read_io, control_io}};
 static const struct zelos_uds_routine routines[] = {
 	{0x0201, ZELOS_UDS_SESSION_EXTENDED, 2000, self_test},
+	{0x0202, ZELOS_UDS_SESSION_EXTENDED, 0, echo, 2},
 };
 static const struct zelos_uds_memory memories[] = {
 	{0x00010000, sizeof(ro_window), ro_window, false},
@@ -472,6 +481,13 @@ ZTEST(uds, test_pending_routine)
 	zassert_equal(zelos_uds_core_tick(&uds, now, rsp), 5);
 	zassert_mem_equal(rsp, ((uint8_t[]){0x71, 0x01, 0x02, 0x01, 0x00}), 5);
 	EXPECT((0x71, 0x03, 0x02, 0x01, 0x00), 0x31, 0x03, 0x02, 0x01);
+
+	/* An option record of exactly the routine's length, handed to it. */
+	NRC(0x31, 0x13, 0x01, 0x02, 0x02, 0xAB);
+	NRC(0x31, 0x13, 0x01, 0x02, 0x01, 0xAB);
+	NRC(0x31, 0x78, 0x01, 0x02, 0x02, 0xAB, 0xCD);
+	zassert_equal(zelos_uds_core_tick(&uds, now, rsp), 6);
+	zassert_mem_equal(rsp, ((uint8_t[]){0x71, 0x01, 0x02, 0x02, 0xAB, 0xCD}), 6);
 }
 
 #define CAN ZELOS_UDS_ORIGIN_CAN
