@@ -20,7 +20,7 @@ LOG_MODULE_REGISTER(zelos_j1939, LOG_LEVEL_INF);
  * A poll sends at most a claim, a NACK, a BAM packet, an RTS/CTS frame and
  * one frame per message, so this many messages bound what it can queue.
  */
-#define MAX_MSGS 8
+#define MAX_MSGS 24
 
 /* K_MSGQ_DEFINE cannot be static, so its name carries the library's. */
 K_MSGQ_DEFINE(zelos_j1939_rx_msgq, sizeof(struct can_frame), 16, 4);

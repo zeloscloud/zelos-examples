@@ -119,11 +119,20 @@ dcdc-xcp-uds pdu`. The genset runs only in `full`.
 The VCU's command sits at `0x101`, not CANopen's TIME id `0x100`: CiA 301 keeps
 CANopen devices out of `0x101`-`0x180`, so no CANopen node can collide with it.
 
-The genset follows the VCU's mode: it runs hard while driving, idles in standby
-and stops while charging. Under load its coolant runs hot, and it raises two
-DTCs in DM1, sent by BAM. Asked for its software identification (SOFT, 48
-bytes), it answers the requester by RTS/CTS, or everyone by BAM. The PDU switches eight outputs on command, reports
-inputs and per-channel current, and trips channel 8, which is shorted.
+The genset follows the VCU's mode: rated speed under load while driving, idle
+in standby, stopped while charging. It is an engine and a generator set on
+J1939: ten engine PGs of J1939-71 (EEC1, EEC2, ET1, EFL/P1, VEP1, HOURS, LFC,
+LFE, AMB, IC1) and seven generator PGs of J1939-75 (average and per-phase AC
+quantities, total real, apparent and reactive power, power factor, energy), all
+from one model, so frequency follows speed, P = 3 V I pf, and energy, fuel and
+hours integrate; about 111 frames a second, every layout from `../dbc/genset.dbc`.
+Under load its coolant runs hot: DM1 carries SPN 110 in one frame with the
+amber lamp, then SPN 100 (oil pressure) joins it with the red lamp and DM1
+goes by BAM; cooled, DM1 is empty and DM2, on request, lists what was active.
+Asked for DM2 or its software identification (SOFT), it answers the requester
+by RTS/CTS, or everyone by BAM; a request for a PGN it lacks gets a NACK. The
+PDU switches eight outputs on command, reports inputs and per-channel current,
+and trips channel 8, which is shorted.
 
 ## What the suites prove
 
@@ -133,7 +142,7 @@ inputs and per-channel current, and trips channel 8, which is shorted.
 | `../testing/suites/uds` | DC-DC | A conformance suite for any UDS server on any python-can bus: this node, or the UDS extension's demo ECU in-process. Used as a tester uses an ECU: zelos-can opens the bus, can-isotp carries, udsoncan asks. Every Tier A service with its NRCs and their ISO 14229-1 order, physical and functional; sessions, S3, P2; both security levels, lockout and power-up delay; memory by address; erase, download, check, upload of 64 KiB. `test_dcdc_node.py`, against the node itself: 0x28 stops DCDC_Status, the setpoint drives the output, DTCs follow the model through operation cycles, a reset is a fresh boot, XCP and UDS share the ECU. Core conformance: ztests in `../tests/lib/uds` |
 | `../testing/suites/obd` | DC-DC | A scan tool's view of the same server, SAE J1979 on 0x7DF: supported PIDs walked from the bitmaps; PIDs against DCDC_Status; MIL and DTC count; a lost BMS pending in its first cycle and confirmed in its second, the MIL off after three passing cycles, the freeze frame stored with the pending code; a permanent DTC surviving 0x04 and gone after one passing cycle; J1979-2 protocol identification, multi-DID subsets, no 0x13 to OBD requests; the VIN (multi-frame) and ECU identity; J1979-2 (OBDonUDS) DIDs and 0x19 0x42/0x55/0x56 equal to the legacy services; silence to unsupported requests. Runs alone in CI (`just test-bench obd`) too, so its fault tests can play the BMS |
 | `../testing/suites/autosar` | DC-DC | Decoded as a bench decodes an AUTOSAR ECU, from the ARXML alone: ids, lengths and cycles as described; E2E profile 1 (by hand), 2 and 5 (cantools) CRCs and counters; the container's PDUs in turn; the multiplexed PDU's alternatives; the SecOC MAC verified with the key; every value equal to DCDC_Status's of the same sample; UDS on the CanTp addresses the ARXML gives, its flow control as described; 0x28 silences the PDUs. The ARXML carries `bench.dbc` unchanged. Core: ztests in `../tests/lib/autosar` with the PRS E2E examples |
-| `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; requests answered; periods; DM1 by BAM, reassembled by python-can-j1939; SOFT by RTS/CTS in the windows the requester grants, and by BAM to a global request. Originator conformance (windows, retransmit, abort, T3/T4): ztests in `../tests/lib/j1939` |
+| `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; every slow PG answered on request, a NACK for one the node lacks; every PG at its period; values agreeing across PGs (frequency and voltage from speed, P = 3 V I pf, S and Q, balanced phases, fuel only while turning) and the counters integrating speed, fuel rate and power; DM1 with one DTC in a frame, then two by BAM, lamps and occurrence counts as they should be, reassembled by python-can-j1939; DM2 by BAM to a global request and by RTS/CTS to ours, python-can-j1939 granting the windows; SOFT by RTS/CTS and by BAM. Originator conformance (windows, retransmit, abort, T3/T4): ztests in `../tests/lib/j1939` |
 | `../testing/suites/canopen` | PDU | Boot-up and heartbeat; NMT start, stop and pre-operational; SDO identity and downloads; RPDO commands reflected in TPDOs; an overcurrent trip raises EMCY and recovers; SYNC answered by the synchronous TPDO |
 | `../testing/suites/eth` | DC-DC | The board's Ethernet (`../lib/eth`): link 100 Mb/s full duplex, the static address up after conflict detection, ping, the host's neighbour entry equal to the node's MAC, and the node's counters (UDS DID `0x0111`, read over CAN). The host end is whichever interface is on the node's subnet: the bench's `tap0`, or the hardware bench's own |
 | `../testing/suites/doip` | DC-DC | Its UDS server as a DoIP entity (ISO 13400-2, `../lib/doip`), checked with a client written from the standard and with zelos-can's (doipclient), as the UDS and OBD extensions connect: vehicle identification by plain request, EID and VIN, answered within 500 ms, and one responder to a broadcast; entity status, power mode, header NACKs; routing activation's codes (0x10, 0x00, 0x02, 0x03 and 0x01 decided by alive checks, 0x06), initial inactivity; diagnostic messages acknowledged, NACKed (0x02, 0x03, 0x04 above MDS) or answered; three announcements 500 ms apart after a reset. The UDS conformance suite, unchanged, over DoIP. One server, two transports: a CAN tester's session gives the DoIP tester 0x21 and only OBD, and S3 still ends it; a closed DoIP owner's output returns at once; a pending routine answers its own tester. Core: ztests in `../tests/lib/doip` |

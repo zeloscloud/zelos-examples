@@ -49,8 +49,24 @@ static inline uint8_t pack_left_shift_u16(
     return (uint8_t)((uint8_t)(value << shift) & mask);
 }
 
+static inline uint8_t pack_left_shift_u32(
+    uint32_t value,
+    uint8_t shift,
+    uint8_t mask)
+{
+    return (uint8_t)((uint8_t)(value << shift) & mask);
+}
+
 static inline uint8_t pack_right_shift_u16(
     uint16_t value,
+    uint8_t shift,
+    uint8_t mask)
+{
+    return (uint8_t)((uint8_t)(value >> shift) & mask);
+}
+
+static inline uint8_t pack_right_shift_u32(
+    uint32_t value,
     uint8_t shift,
     uint8_t mask)
 {
@@ -63,6 +79,14 @@ static inline uint16_t unpack_left_shift_u16(
     uint8_t mask)
 {
     return (uint16_t)((uint16_t)(value & mask) << shift);
+}
+
+static inline uint32_t unpack_left_shift_u32(
+    uint8_t value,
+    uint8_t shift,
+    uint8_t mask)
+{
+    return (uint32_t)((uint32_t)(value & mask) << shift);
 }
 
 static inline uint8_t unpack_right_shift_u8(
@@ -79,6 +103,14 @@ static inline uint16_t unpack_right_shift_u16(
     uint8_t mask)
 {
     return (uint16_t)((uint16_t)(value & mask) >> shift);
+}
+
+static inline uint32_t unpack_right_shift_u32(
+    uint8_t value,
+    uint8_t shift,
+    uint8_t mask)
+{
+    return (uint32_t)((uint32_t)(value & mask) >> shift);
 }
 
 int genset_eec1_pack(
@@ -164,6 +196,87 @@ bool genset_eec1_engine_speed_is_in_phys_range(float value)
     return ((value >= 0.0f) && (value <= 8031.875f));
 }
 
+int genset_eec2_pack(
+    uint8_t *dst_p,
+    const struct genset_eec2_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[1] |= pack_left_shift_u8(src_p->accelerator_pedal_position1, 0u, 0xffu);
+    dst_p[2] |= pack_left_shift_u8(src_p->engine_percent_load_at_current_speed, 0u, 0xffu);
+
+    return (8);
+}
+
+int genset_eec2_unpack(
+    struct genset_eec2_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->accelerator_pedal_position1 = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->engine_percent_load_at_current_speed = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
+
+    return (0);
+}
+
+int genset_eec2_init(struct genset_eec2_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_eec2_t));
+
+    return 0;
+}
+
+uint8_t genset_eec2_accelerator_pedal_position1_encode(float value)
+{
+    return (uint8_t)(value / 0.4f);
+}
+
+float genset_eec2_accelerator_pedal_position1_decode(uint8_t value)
+{
+    return ((float)value * 0.4f);
+}
+
+bool genset_eec2_accelerator_pedal_position1_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_eec2_accelerator_pedal_position1_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 100.0f));
+}
+
+uint8_t genset_eec2_engine_percent_load_at_current_speed_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec2_engine_percent_load_at_current_speed_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec2_engine_percent_load_at_current_speed_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_eec2_engine_percent_load_at_current_speed_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 250.0f));
+}
+
 int genset_et1_pack(
     uint8_t *dst_p,
     const struct genset_et1_t *src_p,
@@ -176,6 +289,9 @@ int genset_et1_pack(
     memset(&dst_p[0], 0, 8);
 
     dst_p[0] |= pack_left_shift_u8(src_p->engine_coolant_temp, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->engine_fuel_temp1, 0u, 0xffu);
+    dst_p[2] |= pack_left_shift_u16(src_p->engine_oil_temp1, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(src_p->engine_oil_temp1, 8u, 0xffu);
 
     return (8);
 }
@@ -190,6 +306,9 @@ int genset_et1_unpack(
     }
 
     dst_p->engine_coolant_temp = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->engine_fuel_temp1 = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->engine_oil_temp1 = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    dst_p->engine_oil_temp1 |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
 
     return (0);
 }
@@ -221,6 +340,2471 @@ bool genset_et1_engine_coolant_temp_is_in_range(uint8_t value)
 bool genset_et1_engine_coolant_temp_is_in_phys_range(float value)
 {
     return ((value >= -40.0f) && (value <= 210.0f));
+}
+
+uint8_t genset_et1_engine_fuel_temp1_encode(float value)
+{
+    return (uint8_t)(value - -40.0f);
+}
+
+float genset_et1_engine_fuel_temp1_decode(uint8_t value)
+{
+    return ((float)value + -40.0f);
+}
+
+bool genset_et1_engine_fuel_temp1_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_et1_engine_fuel_temp1_is_in_phys_range(float value)
+{
+    return ((value >= -40.0f) && (value <= 210.0f));
+}
+
+uint16_t genset_et1_engine_oil_temp1_encode(float value)
+{
+    return (uint16_t)((value - -273.0f) / 0.03125f);
+}
+
+float genset_et1_engine_oil_temp1_decode(uint16_t value)
+{
+    return (((float)value * 0.03125f) + -273.0f);
+}
+
+bool genset_et1_engine_oil_temp1_is_in_range(uint16_t value)
+{
+    return (value <= 64256u);
+}
+
+bool genset_et1_engine_oil_temp1_is_in_phys_range(float value)
+{
+    return ((value >= -273.0f) && (value <= 1735.0f));
+}
+
+int genset_efl_p1_pack(
+    uint8_t *dst_p,
+    const struct genset_efl_p1_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->engine_fuel_delivery_pressure, 0u, 0xffu);
+    dst_p[2] |= pack_left_shift_u8(src_p->engine_oil_level, 0u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->engine_oil_pressure, 0u, 0xffu);
+    dst_p[6] |= pack_left_shift_u8(src_p->engine_coolant_pressure, 0u, 0xffu);
+    dst_p[7] |= pack_left_shift_u8(src_p->engine_coolant_level, 0u, 0xffu);
+
+    return (8);
+}
+
+int genset_efl_p1_unpack(
+    struct genset_efl_p1_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->engine_fuel_delivery_pressure = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->engine_oil_level = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
+    dst_p->engine_oil_pressure = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->engine_coolant_pressure = unpack_right_shift_u8(src_p[6], 0u, 0xffu);
+    dst_p->engine_coolant_level = unpack_right_shift_u8(src_p[7], 0u, 0xffu);
+
+    return (0);
+}
+
+int genset_efl_p1_init(struct genset_efl_p1_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_efl_p1_t));
+
+    return 0;
+}
+
+uint8_t genset_efl_p1_engine_fuel_delivery_pressure_encode(float value)
+{
+    return (uint8_t)(value / 4.0f);
+}
+
+float genset_efl_p1_engine_fuel_delivery_pressure_decode(uint8_t value)
+{
+    return ((float)value * 4.0f);
+}
+
+bool genset_efl_p1_engine_fuel_delivery_pressure_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_efl_p1_engine_fuel_delivery_pressure_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 1000.0f));
+}
+
+uint8_t genset_efl_p1_engine_oil_level_encode(float value)
+{
+    return (uint8_t)(value / 0.4f);
+}
+
+float genset_efl_p1_engine_oil_level_decode(uint8_t value)
+{
+    return ((float)value * 0.4f);
+}
+
+bool genset_efl_p1_engine_oil_level_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_efl_p1_engine_oil_level_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 100.0f));
+}
+
+uint8_t genset_efl_p1_engine_oil_pressure_encode(float value)
+{
+    return (uint8_t)(value / 4.0f);
+}
+
+float genset_efl_p1_engine_oil_pressure_decode(uint8_t value)
+{
+    return ((float)value * 4.0f);
+}
+
+bool genset_efl_p1_engine_oil_pressure_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_efl_p1_engine_oil_pressure_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 1000.0f));
+}
+
+uint8_t genset_efl_p1_engine_coolant_pressure_encode(float value)
+{
+    return (uint8_t)(value / 2.0f);
+}
+
+float genset_efl_p1_engine_coolant_pressure_decode(uint8_t value)
+{
+    return ((float)value * 2.0f);
+}
+
+bool genset_efl_p1_engine_coolant_pressure_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_efl_p1_engine_coolant_pressure_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 500.0f));
+}
+
+uint8_t genset_efl_p1_engine_coolant_level_encode(float value)
+{
+    return (uint8_t)(value / 0.4f);
+}
+
+float genset_efl_p1_engine_coolant_level_decode(uint8_t value)
+{
+    return ((float)value * 0.4f);
+}
+
+bool genset_efl_p1_engine_coolant_level_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_efl_p1_engine_coolant_level_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 100.0f));
+}
+
+int genset_vep1_pack(
+    uint8_t *dst_p,
+    const struct genset_vep1_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->net_battery_current, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->alternator_current, 0u, 0xffu);
+    dst_p[2] |= pack_left_shift_u16(src_p->alternator_potential, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(src_p->alternator_potential, 8u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->electrical_potential, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->electrical_potential, 8u, 0xffu);
+
+    return (8);
+}
+
+int genset_vep1_unpack(
+    struct genset_vep1_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->net_battery_current = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->alternator_current = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->alternator_potential = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    dst_p->alternator_potential |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
+    dst_p->electrical_potential = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->electrical_potential |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+
+    return (0);
+}
+
+int genset_vep1_init(struct genset_vep1_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_vep1_t));
+
+    return 0;
+}
+
+uint8_t genset_vep1_net_battery_current_encode(float value)
+{
+    return (uint8_t)(value - -125.0f);
+}
+
+float genset_vep1_net_battery_current_decode(uint8_t value)
+{
+    return ((float)value + -125.0f);
+}
+
+bool genset_vep1_net_battery_current_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_vep1_net_battery_current_is_in_phys_range(float value)
+{
+    return ((value >= -125.0f) && (value <= 125.0f));
+}
+
+uint8_t genset_vep1_alternator_current_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_vep1_alternator_current_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_vep1_alternator_current_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_vep1_alternator_current_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 250.0f));
+}
+
+uint16_t genset_vep1_alternator_potential_encode(float value)
+{
+    return (uint16_t)(value / 0.05f);
+}
+
+float genset_vep1_alternator_potential_decode(uint16_t value)
+{
+    return ((float)value * 0.05f);
+}
+
+bool genset_vep1_alternator_potential_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_vep1_alternator_potential_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3212.75f));
+}
+
+uint16_t genset_vep1_electrical_potential_encode(float value)
+{
+    return (uint16_t)(value / 0.05f);
+}
+
+float genset_vep1_electrical_potential_decode(uint16_t value)
+{
+    return ((float)value * 0.05f);
+}
+
+bool genset_vep1_electrical_potential_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_vep1_electrical_potential_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3212.75f));
+}
+
+int genset_hours_pack(
+    uint8_t *dst_p,
+    const struct genset_hours_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u32(src_p->engine_total_hours_of_operation, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u32(src_p->engine_total_hours_of_operation, 8u, 0xffu);
+    dst_p[2] |= pack_right_shift_u32(src_p->engine_total_hours_of_operation, 16u, 0xffu);
+    dst_p[3] |= pack_right_shift_u32(src_p->engine_total_hours_of_operation, 24u, 0xffu);
+    dst_p[4] |= pack_left_shift_u32(src_p->engine_total_revolutions, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u32(src_p->engine_total_revolutions, 8u, 0xffu);
+    dst_p[6] |= pack_right_shift_u32(src_p->engine_total_revolutions, 16u, 0xffu);
+    dst_p[7] |= pack_right_shift_u32(src_p->engine_total_revolutions, 24u, 0xffu);
+
+    return (8);
+}
+
+int genset_hours_unpack(
+    struct genset_hours_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->engine_total_hours_of_operation = unpack_right_shift_u32(src_p[0], 0u, 0xffu);
+    dst_p->engine_total_hours_of_operation |= unpack_left_shift_u32(src_p[1], 8u, 0xffu);
+    dst_p->engine_total_hours_of_operation |= unpack_left_shift_u32(src_p[2], 16u, 0xffu);
+    dst_p->engine_total_hours_of_operation |= unpack_left_shift_u32(src_p[3], 24u, 0xffu);
+    dst_p->engine_total_revolutions = unpack_right_shift_u32(src_p[4], 0u, 0xffu);
+    dst_p->engine_total_revolutions |= unpack_left_shift_u32(src_p[5], 8u, 0xffu);
+    dst_p->engine_total_revolutions |= unpack_left_shift_u32(src_p[6], 16u, 0xffu);
+    dst_p->engine_total_revolutions |= unpack_left_shift_u32(src_p[7], 24u, 0xffu);
+
+    return (0);
+}
+
+int genset_hours_init(struct genset_hours_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_hours_t));
+
+    return 0;
+}
+
+uint32_t genset_hours_engine_total_hours_of_operation_encode(float value)
+{
+    return (uint32_t)(value / 0.05f);
+}
+
+float genset_hours_engine_total_hours_of_operation_decode(uint32_t value)
+{
+    return ((float)value * 0.05f);
+}
+
+bool genset_hours_engine_total_hours_of_operation_is_in_range(uint32_t value)
+{
+    return (value <= 4211081215u);
+}
+
+bool genset_hours_engine_total_hours_of_operation_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 210554060.75f));
+}
+
+uint32_t genset_hours_engine_total_revolutions_encode(float value)
+{
+    return (uint32_t)(value / 1000.0f);
+}
+
+float genset_hours_engine_total_revolutions_decode(uint32_t value)
+{
+    return ((float)value * 1000.0f);
+}
+
+bool genset_hours_engine_total_revolutions_is_in_range(uint32_t value)
+{
+    return (value <= 4211081215u);
+}
+
+bool genset_hours_engine_total_revolutions_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 4211081215000.0f));
+}
+
+int genset_lfc_pack(
+    uint8_t *dst_p,
+    const struct genset_lfc_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u32(src_p->engine_trip_fuel, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u32(src_p->engine_trip_fuel, 8u, 0xffu);
+    dst_p[2] |= pack_right_shift_u32(src_p->engine_trip_fuel, 16u, 0xffu);
+    dst_p[3] |= pack_right_shift_u32(src_p->engine_trip_fuel, 24u, 0xffu);
+    dst_p[4] |= pack_left_shift_u32(src_p->engine_total_fuel_used, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u32(src_p->engine_total_fuel_used, 8u, 0xffu);
+    dst_p[6] |= pack_right_shift_u32(src_p->engine_total_fuel_used, 16u, 0xffu);
+    dst_p[7] |= pack_right_shift_u32(src_p->engine_total_fuel_used, 24u, 0xffu);
+
+    return (8);
+}
+
+int genset_lfc_unpack(
+    struct genset_lfc_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->engine_trip_fuel = unpack_right_shift_u32(src_p[0], 0u, 0xffu);
+    dst_p->engine_trip_fuel |= unpack_left_shift_u32(src_p[1], 8u, 0xffu);
+    dst_p->engine_trip_fuel |= unpack_left_shift_u32(src_p[2], 16u, 0xffu);
+    dst_p->engine_trip_fuel |= unpack_left_shift_u32(src_p[3], 24u, 0xffu);
+    dst_p->engine_total_fuel_used = unpack_right_shift_u32(src_p[4], 0u, 0xffu);
+    dst_p->engine_total_fuel_used |= unpack_left_shift_u32(src_p[5], 8u, 0xffu);
+    dst_p->engine_total_fuel_used |= unpack_left_shift_u32(src_p[6], 16u, 0xffu);
+    dst_p->engine_total_fuel_used |= unpack_left_shift_u32(src_p[7], 24u, 0xffu);
+
+    return (0);
+}
+
+int genset_lfc_init(struct genset_lfc_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_lfc_t));
+
+    return 0;
+}
+
+uint32_t genset_lfc_engine_trip_fuel_encode(float value)
+{
+    return (uint32_t)(value / 0.5f);
+}
+
+float genset_lfc_engine_trip_fuel_decode(uint32_t value)
+{
+    return ((float)value * 0.5f);
+}
+
+bool genset_lfc_engine_trip_fuel_is_in_range(uint32_t value)
+{
+    return (value <= 4211081215u);
+}
+
+bool genset_lfc_engine_trip_fuel_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 2105540607.5f));
+}
+
+uint32_t genset_lfc_engine_total_fuel_used_encode(float value)
+{
+    return (uint32_t)(value / 0.5f);
+}
+
+float genset_lfc_engine_total_fuel_used_decode(uint32_t value)
+{
+    return ((float)value * 0.5f);
+}
+
+bool genset_lfc_engine_total_fuel_used_is_in_range(uint32_t value)
+{
+    return (value <= 4211081215u);
+}
+
+bool genset_lfc_engine_total_fuel_used_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 2105540607.5f));
+}
+
+int genset_lfe_pack(
+    uint8_t *dst_p,
+    const struct genset_lfe_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u16(src_p->engine_fuel_rate, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u16(src_p->engine_fuel_rate, 8u, 0xffu);
+    dst_p[2] |= pack_left_shift_u16(src_p->engine_instantaneous_fuel_economy, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(src_p->engine_instantaneous_fuel_economy, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u8(src_p->engine_throttle_valve1_position1, 0u, 0xffu);
+
+    return (8);
+}
+
+int genset_lfe_unpack(
+    struct genset_lfe_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->engine_fuel_rate = unpack_right_shift_u16(src_p[0], 0u, 0xffu);
+    dst_p->engine_fuel_rate |= unpack_left_shift_u16(src_p[1], 8u, 0xffu);
+    dst_p->engine_instantaneous_fuel_economy = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    dst_p->engine_instantaneous_fuel_economy |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
+    dst_p->engine_throttle_valve1_position1 = unpack_right_shift_u8(src_p[6], 0u, 0xffu);
+
+    return (0);
+}
+
+int genset_lfe_init(struct genset_lfe_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_lfe_t));
+
+    return 0;
+}
+
+uint16_t genset_lfe_engine_fuel_rate_encode(float value)
+{
+    return (uint16_t)(value / 0.05f);
+}
+
+float genset_lfe_engine_fuel_rate_decode(uint16_t value)
+{
+    return ((float)value * 0.05f);
+}
+
+bool genset_lfe_engine_fuel_rate_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_lfe_engine_fuel_rate_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3212.75f));
+}
+
+uint16_t genset_lfe_engine_instantaneous_fuel_economy_encode(float value)
+{
+    return (uint16_t)(value / 0.001953125f);
+}
+
+float genset_lfe_engine_instantaneous_fuel_economy_decode(uint16_t value)
+{
+    return ((float)value * 0.001953125f);
+}
+
+bool genset_lfe_engine_instantaneous_fuel_economy_is_in_range(uint16_t value)
+{
+    return (value <= 64256u);
+}
+
+bool genset_lfe_engine_instantaneous_fuel_economy_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 125.5f));
+}
+
+uint8_t genset_lfe_engine_throttle_valve1_position1_encode(float value)
+{
+    return (uint8_t)(value / 0.4f);
+}
+
+float genset_lfe_engine_throttle_valve1_position1_decode(uint8_t value)
+{
+    return ((float)value * 0.4f);
+}
+
+bool genset_lfe_engine_throttle_valve1_position1_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_lfe_engine_throttle_valve1_position1_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 100.0f));
+}
+
+int genset_amb_pack(
+    uint8_t *dst_p,
+    const struct genset_amb_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->barometric_pressure, 0u, 0xffu);
+    dst_p[3] |= pack_left_shift_u16(src_p->ambient_air_temp, 0u, 0xffu);
+    dst_p[4] |= pack_right_shift_u16(src_p->ambient_air_temp, 8u, 0xffu);
+    dst_p[5] |= pack_left_shift_u8(src_p->engine_air_inlet_temp, 0u, 0xffu);
+
+    return (8);
+}
+
+int genset_amb_unpack(
+    struct genset_amb_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->barometric_pressure = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->ambient_air_temp = unpack_right_shift_u16(src_p[3], 0u, 0xffu);
+    dst_p->ambient_air_temp |= unpack_left_shift_u16(src_p[4], 8u, 0xffu);
+    dst_p->engine_air_inlet_temp = unpack_right_shift_u8(src_p[5], 0u, 0xffu);
+
+    return (0);
+}
+
+int genset_amb_init(struct genset_amb_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_amb_t));
+
+    return 0;
+}
+
+uint8_t genset_amb_barometric_pressure_encode(float value)
+{
+    return (uint8_t)(value / 0.5f);
+}
+
+float genset_amb_barometric_pressure_decode(uint8_t value)
+{
+    return ((float)value * 0.5f);
+}
+
+bool genset_amb_barometric_pressure_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_amb_barometric_pressure_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 125.0f));
+}
+
+uint16_t genset_amb_ambient_air_temp_encode(float value)
+{
+    return (uint16_t)((value - -273.0f) / 0.03125f);
+}
+
+float genset_amb_ambient_air_temp_decode(uint16_t value)
+{
+    return (((float)value * 0.03125f) + -273.0f);
+}
+
+bool genset_amb_ambient_air_temp_is_in_range(uint16_t value)
+{
+    return (value <= 64256u);
+}
+
+bool genset_amb_ambient_air_temp_is_in_phys_range(float value)
+{
+    return ((value >= -273.0f) && (value <= 1735.0f));
+}
+
+uint8_t genset_amb_engine_air_inlet_temp_encode(float value)
+{
+    return (uint8_t)(value - -40.0f);
+}
+
+float genset_amb_engine_air_inlet_temp_decode(uint8_t value)
+{
+    return ((float)value + -40.0f);
+}
+
+bool genset_amb_engine_air_inlet_temp_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_amb_engine_air_inlet_temp_is_in_phys_range(float value)
+{
+    return ((value >= -40.0f) && (value <= 210.0f));
+}
+
+int genset_ic1_pack(
+    uint8_t *dst_p,
+    const struct genset_ic1_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[1] |= pack_left_shift_u8(src_p->engine_intake_manifold1_pressure, 0u, 0xffu);
+    dst_p[2] |= pack_left_shift_u8(src_p->engine_intake_manifold1_temp, 0u, 0xffu);
+
+    return (8);
+}
+
+int genset_ic1_unpack(
+    struct genset_ic1_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->engine_intake_manifold1_pressure = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->engine_intake_manifold1_temp = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
+
+    return (0);
+}
+
+int genset_ic1_init(struct genset_ic1_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_ic1_t));
+
+    return 0;
+}
+
+uint8_t genset_ic1_engine_intake_manifold1_pressure_encode(float value)
+{
+    return (uint8_t)(value / 2.0f);
+}
+
+float genset_ic1_engine_intake_manifold1_pressure_decode(uint8_t value)
+{
+    return ((float)value * 2.0f);
+}
+
+bool genset_ic1_engine_intake_manifold1_pressure_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_ic1_engine_intake_manifold1_pressure_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 500.0f));
+}
+
+uint8_t genset_ic1_engine_intake_manifold1_temp_encode(float value)
+{
+    return (uint8_t)(value - -40.0f);
+}
+
+float genset_ic1_engine_intake_manifold1_temp_decode(uint8_t value)
+{
+    return ((float)value + -40.0f);
+}
+
+bool genset_ic1_engine_intake_manifold1_temp_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_ic1_engine_intake_manifold1_temp_is_in_phys_range(float value)
+{
+    return ((value >= -40.0f) && (value <= 210.0f));
+}
+
+int genset_gaac_pack(
+    uint8_t *dst_p,
+    const struct genset_gaac_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u16(src_p->generator_average_line_line_acrms_voltage, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u16(src_p->generator_average_line_line_acrms_voltage, 8u, 0xffu);
+    dst_p[2] |= pack_left_shift_u16(src_p->generator_average_line_neutral_acrms_voltage, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(src_p->generator_average_line_neutral_acrms_voltage, 8u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->generator_average_ac_frequency, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->generator_average_ac_frequency, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->generator_average_acrms_current, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->generator_average_acrms_current, 8u, 0xffu);
+
+    return (8);
+}
+
+int genset_gaac_unpack(
+    struct genset_gaac_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->generator_average_line_line_acrms_voltage = unpack_right_shift_u16(src_p[0], 0u, 0xffu);
+    dst_p->generator_average_line_line_acrms_voltage |= unpack_left_shift_u16(src_p[1], 8u, 0xffu);
+    dst_p->generator_average_line_neutral_acrms_voltage = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    dst_p->generator_average_line_neutral_acrms_voltage |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
+    dst_p->generator_average_ac_frequency = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->generator_average_ac_frequency |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->generator_average_acrms_current = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->generator_average_acrms_current |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+
+    return (0);
+}
+
+int genset_gaac_init(struct genset_gaac_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_gaac_t));
+
+    return 0;
+}
+
+uint16_t genset_gaac_generator_average_line_line_acrms_voltage_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gaac_generator_average_line_line_acrms_voltage_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gaac_generator_average_line_line_acrms_voltage_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gaac_generator_average_line_line_acrms_voltage_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+uint16_t genset_gaac_generator_average_line_neutral_acrms_voltage_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gaac_generator_average_line_neutral_acrms_voltage_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gaac_generator_average_line_neutral_acrms_voltage_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gaac_generator_average_line_neutral_acrms_voltage_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+uint16_t genset_gaac_generator_average_ac_frequency_encode(float value)
+{
+    return (uint16_t)(value / 0.0078125f);
+}
+
+float genset_gaac_generator_average_ac_frequency_decode(uint16_t value)
+{
+    return ((float)value * 0.0078125f);
+}
+
+bool genset_gaac_generator_average_ac_frequency_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gaac_generator_average_ac_frequency_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 501.9921875f));
+}
+
+uint16_t genset_gaac_generator_average_acrms_current_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gaac_generator_average_acrms_current_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gaac_generator_average_acrms_current_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gaac_generator_average_acrms_current_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+int genset_gpaac_pack(
+    uint8_t *dst_p,
+    const struct genset_gpaac_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u16(src_p->generator_phase_a_line_line_acrms_voltage, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u16(src_p->generator_phase_a_line_line_acrms_voltage, 8u, 0xffu);
+    dst_p[2] |= pack_left_shift_u16(src_p->generator_phase_a_line_neutral_acrms_voltage, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(src_p->generator_phase_a_line_neutral_acrms_voltage, 8u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->generator_phase_aac_frequency, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->generator_phase_aac_frequency, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->generator_phase_aacrms_current, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->generator_phase_aacrms_current, 8u, 0xffu);
+
+    return (8);
+}
+
+int genset_gpaac_unpack(
+    struct genset_gpaac_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->generator_phase_a_line_line_acrms_voltage = unpack_right_shift_u16(src_p[0], 0u, 0xffu);
+    dst_p->generator_phase_a_line_line_acrms_voltage |= unpack_left_shift_u16(src_p[1], 8u, 0xffu);
+    dst_p->generator_phase_a_line_neutral_acrms_voltage = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    dst_p->generator_phase_a_line_neutral_acrms_voltage |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
+    dst_p->generator_phase_aac_frequency = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->generator_phase_aac_frequency |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->generator_phase_aacrms_current = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->generator_phase_aacrms_current |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+
+    return (0);
+}
+
+int genset_gpaac_init(struct genset_gpaac_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_gpaac_t));
+
+    return 0;
+}
+
+uint16_t genset_gpaac_generator_phase_a_line_line_acrms_voltage_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gpaac_generator_phase_a_line_line_acrms_voltage_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gpaac_generator_phase_a_line_line_acrms_voltage_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpaac_generator_phase_a_line_line_acrms_voltage_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+uint16_t genset_gpaac_generator_phase_a_line_neutral_acrms_voltage_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gpaac_generator_phase_a_line_neutral_acrms_voltage_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gpaac_generator_phase_a_line_neutral_acrms_voltage_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpaac_generator_phase_a_line_neutral_acrms_voltage_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+uint16_t genset_gpaac_generator_phase_aac_frequency_encode(float value)
+{
+    return (uint16_t)(value / 0.0078125f);
+}
+
+float genset_gpaac_generator_phase_aac_frequency_decode(uint16_t value)
+{
+    return ((float)value * 0.0078125f);
+}
+
+bool genset_gpaac_generator_phase_aac_frequency_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpaac_generator_phase_aac_frequency_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 501.9921875f));
+}
+
+uint16_t genset_gpaac_generator_phase_aacrms_current_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gpaac_generator_phase_aacrms_current_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gpaac_generator_phase_aacrms_current_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpaac_generator_phase_aacrms_current_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+int genset_gpbac_pack(
+    uint8_t *dst_p,
+    const struct genset_gpbac_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u16(src_p->generator_phase_b_line_line_acrms_voltage, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u16(src_p->generator_phase_b_line_line_acrms_voltage, 8u, 0xffu);
+    dst_p[2] |= pack_left_shift_u16(src_p->generator_phase_b_line_neutral_acrms_voltage, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(src_p->generator_phase_b_line_neutral_acrms_voltage, 8u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->generator_phase_bac_frequency, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->generator_phase_bac_frequency, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->generator_phase_bacrms_current, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->generator_phase_bacrms_current, 8u, 0xffu);
+
+    return (8);
+}
+
+int genset_gpbac_unpack(
+    struct genset_gpbac_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->generator_phase_b_line_line_acrms_voltage = unpack_right_shift_u16(src_p[0], 0u, 0xffu);
+    dst_p->generator_phase_b_line_line_acrms_voltage |= unpack_left_shift_u16(src_p[1], 8u, 0xffu);
+    dst_p->generator_phase_b_line_neutral_acrms_voltage = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    dst_p->generator_phase_b_line_neutral_acrms_voltage |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
+    dst_p->generator_phase_bac_frequency = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->generator_phase_bac_frequency |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->generator_phase_bacrms_current = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->generator_phase_bacrms_current |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+
+    return (0);
+}
+
+int genset_gpbac_init(struct genset_gpbac_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_gpbac_t));
+
+    return 0;
+}
+
+uint16_t genset_gpbac_generator_phase_b_line_line_acrms_voltage_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gpbac_generator_phase_b_line_line_acrms_voltage_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gpbac_generator_phase_b_line_line_acrms_voltage_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpbac_generator_phase_b_line_line_acrms_voltage_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+uint16_t genset_gpbac_generator_phase_b_line_neutral_acrms_voltage_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gpbac_generator_phase_b_line_neutral_acrms_voltage_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gpbac_generator_phase_b_line_neutral_acrms_voltage_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpbac_generator_phase_b_line_neutral_acrms_voltage_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+uint16_t genset_gpbac_generator_phase_bac_frequency_encode(float value)
+{
+    return (uint16_t)(value / 0.0078125f);
+}
+
+float genset_gpbac_generator_phase_bac_frequency_decode(uint16_t value)
+{
+    return ((float)value * 0.0078125f);
+}
+
+bool genset_gpbac_generator_phase_bac_frequency_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpbac_generator_phase_bac_frequency_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 501.9921875f));
+}
+
+uint16_t genset_gpbac_generator_phase_bacrms_current_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gpbac_generator_phase_bacrms_current_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gpbac_generator_phase_bacrms_current_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpbac_generator_phase_bacrms_current_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+int genset_gpcac_pack(
+    uint8_t *dst_p,
+    const struct genset_gpcac_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u16(src_p->generator_phase_c_line_line_acrms_voltage, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u16(src_p->generator_phase_c_line_line_acrms_voltage, 8u, 0xffu);
+    dst_p[2] |= pack_left_shift_u16(src_p->generator_phase_c_line_neutral_acrms_voltage, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(src_p->generator_phase_c_line_neutral_acrms_voltage, 8u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->generator_phase_cac_frequency, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->generator_phase_cac_frequency, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->generator_phase_cacrms_current, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->generator_phase_cacrms_current, 8u, 0xffu);
+
+    return (8);
+}
+
+int genset_gpcac_unpack(
+    struct genset_gpcac_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->generator_phase_c_line_line_acrms_voltage = unpack_right_shift_u16(src_p[0], 0u, 0xffu);
+    dst_p->generator_phase_c_line_line_acrms_voltage |= unpack_left_shift_u16(src_p[1], 8u, 0xffu);
+    dst_p->generator_phase_c_line_neutral_acrms_voltage = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    dst_p->generator_phase_c_line_neutral_acrms_voltage |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
+    dst_p->generator_phase_cac_frequency = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->generator_phase_cac_frequency |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->generator_phase_cacrms_current = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->generator_phase_cacrms_current |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+
+    return (0);
+}
+
+int genset_gpcac_init(struct genset_gpcac_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_gpcac_t));
+
+    return 0;
+}
+
+uint16_t genset_gpcac_generator_phase_c_line_line_acrms_voltage_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gpcac_generator_phase_c_line_line_acrms_voltage_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gpcac_generator_phase_c_line_line_acrms_voltage_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpcac_generator_phase_c_line_line_acrms_voltage_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+uint16_t genset_gpcac_generator_phase_c_line_neutral_acrms_voltage_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gpcac_generator_phase_c_line_neutral_acrms_voltage_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gpcac_generator_phase_c_line_neutral_acrms_voltage_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpcac_generator_phase_c_line_neutral_acrms_voltage_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+uint16_t genset_gpcac_generator_phase_cac_frequency_encode(float value)
+{
+    return (uint16_t)(value / 0.0078125f);
+}
+
+float genset_gpcac_generator_phase_cac_frequency_decode(uint16_t value)
+{
+    return ((float)value * 0.0078125f);
+}
+
+bool genset_gpcac_generator_phase_cac_frequency_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpcac_generator_phase_cac_frequency_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 501.9921875f));
+}
+
+uint16_t genset_gpcac_generator_phase_cacrms_current_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_gpcac_generator_phase_cacrms_current_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gpcac_generator_phase_cacrms_current_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_gpcac_generator_phase_cacrms_current_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 64255.0f));
+}
+
+int genset_gtacp_pack(
+    uint8_t *dst_p,
+    const struct genset_gtacp_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u32(src_p->generator_total_real_power, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u32(src_p->generator_total_real_power, 8u, 0xffu);
+    dst_p[2] |= pack_right_shift_u32(src_p->generator_total_real_power, 16u, 0xffu);
+    dst_p[3] |= pack_right_shift_u32(src_p->generator_total_real_power, 24u, 0xffu);
+    dst_p[4] |= pack_left_shift_u32(src_p->generator_total_apparent_power, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u32(src_p->generator_total_apparent_power, 8u, 0xffu);
+    dst_p[6] |= pack_right_shift_u32(src_p->generator_total_apparent_power, 16u, 0xffu);
+    dst_p[7] |= pack_right_shift_u32(src_p->generator_total_apparent_power, 24u, 0xffu);
+
+    return (8);
+}
+
+int genset_gtacp_unpack(
+    struct genset_gtacp_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->generator_total_real_power = unpack_right_shift_u32(src_p[0], 0u, 0xffu);
+    dst_p->generator_total_real_power |= unpack_left_shift_u32(src_p[1], 8u, 0xffu);
+    dst_p->generator_total_real_power |= unpack_left_shift_u32(src_p[2], 16u, 0xffu);
+    dst_p->generator_total_real_power |= unpack_left_shift_u32(src_p[3], 24u, 0xffu);
+    dst_p->generator_total_apparent_power = unpack_right_shift_u32(src_p[4], 0u, 0xffu);
+    dst_p->generator_total_apparent_power |= unpack_left_shift_u32(src_p[5], 8u, 0xffu);
+    dst_p->generator_total_apparent_power |= unpack_left_shift_u32(src_p[6], 16u, 0xffu);
+    dst_p->generator_total_apparent_power |= unpack_left_shift_u32(src_p[7], 24u, 0xffu);
+
+    return (0);
+}
+
+int genset_gtacp_init(struct genset_gtacp_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_gtacp_t));
+
+    return 0;
+}
+
+uint32_t genset_gtacp_generator_total_real_power_encode(float value)
+{
+    return (uint32_t)(value - -2000000000.0f);
+}
+
+float genset_gtacp_generator_total_real_power_decode(uint32_t value)
+{
+    return ((float)value + -2000000000.0f);
+}
+
+bool genset_gtacp_generator_total_real_power_is_in_range(uint32_t value)
+{
+    return (value <= 4211081215u);
+}
+
+bool genset_gtacp_generator_total_real_power_is_in_phys_range(float value)
+{
+    return ((value >= -2000000000.0f) && (value <= 2211081215.0f));
+}
+
+uint32_t genset_gtacp_generator_total_apparent_power_encode(float value)
+{
+    return (uint32_t)(value - -2000000000.0f);
+}
+
+float genset_gtacp_generator_total_apparent_power_decode(uint32_t value)
+{
+    return ((float)value + -2000000000.0f);
+}
+
+bool genset_gtacp_generator_total_apparent_power_is_in_range(uint32_t value)
+{
+    return (value <= 4211081215u);
+}
+
+bool genset_gtacp_generator_total_apparent_power_is_in_phys_range(float value)
+{
+    return ((value >= -2000000000.0f) && (value <= 2211081215.0f));
+}
+
+int genset_gtacr_pack(
+    uint8_t *dst_p,
+    const struct genset_gtacr_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u32(src_p->generator_total_reactive_power, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u32(src_p->generator_total_reactive_power, 8u, 0xffu);
+    dst_p[2] |= pack_right_shift_u32(src_p->generator_total_reactive_power, 16u, 0xffu);
+    dst_p[3] |= pack_right_shift_u32(src_p->generator_total_reactive_power, 24u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->generator_overall_power_factor, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->generator_overall_power_factor, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u8(src_p->generator_overall_power_factor_lagging, 0u, 0x03u);
+
+    return (8);
+}
+
+int genset_gtacr_unpack(
+    struct genset_gtacr_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->generator_total_reactive_power = unpack_right_shift_u32(src_p[0], 0u, 0xffu);
+    dst_p->generator_total_reactive_power |= unpack_left_shift_u32(src_p[1], 8u, 0xffu);
+    dst_p->generator_total_reactive_power |= unpack_left_shift_u32(src_p[2], 16u, 0xffu);
+    dst_p->generator_total_reactive_power |= unpack_left_shift_u32(src_p[3], 24u, 0xffu);
+    dst_p->generator_overall_power_factor = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->generator_overall_power_factor |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->generator_overall_power_factor_lagging = unpack_right_shift_u8(src_p[6], 0u, 0x03u);
+
+    return (0);
+}
+
+int genset_gtacr_init(struct genset_gtacr_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_gtacr_t));
+
+    return 0;
+}
+
+uint32_t genset_gtacr_generator_total_reactive_power_encode(float value)
+{
+    return (uint32_t)(value - -2000000000.0f);
+}
+
+float genset_gtacr_generator_total_reactive_power_decode(uint32_t value)
+{
+    return ((float)value + -2000000000.0f);
+}
+
+bool genset_gtacr_generator_total_reactive_power_is_in_range(uint32_t value)
+{
+    return (value <= 4211081215u);
+}
+
+bool genset_gtacr_generator_total_reactive_power_is_in_phys_range(float value)
+{
+    return ((value >= -2000000000.0f) && (value <= 2211081215.0f));
+}
+
+uint16_t genset_gtacr_generator_overall_power_factor_encode(float value)
+{
+    return (uint16_t)((value - -1.0f) / 6.103515625e-05f);
+}
+
+float genset_gtacr_generator_overall_power_factor_decode(uint16_t value)
+{
+    return (((float)value * 6.103515625e-05f) + -1.0f);
+}
+
+bool genset_gtacr_generator_overall_power_factor_is_in_range(uint16_t value)
+{
+    return (value <= 32768u);
+}
+
+bool genset_gtacr_generator_overall_power_factor_is_in_phys_range(float value)
+{
+    return ((value >= -1.0f) && (value <= 1.0f));
+}
+
+uint8_t genset_gtacr_generator_overall_power_factor_lagging_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_gtacr_generator_overall_power_factor_lagging_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gtacr_generator_overall_power_factor_lagging_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_gtacr_generator_overall_power_factor_lagging_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+int genset_gtace_pack(
+    uint8_t *dst_p,
+    const struct genset_gtace_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u32(src_p->generator_totalk_wh_export, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u32(src_p->generator_totalk_wh_export, 8u, 0xffu);
+    dst_p[2] |= pack_right_shift_u32(src_p->generator_totalk_wh_export, 16u, 0xffu);
+    dst_p[3] |= pack_right_shift_u32(src_p->generator_totalk_wh_export, 24u, 0xffu);
+    dst_p[4] |= pack_left_shift_u32(src_p->generator_totalk_wh_import, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u32(src_p->generator_totalk_wh_import, 8u, 0xffu);
+    dst_p[6] |= pack_right_shift_u32(src_p->generator_totalk_wh_import, 16u, 0xffu);
+    dst_p[7] |= pack_right_shift_u32(src_p->generator_totalk_wh_import, 24u, 0xffu);
+
+    return (8);
+}
+
+int genset_gtace_unpack(
+    struct genset_gtace_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->generator_totalk_wh_export = unpack_right_shift_u32(src_p[0], 0u, 0xffu);
+    dst_p->generator_totalk_wh_export |= unpack_left_shift_u32(src_p[1], 8u, 0xffu);
+    dst_p->generator_totalk_wh_export |= unpack_left_shift_u32(src_p[2], 16u, 0xffu);
+    dst_p->generator_totalk_wh_export |= unpack_left_shift_u32(src_p[3], 24u, 0xffu);
+    dst_p->generator_totalk_wh_import = unpack_right_shift_u32(src_p[4], 0u, 0xffu);
+    dst_p->generator_totalk_wh_import |= unpack_left_shift_u32(src_p[5], 8u, 0xffu);
+    dst_p->generator_totalk_wh_import |= unpack_left_shift_u32(src_p[6], 16u, 0xffu);
+    dst_p->generator_totalk_wh_import |= unpack_left_shift_u32(src_p[7], 24u, 0xffu);
+
+    return (0);
+}
+
+int genset_gtace_init(struct genset_gtace_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_gtace_t));
+
+    return 0;
+}
+
+uint32_t genset_gtace_generator_totalk_wh_export_encode(float value)
+{
+    return (uint32_t)(value);
+}
+
+float genset_gtace_generator_totalk_wh_export_decode(uint32_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gtace_generator_totalk_wh_export_is_in_range(uint32_t value)
+{
+    return (value <= 4211081215u);
+}
+
+bool genset_gtace_generator_totalk_wh_export_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 4211081215.0f));
+}
+
+uint32_t genset_gtace_generator_totalk_wh_import_encode(float value)
+{
+    return (uint32_t)(value);
+}
+
+float genset_gtace_generator_totalk_wh_import_decode(uint32_t value)
+{
+    return ((float)value);
+}
+
+bool genset_gtace_generator_totalk_wh_import_is_in_range(uint32_t value)
+{
+    return (value <= 4211081215u);
+}
+
+bool genset_gtace_generator_totalk_wh_import_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 4211081215.0f));
+}
+
+int genset_ackm_pack(
+    uint8_t *dst_p,
+    const struct genset_ackm_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->control_byte, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->group_function_value, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u8(src_p->address_acknowledged, 0u, 0xffu);
+    dst_p[5] |= pack_left_shift_u32(src_p->parameter_group_number, 0u, 0xffu);
+    dst_p[6] |= pack_right_shift_u32(src_p->parameter_group_number, 8u, 0xffu);
+    dst_p[7] |= pack_right_shift_u32(src_p->parameter_group_number, 16u, 0xffu);
+
+    return (8);
+}
+
+int genset_ackm_unpack(
+    struct genset_ackm_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->control_byte = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->group_function_value = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->address_acknowledged = unpack_right_shift_u8(src_p[4], 0u, 0xffu);
+    dst_p->parameter_group_number = unpack_right_shift_u32(src_p[5], 0u, 0xffu);
+    dst_p->parameter_group_number |= unpack_left_shift_u32(src_p[6], 8u, 0xffu);
+    dst_p->parameter_group_number |= unpack_left_shift_u32(src_p[7], 16u, 0xffu);
+
+    return (0);
+}
+
+int genset_ackm_init(struct genset_ackm_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_ackm_t));
+
+    return 0;
+}
+
+uint8_t genset_ackm_control_byte_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ackm_control_byte_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ackm_control_byte_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ackm_control_byte_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ackm_group_function_value_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ackm_group_function_value_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ackm_group_function_value_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ackm_group_function_value_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ackm_address_acknowledged_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ackm_address_acknowledged_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ackm_address_acknowledged_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ackm_address_acknowledged_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint32_t genset_ackm_parameter_group_number_encode(float value)
+{
+    return (uint32_t)(value);
+}
+
+float genset_ackm_parameter_group_number_decode(uint32_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ackm_parameter_group_number_is_in_range(uint32_t value)
+{
+    return (value <= 262143u);
+}
+
+bool genset_ackm_parameter_group_number_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 262143.0f));
+}
+
+int genset_dm1_pack(
+    uint8_t *dst_p,
+    const struct genset_dm1_t *src_p,
+    size_t size)
+{
+    if (size < 10u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 10);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->protect_lamp, 0u, 0x03u);
+    dst_p[0] |= pack_left_shift_u8(src_p->amber_warning_lamp, 2u, 0x0cu);
+    dst_p[0] |= pack_left_shift_u8(src_p->red_stop_lamp, 4u, 0x30u);
+    dst_p[0] |= pack_left_shift_u8(src_p->malfunction_indicator_lamp, 6u, 0xc0u);
+    dst_p[2] |= pack_left_shift_u16(src_p->dtc1_spn_low, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(src_p->dtc1_spn_low, 8u, 0xffu);
+    dst_p[4] |= pack_left_shift_u8(src_p->dtc1_fmi, 0u, 0x1fu);
+    dst_p[4] |= pack_left_shift_u8(src_p->dtc1_spn_high, 5u, 0xe0u);
+    dst_p[5] |= pack_left_shift_u8(src_p->dtc1_oc, 0u, 0x7fu);
+    dst_p[5] |= pack_left_shift_u8(src_p->dtc1_cm, 7u, 0x80u);
+    dst_p[6] |= pack_left_shift_u16(src_p->dtc2_spn_low, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->dtc2_spn_low, 8u, 0xffu);
+    dst_p[8] |= pack_left_shift_u8(src_p->dtc2_fmi, 0u, 0x1fu);
+    dst_p[8] |= pack_left_shift_u8(src_p->dtc2_spn_high, 5u, 0xe0u);
+    dst_p[9] |= pack_left_shift_u8(src_p->dtc2_oc, 0u, 0x7fu);
+    dst_p[9] |= pack_left_shift_u8(src_p->dtc2_cm, 7u, 0x80u);
+
+    return (10);
+}
+
+int genset_dm1_unpack(
+    struct genset_dm1_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 10u) {
+        return (-EINVAL);
+    }
+
+    dst_p->protect_lamp = unpack_right_shift_u8(src_p[0], 0u, 0x03u);
+    dst_p->amber_warning_lamp = unpack_right_shift_u8(src_p[0], 2u, 0x0cu);
+    dst_p->red_stop_lamp = unpack_right_shift_u8(src_p[0], 4u, 0x30u);
+    dst_p->malfunction_indicator_lamp = unpack_right_shift_u8(src_p[0], 6u, 0xc0u);
+    dst_p->dtc1_spn_low = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    dst_p->dtc1_spn_low |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
+    dst_p->dtc1_fmi = unpack_right_shift_u8(src_p[4], 0u, 0x1fu);
+    dst_p->dtc1_spn_high = unpack_right_shift_u8(src_p[4], 5u, 0xe0u);
+    dst_p->dtc1_oc = unpack_right_shift_u8(src_p[5], 0u, 0x7fu);
+    dst_p->dtc1_cm = unpack_right_shift_u8(src_p[5], 7u, 0x80u);
+    dst_p->dtc2_spn_low = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->dtc2_spn_low |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+    dst_p->dtc2_fmi = unpack_right_shift_u8(src_p[8], 0u, 0x1fu);
+    dst_p->dtc2_spn_high = unpack_right_shift_u8(src_p[8], 5u, 0xe0u);
+    dst_p->dtc2_oc = unpack_right_shift_u8(src_p[9], 0u, 0x7fu);
+    dst_p->dtc2_cm = unpack_right_shift_u8(src_p[9], 7u, 0x80u);
+
+    return (0);
+}
+
+int genset_dm1_init(struct genset_dm1_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_dm1_t));
+
+    return 0;
+}
+
+uint8_t genset_dm1_protect_lamp_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_protect_lamp_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_protect_lamp_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm1_protect_lamp_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_dm1_amber_warning_lamp_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_amber_warning_lamp_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_amber_warning_lamp_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm1_amber_warning_lamp_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_dm1_red_stop_lamp_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_red_stop_lamp_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_red_stop_lamp_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm1_red_stop_lamp_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_dm1_malfunction_indicator_lamp_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_malfunction_indicator_lamp_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_malfunction_indicator_lamp_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm1_malfunction_indicator_lamp_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint16_t genset_dm1_dtc1_spn_low_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm1_dtc1_spn_low_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_dtc1_spn_low_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm1_dtc1_spn_low_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint8_t genset_dm1_dtc1_fmi_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_dtc1_fmi_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_dtc1_fmi_is_in_range(uint8_t value)
+{
+    return (value <= 31u);
+}
+
+bool genset_dm1_dtc1_fmi_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 31.0f));
+}
+
+uint8_t genset_dm1_dtc1_spn_high_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_dtc1_spn_high_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_dtc1_spn_high_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_dm1_dtc1_spn_high_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
+uint8_t genset_dm1_dtc1_oc_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_dtc1_oc_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_dtc1_oc_is_in_range(uint8_t value)
+{
+    return (value <= 127u);
+}
+
+bool genset_dm1_dtc1_oc_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 127.0f));
+}
+
+uint8_t genset_dm1_dtc1_cm_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_dtc1_cm_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_dtc1_cm_is_in_range(uint8_t value)
+{
+    return (value <= 1u);
+}
+
+bool genset_dm1_dtc1_cm_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 1.0f));
+}
+
+uint16_t genset_dm1_dtc2_spn_low_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm1_dtc2_spn_low_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_dtc2_spn_low_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm1_dtc2_spn_low_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint8_t genset_dm1_dtc2_fmi_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_dtc2_fmi_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_dtc2_fmi_is_in_range(uint8_t value)
+{
+    return (value <= 31u);
+}
+
+bool genset_dm1_dtc2_fmi_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 31.0f));
+}
+
+uint8_t genset_dm1_dtc2_spn_high_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_dtc2_spn_high_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_dtc2_spn_high_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_dm1_dtc2_spn_high_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
+uint8_t genset_dm1_dtc2_oc_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_dtc2_oc_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_dtc2_oc_is_in_range(uint8_t value)
+{
+    return (value <= 127u);
+}
+
+bool genset_dm1_dtc2_oc_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 127.0f));
+}
+
+uint8_t genset_dm1_dtc2_cm_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm1_dtc2_cm_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm1_dtc2_cm_is_in_range(uint8_t value)
+{
+    return (value <= 1u);
+}
+
+bool genset_dm1_dtc2_cm_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 1.0f));
+}
+
+int genset_dm2_pack(
+    uint8_t *dst_p,
+    const struct genset_dm2_t *src_p,
+    size_t size)
+{
+    if (size < 10u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 10);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->protect_lamp, 0u, 0x03u);
+    dst_p[0] |= pack_left_shift_u8(src_p->amber_warning_lamp, 2u, 0x0cu);
+    dst_p[0] |= pack_left_shift_u8(src_p->red_stop_lamp, 4u, 0x30u);
+    dst_p[0] |= pack_left_shift_u8(src_p->malfunction_indicator_lamp, 6u, 0xc0u);
+    dst_p[2] |= pack_left_shift_u16(src_p->dtc1_spn_low, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(src_p->dtc1_spn_low, 8u, 0xffu);
+    dst_p[4] |= pack_left_shift_u8(src_p->dtc1_fmi, 0u, 0x1fu);
+    dst_p[4] |= pack_left_shift_u8(src_p->dtc1_spn_high, 5u, 0xe0u);
+    dst_p[5] |= pack_left_shift_u8(src_p->dtc1_oc, 0u, 0x7fu);
+    dst_p[5] |= pack_left_shift_u8(src_p->dtc1_cm, 7u, 0x80u);
+    dst_p[6] |= pack_left_shift_u16(src_p->dtc2_spn_low, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->dtc2_spn_low, 8u, 0xffu);
+    dst_p[8] |= pack_left_shift_u8(src_p->dtc2_fmi, 0u, 0x1fu);
+    dst_p[8] |= pack_left_shift_u8(src_p->dtc2_spn_high, 5u, 0xe0u);
+    dst_p[9] |= pack_left_shift_u8(src_p->dtc2_oc, 0u, 0x7fu);
+    dst_p[9] |= pack_left_shift_u8(src_p->dtc2_cm, 7u, 0x80u);
+
+    return (10);
+}
+
+int genset_dm2_unpack(
+    struct genset_dm2_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 10u) {
+        return (-EINVAL);
+    }
+
+    dst_p->protect_lamp = unpack_right_shift_u8(src_p[0], 0u, 0x03u);
+    dst_p->amber_warning_lamp = unpack_right_shift_u8(src_p[0], 2u, 0x0cu);
+    dst_p->red_stop_lamp = unpack_right_shift_u8(src_p[0], 4u, 0x30u);
+    dst_p->malfunction_indicator_lamp = unpack_right_shift_u8(src_p[0], 6u, 0xc0u);
+    dst_p->dtc1_spn_low = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    dst_p->dtc1_spn_low |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
+    dst_p->dtc1_fmi = unpack_right_shift_u8(src_p[4], 0u, 0x1fu);
+    dst_p->dtc1_spn_high = unpack_right_shift_u8(src_p[4], 5u, 0xe0u);
+    dst_p->dtc1_oc = unpack_right_shift_u8(src_p[5], 0u, 0x7fu);
+    dst_p->dtc1_cm = unpack_right_shift_u8(src_p[5], 7u, 0x80u);
+    dst_p->dtc2_spn_low = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->dtc2_spn_low |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+    dst_p->dtc2_fmi = unpack_right_shift_u8(src_p[8], 0u, 0x1fu);
+    dst_p->dtc2_spn_high = unpack_right_shift_u8(src_p[8], 5u, 0xe0u);
+    dst_p->dtc2_oc = unpack_right_shift_u8(src_p[9], 0u, 0x7fu);
+    dst_p->dtc2_cm = unpack_right_shift_u8(src_p[9], 7u, 0x80u);
+
+    return (0);
+}
+
+int genset_dm2_init(struct genset_dm2_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_dm2_t));
+
+    return 0;
+}
+
+uint8_t genset_dm2_protect_lamp_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_protect_lamp_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_protect_lamp_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm2_protect_lamp_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_dm2_amber_warning_lamp_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_amber_warning_lamp_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_amber_warning_lamp_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm2_amber_warning_lamp_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_dm2_red_stop_lamp_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_red_stop_lamp_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_red_stop_lamp_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm2_red_stop_lamp_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_dm2_malfunction_indicator_lamp_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_malfunction_indicator_lamp_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_malfunction_indicator_lamp_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm2_malfunction_indicator_lamp_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint16_t genset_dm2_dtc1_spn_low_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm2_dtc1_spn_low_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_dtc1_spn_low_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm2_dtc1_spn_low_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint8_t genset_dm2_dtc1_fmi_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_dtc1_fmi_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_dtc1_fmi_is_in_range(uint8_t value)
+{
+    return (value <= 31u);
+}
+
+bool genset_dm2_dtc1_fmi_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 31.0f));
+}
+
+uint8_t genset_dm2_dtc1_spn_high_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_dtc1_spn_high_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_dtc1_spn_high_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_dm2_dtc1_spn_high_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
+uint8_t genset_dm2_dtc1_oc_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_dtc1_oc_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_dtc1_oc_is_in_range(uint8_t value)
+{
+    return (value <= 127u);
+}
+
+bool genset_dm2_dtc1_oc_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 127.0f));
+}
+
+uint8_t genset_dm2_dtc1_cm_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_dtc1_cm_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_dtc1_cm_is_in_range(uint8_t value)
+{
+    return (value <= 1u);
+}
+
+bool genset_dm2_dtc1_cm_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 1.0f));
+}
+
+uint16_t genset_dm2_dtc2_spn_low_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm2_dtc2_spn_low_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_dtc2_spn_low_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm2_dtc2_spn_low_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint8_t genset_dm2_dtc2_fmi_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_dtc2_fmi_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_dtc2_fmi_is_in_range(uint8_t value)
+{
+    return (value <= 31u);
+}
+
+bool genset_dm2_dtc2_fmi_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 31.0f));
+}
+
+uint8_t genset_dm2_dtc2_spn_high_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_dtc2_spn_high_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_dtc2_spn_high_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_dm2_dtc2_spn_high_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
+uint8_t genset_dm2_dtc2_oc_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_dtc2_oc_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_dtc2_oc_is_in_range(uint8_t value)
+{
+    return (value <= 127u);
+}
+
+bool genset_dm2_dtc2_oc_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 127.0f));
+}
+
+uint8_t genset_dm2_dtc2_cm_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm2_dtc2_cm_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm2_dtc2_cm_is_in_range(uint8_t value)
+{
+    return (value <= 1u);
+}
+
+bool genset_dm2_dtc2_cm_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 1.0f));
 }
 
 int genset_soft_pack(
