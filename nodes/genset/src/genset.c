@@ -11,7 +11,9 @@
  * Under sustained load the coolant runs hot: the ECU derates and raises
  * SPN 110 in DM1, then the thinning oil loses pressure and SPN 100 joins it,
  * so DM1 outgrows a frame and goes by BAM. DM2 lists what was active before,
- * on request only, like SOFT: by RTS/CTS to the requester, by BAM to everyone.
+ * on request only, like SOFT and CI: by RTS/CTS to the requester, by BAM to
+ * everyone. A controller's TSC1 overrides the governor: the engine follows the
+ * requested speed or torque and names the controller in EEC1.
  */
 
 #include <bench.h>
@@ -39,6 +41,38 @@ LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 
 /* The VCU sends every 100 ms; after this long without it, fall back to standby. */
 #define VCU_TIMEOUT_MS 500
+
+/* TSC1 comes every 10 ms while a controller overrides; without it this long, the governor is back. */
+#define TSC1_TIMEOUT_MS 1000
+#define PGN_TSC1        0U
+/* PF byte and the two data-page bits: every frame of PGN 0, any destination. */
+#define PF_MASK 0x03FF0000U
+
+/* TSC1 override control modes, SPN 695. */
+#define TSC1_OFF    0U
+#define TSC1_SPEED  1U
+#define TSC1_TORQUE 2U
+#define TSC1_LIMIT  3U
+
+/* EEC1 engine torque mode, SPN 899, and starter mode, SPN 1675. */
+#define TORQUE_MODE_LOW_IDLE  0U
+#define TORQUE_MODE_PEDAL     1U
+#define TORQUE_MODE_LIMITING  8U
+#define TORQUE_MODE_REMOTE    11U
+#define STARTER_NOT_REQUESTED 0U
+#define STARTER_ENGAGED       2U
+#define STARTER_INHIBITED_RUN 4U
+
+/* CCVS1 PTO governor state, SPN 976. */
+#define PTO_OFF     0U
+#define PTO_STANDBY 3U
+#define PTO_SET     5U
+
+/* EEC3 friction and parasitic torque: a few percent, rising with speed. */
+#define FRICTION_PCT_IDLE     10.0f
+#define FRICTION_PCT_PER_RATED 5.0f
+#define PARASITIC_PCT         3.0f
+#define PUMPING_PCT           (-3.0f)
 
 #define IDLE_RPM       900.0f
 #define RATED_RPM      1800.0f /* 60 Hz from four poles */
@@ -128,6 +162,7 @@ static struct dtc dtcs[] = {
 #define DTC_OIL     1
 
 K_MSGQ_DEFINE(genset_vcu_msgq, sizeof(struct can_frame), 4, 4);
+K_MSGQ_DEFINE(genset_tsc1_msgq, sizeof(struct can_frame), 8, 4);
 
 /*
  * The node's messages. The codec packs the first N_PG, 8 bytes each; DM1 and
@@ -151,10 +186,13 @@ enum msg {
 	M_GTACP,
 	M_GTACR,
 	M_GTACE,
+	M_EEC3,
+	M_CCVS,
 	N_PG,
 	M_DM1 = N_PG,
 	M_DM2,
 	M_SOFT,
+	M_CI,
 	N_MSGS,
 };
 
@@ -165,6 +203,10 @@ static uint8_t dm2[ZELOS_J1939_MAX_LEN];
 static uint8_t soft[] = "\x03" "ZELOS-GENSET*" "v1.1.0*" "zelos-examples node genset*";
 #define SOFT_LEN (sizeof(soft) - 1U)
 BUILD_ASSERT(SOFT_LEN > 8U && SOFT_LEN <= ZELOS_J1939_MAX_LEN, "SOFT goes by transport");
+/* J1939-71 CI: make, model, serial number and unit number, each ending in '*'. */
+static uint8_t ci[] = "Zelos*GENSET-FULL*0A11*ZELOSBENCH*";
+#define CI_LEN (sizeof(ci) - 1U)
+BUILD_ASSERT(CI_LEN == GENSET_CI_LENGTH && CI_LEN > 8U, "CI goes by transport, as long as the DBC says");
 
 /* dbc/genset.dbc is the one list: PGN and priority from the frame id, period from the cycle time. */
 #define PGN_OF(id)  (((id) >> 8) & 0x3FFFFU)
@@ -175,10 +217,10 @@ BUILD_ASSERT(SOFT_LEN > 8U && SOFT_LEN <= ZELOS_J1939_MAX_LEN, "SOFT goes by tra
 	       .data = pg[m]}
 
 /*
- * Offsets spread the periodic sends over the 10 ms ticks: the eight 100 ms
- * PGs one per tick, EEC2 (50 ms) at 30 and 80 ms of each 100, the slower ones
- * at 90 in turn, so no tick carries more than two periodic frames. The bus
- * sees about 111 frames a second.
+ * Offsets spread the periodic sends over the 10 ms ticks: the nine 100 ms
+ * PGs one per tick, EEC2 (50 ms) at 30 and 80 ms of each 100, EEC3 (250 ms)
+ * at 40 and 90 in turn, the slower ones at 90 in turn, so no tick carries
+ * more than two periodic frames. The bus sees about 125 frames a second.
  */
 static struct zelos_j1939_msg msgs[N_MSGS] = {
 	PG(M_EEC1, EEC1, 0),
@@ -190,6 +232,8 @@ static struct zelos_j1939_msg msgs[N_MSGS] = {
 	PG(M_GTACP, GTACP, 60),
 	PG(M_GTACR, GTACR, 70),
 	PG(M_EEC2, EEC2, 30),
+	PG(M_CCVS, CCVS1, 80),
+	PG(M_EEC3, EEC3, 140),
 	PG(M_EFLP1, EFL_P1, 90),
 	PG(M_IC1, IC1, 190),
 	PG(M_ET1, ET1, 290),
@@ -204,12 +248,15 @@ static struct zelos_j1939_msg msgs[N_MSGS] = {
 		   .period_ms = 0, .len = 8, .data = dm2},
 	[M_SOFT] = {.pgn = PGN_OF(GENSET_SOFT_FRAME_ID), .priority = PRIO_OF(GENSET_SOFT_FRAME_ID),
 		    .period_ms = 0, .len = SOFT_LEN, .data = soft},
+	[M_CI] = {.pgn = PGN_OF(GENSET_CI_FRAME_ID), .priority = PRIO_OF(GENSET_CI_FRAME_ID),
+		  .period_ms = 0, .len = CI_LEN, .data = ci},
 };
 
 /* The bits of each PG the DBC leaves out, sent as ones: not available. */
 static const uint8_t na[N_PG][8] = {
-	[M_EEC1] = {0xFF, 0xFF, 0, 0, 0, 0xFF, 0xFF, 0xFF},
-	[M_EEC2] = {0xFF, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+	[M_EEC2] = {0xC0, 0, 0, 0xFF, 0xFF, 0, 0, 0},
+	[M_EEC3] = {0, 0, 0, 0xFF, 0, 0xFF, 0xFF, 0xFF},
+	[M_CCVS] = {0xF3, 0xFF, 0xFF, 0xC0, 0, 0xFF, 0, 0},
 	[M_ET1] = {0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF},
 	[M_EFLP1] = {0, 0xFF, 0, 0, 0xFF, 0xFF, 0, 0},
 	[M_VEP1] = {0, 0, 0, 0, 0, 0, 0xFF, 0xFF},
@@ -226,9 +273,23 @@ static struct zelos_j1939 j1939 = {
 	.n_msgs = ARRAY_SIZE(msgs),
 };
 
+/* What a TSC1 sender asks of the engine, while its messages keep coming. */
+struct override {
+	uint8_t mode;
+	uint8_t sa;
+	int64_t last_ms;
+	float rpm;
+	/* Requested torque, or a limit; negative when the sender left it not available. */
+	float torque_pct;
+};
+
 struct engine {
 	uint8_t mode;
 	int64_t last_command_ms;
+	struct override tsc1;
+	/* The governor's speed target and the mode's torque demand, before any override. */
+	float target_rpm;
+	float demand_pct;
 	float rpm;
 	float torque_pct;
 	float coolant_c;
@@ -268,6 +329,32 @@ static void follow_vcu(struct engine *e, int64_t now_ms)
 
 	if (now_ms - e->last_command_ms > VCU_TIMEOUT_MS) {
 		e->mode = BENCH_VCU_COMMAND_REQUESTED_MODE_STANDBY_CHOICE;
+	}
+}
+
+/* TSC1 addressed to this node: the last sender's request stands until it stops or times out. */
+static void follow_tsc1(struct engine *e, int64_t now_ms)
+{
+	struct can_frame frame;
+	struct genset_tsc1_t cmd;
+
+	while (k_msgq_get(&genset_tsc1_msgq, &frame, K_NO_WAIT) == 0) {
+		if (((frame.id >> 8) & 0xFFU) != j1939.address ||
+		    genset_tsc1_unpack(&cmd, frame.data, can_dlc_to_bytes(frame.dlc)) != 0) {
+			continue;
+		}
+		e->tsc1.mode = cmd.engine_override_control_mode;
+		e->tsc1.sa = frame.id & 0xFFU;
+		e->tsc1.last_ms = now_ms;
+		e->tsc1.rpm = genset_tsc1_engine_requested_speed_speed_limit_decode(cmd.engine_requested_speed_speed_limit);
+		e->tsc1.torque_pct = cmd.engine_requested_torque_torque_limit == 0xFFU
+					     ? -1.0f
+					     : genset_tsc1_engine_requested_torque_torque_limit_decode(cmd.engine_requested_torque_torque_limit);
+	}
+
+	if (e->tsc1.mode != TSC1_OFF && now_ms - e->tsc1.last_ms > TSC1_TIMEOUT_MS) {
+		e->tsc1.mode = TSC1_OFF;
+		LOG_INF("TSC1 from 0x%02x timed out", e->tsc1.sa);
 	}
 }
 
@@ -322,6 +409,34 @@ static void step(struct engine *e)
 		/* Charging from the grid, or a fault: stopped. */
 		break;
 	}
+
+	e->demand_pct = e->torque_pct;
+
+	/* A controller's override, while the engine turns: it cannot start or stop it. */
+	if (target_rpm > 0.0f) {
+		const float rpm = CLAMP(e->tsc1.rpm, IDLE_RPM, RATED_RPM);
+		const float torque = e->tsc1.torque_pct;
+
+		switch (e->tsc1.mode) {
+		case TSC1_SPEED:
+			target_rpm = rpm;
+			break;
+		case TSC1_TORQUE:
+			if (torque >= 0.0f) {
+				e->torque_pct = MIN(torque, RUN_TORQUE_PCT);
+			}
+			break;
+		case TSC1_LIMIT:
+			target_rpm = MIN(target_rpm, rpm);
+			if (torque >= 0.0f) {
+				e->torque_pct = MIN(e->torque_pct, torque);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	e->target_rpm = target_rpm;
 
 	if (e->rpm < target_rpm) {
 		e->rpm = MIN(e->rpm + RAMP_RPM_PER_S * dt_s, target_rpm);
@@ -443,17 +558,71 @@ static uint16_t encode_dm(uint8_t *d, bool active)
 	return len;
 }
 
+/* Who governs the engine, SPN 899, and who that is, SPN 1483. */
+static uint8_t torque_mode(const struct engine *e)
+{
+	switch (e->tsc1.mode) {
+	case TSC1_SPEED:
+		return TORQUE_MODE_REMOTE;
+	case TSC1_TORQUE:
+	case TSC1_LIMIT:
+		return TORQUE_MODE_LIMITING;
+	default:
+		return e->mode == BENCH_VCU_COMMAND_REQUESTED_MODE_DRIVE_CHOICE && e->rpm > 0.0f
+			       ? TORQUE_MODE_PEDAL
+			       : TORQUE_MODE_LOW_IDLE;
+	}
+}
+
+static uint8_t starter_mode(const struct engine *e)
+{
+	if (e->rpm == 0.0f) {
+		return STARTER_NOT_REQUESTED;
+	}
+	return e->rpm < IDLE_RPM && e->target_rpm > 0.0f ? STARTER_ENGAGED : STARTER_INHIBITED_RUN;
+}
+
+static uint8_t pto_state(const struct engine *e)
+{
+	if (e->rpm == 0.0f) {
+		return PTO_OFF;
+	}
+	return e->mode == BENCH_VCU_COMMAND_REQUESTED_MODE_DRIVE_CHOICE ? PTO_SET : PTO_STANDBY;
+}
+
 static void publish(const struct engine *e)
 {
 	uint8_t d[ZELOS_J1939_MAX_LEN];
 	const bool running = e->rpm > 0.0f;
+	const bool driving = e->mode == BENCH_VCU_COMMAND_REQUESTED_MODE_DRIVE_CHOICE;
 	const float load = (e->torque_pct / 100.0f) * (e->rpm / RATED_RPM);
 	const float v_ll = e->v_ln * SQRT3;
 
-	PUT(M_EEC1, eec1, .actual_engine_percent_torque = ENC(eec1, actual_engine_percent_torque, e->torque_pct),
-	    .engine_speed = ENC(eec1, engine_speed, e->rpm));
-	PUT(M_EEC2, eec2, .accelerator_pedal_position1 = ENC(eec2, accelerator_pedal_position1, e->torque_pct),
-	    .engine_percent_load_at_current_speed = ENC(eec2, engine_percent_load_at_current_speed, e->torque_pct));
+	PUT(M_EEC1, eec1, .engine_torque_mode = torque_mode(e),
+	    .actual_engine_percent_torque_high_resolution = 0,
+	    .drivers_demand_engine_percent_torque = ENC(eec1, drivers_demand_engine_percent_torque, e->demand_pct),
+	    .actual_engine_percent_torque = ENC(eec1, actual_engine_percent_torque, e->torque_pct),
+	    .engine_speed = ENC(eec1, engine_speed, e->rpm),
+	    .source_address_of_controlling_device_for_engine_control = e->tsc1.mode != TSC1_OFF ? e->tsc1.sa : j1939.address,
+	    .engine_starter_mode = starter_mode(e),
+	    .engine_demand_percent_torque = ENC(eec1, engine_demand_percent_torque, e->torque_pct));
+	PUT(M_EEC2, eec2, .accelerator_pedal1_low_idle_switch = running && e->demand_pct <= IDLE_TORQUE_PCT,
+	    .accelerator_pedal_kickdown_switch = 0, .road_speed_limit_status = 0,
+	    .accelerator_pedal_position1 = ENC(eec2, accelerator_pedal_position1, e->torque_pct),
+	    .engine_percent_load_at_current_speed = ENC(eec2, engine_percent_load_at_current_speed, e->torque_pct),
+	    .vehicle_acceleration_rate_limit_status = 0, .momentary_engine_maximum_power_enable_feedback = 0,
+	    .dpf_thermal_management_active = 0, .scr_thermal_management_active = 0,
+	    .actual_maximum_available_engine_percent_torque = ENC(eec2, actual_maximum_available_engine_percent_torque, e->hot ? DERATE_TORQUE_PCT : RUN_TORQUE_PCT),
+	    .estimated_pumping_percent_torque = ENC(eec2, estimated_pumping_percent_torque, PUMPING_PCT));
+	PUT(M_EEC3, eec3, .nominal_friction_percent_torque = ENC(eec3, nominal_friction_percent_torque, FRICTION_PCT_IDLE + FRICTION_PCT_PER_RATED * e->rpm / RATED_RPM),
+	    .engines_desired_operating_speed = ENC(eec3, engines_desired_operating_speed, e->target_rpm),
+	    .estimated_engine_parasitic_losses_percent_torque = ENC(eec3, estimated_engine_parasitic_losses_percent_torque, PARASITIC_PCT));
+	PUT(M_CCVS, ccvs1, .parking_brake_switch = !driving, .cruise_control_active = 0, .cruise_control_enable_switch = 0,
+	    .brake_switch = !running, .cruise_control_set_switch = 0, .cruise_control_coast_decelerate_switch = 0,
+	    .cruise_control_resume_switch = 0, .cruise_control_accelerate_switch = 0,
+	    .pto_governor_state = pto_state(e), .cruise_control_states = 0,
+	    .engine_idle_increment_switch = 0, .engine_idle_decrement_switch = 0,
+	    .engine_test_mode_switch = 0, .engine_shutdown_override_switch = 0);
 	PUT(M_ET1, et1, .engine_coolant_temp = ENC(et1, engine_coolant_temp, e->coolant_c),
 	    .engine_fuel_temp1 = ENC(et1, engine_fuel_temp1, AMBIENT_C + 0.35f * (e->coolant_c - AMBIENT_C)),
 	    .engine_oil_temp1 = ENC(et1, engine_oil_temp1, e->oil_c));
@@ -530,6 +699,7 @@ static void run(void *p1, void *p2, void *p3)
 
 	for (;;) {
 		follow_vcu(&engine, k_uptime_get());
+		follow_tsc1(&engine, k_uptime_get());
 		step(&engine);
 		publish(&engine);
 
@@ -541,14 +711,19 @@ static void run(void *p1, void *p2, void *p3)
 /*
  * The model, on a thread of its own so an image can run it beside other
  * nodes; main()'s priority, where it ran before, and room for the float
- * model and twenty packs.
+ * model and two dozen packs.
  */
-K_THREAD_DEFINE(genset_tid, 2048, run, NULL, NULL, NULL, 0, 0, SYS_FOREVER_MS);
+K_THREAD_DEFINE(genset_tid, 3072, run, NULL, NULL, NULL, 0, 0, SYS_FOREVER_MS);
 
 int genset_start(void)
 {
 	if (zelos_can_subscribe(BENCH_VCU_COMMAND_FRAME_ID, &genset_vcu_msgq) < 0) {
 		LOG_ERR("subscribe to VCU_Command failed");
+		return -EIO;
+	}
+	/* Any destination: the address may move, and follow_tsc1 checks it. */
+	if (zelos_can_subscribe_ext(PGN_TSC1 << 8, PF_MASK, &genset_tsc1_msgq) < 0) {
+		LOG_ERR("subscribe to TSC1 failed");
 		return -EIO;
 	}
 
