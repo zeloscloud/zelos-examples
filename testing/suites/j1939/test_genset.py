@@ -1,6 +1,8 @@
 """The genset node over J1939: address claim, requests and NACK, the engine and
-generator PGs at their periods with values that agree across PGs, DM1 growing
-from one DTC in a frame to two by BAM, DM2 on request by transport, and SOFT.
+generator PGs at their periods with values that agree across PGs, the status
+fields following the mode, a controller's TSC1 overriding the governor, DM1
+growing from one DTC in a frame to two by BAM, DM2 on request by transport,
+SOFT and CI.
 
 Frames are checked directly and decoded with cantools from dbc/genset.dbc.
 Transport is reassembled by python-can-j1939, an independent stack: as the
@@ -41,14 +43,16 @@ def pgn_of(frame_id):
     return (frame_id >> 8) & 0x3FFFF
 
 
-# Every message by PGN: the node's address may have moved from the DBC's.
-BY_PGN = {pgn_of(m.frame_id): m for m in GENSET.messages}
-PERIODIC = [m for m in GENSET.messages if m.cycle_time]
-EEC1, ET1, DM1, DM2 = (GENSET.get_message_by_name(n) for n in ("EEC1", "ET1", "DM1", "DM2"))
+# The node's messages by PGN: its address may have moved from the DBC's. TSC1 is what it receives.
+SENT = [m for m in GENSET.messages if "GENSET" in m.senders]
+BY_PGN = {pgn_of(m.frame_id): m for m in SENT}
+PERIODIC = [m for m in SENT if m.cycle_time]
+EEC1, ET1, DM1, DM2, TSC1 = (GENSET.get_message_by_name(n) for n in ("EEC1", "ET1", "DM1", "DM2", "TSC1"))
 PGN_EEC1, PGN_ET1, PGN_DM1, PGN_DM2 = (pgn_of(m.frame_id) for m in (EEC1, ET1, DM1, DM2))
-PGN_GAAC, PGN_GTACP, PGN_GTACR, PGN_HOURS, PGN_LFC, PGN_LFE, PGN_GTACE, PGN_SOFT = (
-    pgn_of(GENSET.get_message_by_name(n).frame_id) for n in ("GAAC", "GTACP", "GTACR", "HOURS", "LFC", "LFE", "GTACE", "SOFT")
+PGN_GAAC, PGN_GTACP, PGN_GTACR, PGN_HOURS, PGN_LFC, PGN_LFE, PGN_GTACE, PGN_SOFT, PGN_EEC2, PGN_EEC3, PGN_CCVS, PGN_CI = (
+    pgn_of(GENSET.get_message_by_name(n).frame_id) for n in ("GAAC", "GTACP", "GTACR", "HOURS", "LFC", "LFE", "GTACE", "SOFT", "EEC2", "EEC3", "CCVS1", "CI")
 )
+PGN_TSC1 = 0
 # Vehicle Identification: a PGN this node has no answer for.
 PGN_VI = 65260
 PGN = j1939.ParameterGroupNumber.PGN
@@ -71,7 +75,13 @@ POWER_FACTOR = 0.8
 LAGGING = 1
 # The VCU's drive cycle. See nodes/vcu.
 VCU_CYCLE_S = 15.0
-DRIVE, CHARGE = 1, 2
+STANDBY, DRIVE, CHARGE = 0, 1, 2
+# From nodes/genset: idle and rated speed, and what EEC1 and CCVS1 say in each mode.
+IDLE_RPM, RATED_RPM = 900, 1800
+TORQUE_MODE_LOW_IDLE, TORQUE_MODE_PEDAL, TORQUE_MODE_LIMITING, TORQUE_MODE_REMOTE = 0, 1, 8, 11
+STARTER_INHIBITED_RUN = 4
+PTO_STANDBY, PTO_SET = 3, 5
+TSC1_OFF, TSC1_SPEED, TSC1_LIMIT = 0, 1, 3
 
 pytestmark = pytest.mark.usefixtures("bus_health")
 
@@ -451,6 +461,92 @@ def reassemble_bam(bus, sa, cm, node_s=bench.WAIT_S):
     return got[0][2]
 
 
+def test_status_fields_follow_the_mode(bus, node):
+    """In standby the engine idles under its low idle governor, pedal at idle,
+    parking brake set, PTO in standby; driving, the pedal governs, brake off,
+    PTO set; EEC3's desired speed is the governor's target either way. The
+    engine itself is the controlling device, and the starter is done."""
+    sa, _ = node
+
+    def settled(mode, rpm):
+        def check(got):
+            eec1 = series(got, PGN_EEC1, sa)
+            # Settled for three EEC1, and the slowest PG looked at has come by.
+            return len(eec1) >= 3 and all(abs(v["EngineSpeed"] - rpm) < 1 for _, v in eec1[-3:]) and bool(series(got, PGN_EEC3, sa))
+
+        frames = gather(bus, check, 2 * VCU_CYCLE_S + bench.WAIT_S)
+        latest = {pgn: series(frames, pgn, sa)[-1][1] for pgn in (PGN_EEC1, PGN_EEC2, PGN_EEC3, PGN_CCVS)}
+        assert latest[PGN_EEC1]["EngineTorqueMode"] == mode and latest[PGN_EEC1]["EngineStarterMode"] == STARTER_INHIBITED_RUN, latest[PGN_EEC1]
+        assert latest[PGN_EEC1]["SourceAddressOfControllingDeviceForEngineControl"] == sa
+        assert abs(latest[PGN_EEC3]["EnginesDesiredOperatingSpeed"] - rpm) < 1, latest[PGN_EEC3]
+        return latest
+
+    with vcu(bus, sa) as set_mode:
+        set_mode(STANDBY)
+        idle = settled(TORQUE_MODE_LOW_IDLE, IDLE_RPM)
+        assert idle[PGN_EEC2]["AcceleratorPedal1LowIdleSwitch"] == 1
+        assert idle[PGN_CCVS]["ParkingBrakeSwitch"] == 1 and idle[PGN_CCVS]["PTOGovernorState"] == PTO_STANDBY, idle[PGN_CCVS]
+
+        set_mode(DRIVE)
+        drive = settled(TORQUE_MODE_PEDAL, RATED_RPM)
+        assert drive[PGN_EEC2]["AcceleratorPedal1LowIdleSwitch"] == 0
+        assert drive[PGN_CCVS]["ParkingBrakeSwitch"] == 0 and drive[PGN_CCVS]["PTOGovernorState"] == PTO_SET, drive[PGN_CCVS]
+        assert drive[PGN_CCVS]["BrakeSwitch"] == 0 and drive[PGN_CCVS]["CruiseControlActive"] == 0
+
+
+def tsc1(bus, sa, mode, rpm, torque=None):
+    """A TSC1 to the node every 10 ms, as a controller sends it, for the block."""
+    data = TSC1.encode(
+        {
+            "EngineOverrideControlMode": mode,
+            "EngineRequestedSpeedControlConditions": 0,
+            "OverrideControlModePriority": 0,
+            "EngineRequestedSpeedSpeedLimit": rpm,
+            "EngineRequestedTorqueTorqueLimit": 0 if torque is None else torque,
+            "TSC1TransmissionRate": 7,
+            "TSC1ControlPurpose": 31,
+            "EngineRequestedTorqueHighResolution": 0.875,
+            "MessageCounter": 15,
+            "MessageChecksum": 15,
+        }
+    )
+    # Bits the DBC leaves out are not available: ones; so is a torque not given.
+    data = bytes(b | n for b, n in zip(data, b"\xc0\x00\x00" + (b"\xff" if torque is None else b"\x00") + b"\x00\xf0\xff\x00"))
+    pg = j1939.ParameterGroupNumber(0, 0, sa)
+    mid = j1939.MessageId(priority=3, parameter_group_number=pg.value, source_address=TESTER)
+    return Periodic(bus, lambda: can.Message(arbitration_id=mid.can_id, data=data, is_extended_id=True), 0.01)
+
+
+def test_tsc1_overrides_the_governor(bus, node):
+    """Speed control from a tester takes the engine from idle to the requested
+    speed, EEC1 naming the tester as the controlling device under remote
+    control; a speed limit below idle holds it at idle; when TSC1 stops, the
+    governor and the node's own address are back within its timeout."""
+    sa, _ = node
+    target = 1500
+
+    def at(rpm, mode, controller):
+        def check(got):
+            eec1 = series(got, PGN_EEC1, sa)
+            return len(eec1) >= 3 and all(
+                abs(v["EngineSpeed"] - rpm) < 1 and v["EngineTorqueMode"] == mode and v["SourceAddressOfControllingDeviceForEngineControl"] == controller for _, v in eec1[-3:]
+            )
+
+        frames = gather(bus, lambda got: check(got) and bool(series(got, PGN_EEC3, sa)), 2 * VCU_CYCLE_S + bench.WAIT_S)
+        return series(frames, PGN_EEC3, sa)[-1][1]
+
+    with vcu(bus, sa) as set_mode:
+        set_mode(STANDBY)
+        at(IDLE_RPM, TORQUE_MODE_LOW_IDLE, sa)
+        with tsc1(bus, sa, TSC1_SPEED, target):
+            eec3 = at(target, TORQUE_MODE_REMOTE, TESTER)
+            assert abs(eec3["EnginesDesiredOperatingSpeed"] - target) < 1, eec3
+        # Gone: back under the low idle governor, its own address again.
+        at(IDLE_RPM, TORQUE_MODE_LOW_IDLE, sa)
+        with tsc1(bus, sa, TSC1_LIMIT, IDLE_RPM - 300):
+            at(IDLE_RPM, TORQUE_MODE_LIMITING, TESTER)
+
+
 def test_dm1_one_dtc_in_a_frame_then_two_by_bam(bus, node):
     """Drive the engine hot: DM1 carries the coolant DTC in a frame with the
     amber lamp, then the oil pressure DTC joins it, red lamp on, and DM1 goes
@@ -578,3 +674,13 @@ def test_software_id_by_bam_to_everyone(bus, node):
     dts = gather(bus, lambda got: sum(is_from(PGN.DATATRANSFER, sa)(m) for m in got) == packets)
     payload = b"".join(bytes(m.data[1:]) for m in dts if is_from(PGN.DATATRANSFER, sa)(m))
     assert software_id(payload[: int.from_bytes(cm.data[1:3], "little")])[0] == "ZELOS-GENSET"
+
+
+def test_component_id_by_bam_to_everyone(bus, node):
+    """A global request gets CI by BAM: make, model, serial and unit number, '*'-terminated."""
+    sa, _ = node
+    request(bus, PGN_CI)
+    data = reassemble_bam(bus, sa, first(bus, bam_of(PGN_CI, sa))[-1])
+    fields = bytes(data).split(b"*")
+    assert fields[-1] == b"" and len(fields) == 5, data
+    assert fields[0] == b"Zelos" and fields[1] == b"GENSET-FULL", data

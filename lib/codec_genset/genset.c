@@ -124,9 +124,15 @@ int genset_eec1_pack(
 
     memset(&dst_p[0], 0, 8);
 
+    dst_p[0] |= pack_left_shift_u8(src_p->engine_torque_mode, 0u, 0x0fu);
+    dst_p[0] |= pack_left_shift_u8(src_p->actual_engine_percent_torque_high_resolution, 4u, 0xf0u);
+    dst_p[1] |= pack_left_shift_u8(src_p->drivers_demand_engine_percent_torque, 0u, 0xffu);
     dst_p[2] |= pack_left_shift_u8(src_p->actual_engine_percent_torque, 0u, 0xffu);
     dst_p[3] |= pack_left_shift_u16(src_p->engine_speed, 0u, 0xffu);
     dst_p[4] |= pack_right_shift_u16(src_p->engine_speed, 8u, 0xffu);
+    dst_p[5] |= pack_left_shift_u8(src_p->source_address_of_controlling_device_for_engine_control, 0u, 0xffu);
+    dst_p[6] |= pack_left_shift_u8(src_p->engine_starter_mode, 0u, 0x0fu);
+    dst_p[7] |= pack_left_shift_u8(src_p->engine_demand_percent_torque, 0u, 0xffu);
 
     return (8);
 }
@@ -140,9 +146,15 @@ int genset_eec1_unpack(
         return (-EINVAL);
     }
 
+    dst_p->engine_torque_mode = unpack_right_shift_u8(src_p[0], 0u, 0x0fu);
+    dst_p->actual_engine_percent_torque_high_resolution = unpack_right_shift_u8(src_p[0], 4u, 0xf0u);
+    dst_p->drivers_demand_engine_percent_torque = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
     dst_p->actual_engine_percent_torque = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
     dst_p->engine_speed = unpack_right_shift_u16(src_p[3], 0u, 0xffu);
     dst_p->engine_speed |= unpack_left_shift_u16(src_p[4], 8u, 0xffu);
+    dst_p->source_address_of_controlling_device_for_engine_control = unpack_right_shift_u8(src_p[5], 0u, 0xffu);
+    dst_p->engine_starter_mode = unpack_right_shift_u8(src_p[6], 0u, 0x0fu);
+    dst_p->engine_demand_percent_torque = unpack_right_shift_u8(src_p[7], 0u, 0xffu);
 
     return (0);
 }
@@ -154,6 +166,66 @@ int genset_eec1_init(struct genset_eec1_t *msg_p)
     memset(msg_p, 0, sizeof(struct genset_eec1_t));
 
     return 0;
+}
+
+uint8_t genset_eec1_engine_torque_mode_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec1_engine_torque_mode_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec1_engine_torque_mode_is_in_range(uint8_t value)
+{
+    return (value <= 15u);
+}
+
+bool genset_eec1_engine_torque_mode_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 15.0f));
+}
+
+uint8_t genset_eec1_actual_engine_percent_torque_high_resolution_encode(float value)
+{
+    return (uint8_t)(value / 0.125f);
+}
+
+float genset_eec1_actual_engine_percent_torque_high_resolution_decode(uint8_t value)
+{
+    return ((float)value * 0.125f);
+}
+
+bool genset_eec1_actual_engine_percent_torque_high_resolution_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_eec1_actual_engine_percent_torque_high_resolution_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 0.875f));
+}
+
+uint8_t genset_eec1_drivers_demand_engine_percent_torque_encode(float value)
+{
+    return (uint8_t)(value - -125.0f);
+}
+
+float genset_eec1_drivers_demand_engine_percent_torque_decode(uint8_t value)
+{
+    return ((float)value + -125.0f);
+}
+
+bool genset_eec1_drivers_demand_engine_percent_torque_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_eec1_drivers_demand_engine_percent_torque_is_in_phys_range(float value)
+{
+    return ((value >= -125.0f) && (value <= 125.0f));
 }
 
 uint8_t genset_eec1_actual_engine_percent_torque_encode(float value)
@@ -196,6 +268,68 @@ bool genset_eec1_engine_speed_is_in_phys_range(float value)
     return ((value >= 0.0f) && (value <= 8031.875f));
 }
 
+uint8_t genset_eec1_source_address_of_controlling_device_for_engine_control_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec1_source_address_of_controlling_device_for_engine_control_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec1_source_address_of_controlling_device_for_engine_control_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_eec1_source_address_of_controlling_device_for_engine_control_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_eec1_engine_starter_mode_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec1_engine_starter_mode_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec1_engine_starter_mode_is_in_range(uint8_t value)
+{
+    return (value <= 15u);
+}
+
+bool genset_eec1_engine_starter_mode_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 15.0f));
+}
+
+uint8_t genset_eec1_engine_demand_percent_torque_encode(float value)
+{
+    return (uint8_t)(value - -125.0f);
+}
+
+float genset_eec1_engine_demand_percent_torque_decode(uint8_t value)
+{
+    return ((float)value + -125.0f);
+}
+
+bool genset_eec1_engine_demand_percent_torque_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_eec1_engine_demand_percent_torque_is_in_phys_range(float value)
+{
+    return ((value >= -125.0f) && (value <= 125.0f));
+}
+
 int genset_eec2_pack(
     uint8_t *dst_p,
     const struct genset_eec2_t *src_p,
@@ -207,8 +341,20 @@ int genset_eec2_pack(
 
     memset(&dst_p[0], 0, 8);
 
+    dst_p[0] |= pack_left_shift_u8(src_p->accelerator_pedal1_low_idle_switch, 0u, 0x03u);
+    dst_p[0] |= pack_left_shift_u8(src_p->accelerator_pedal_kickdown_switch, 2u, 0x0cu);
+    dst_p[0] |= pack_left_shift_u8(src_p->road_speed_limit_status, 4u, 0x30u);
+    dst_p[0] |= pack_left_shift_u8(src_p->accelerator_pedal2_low_idle_switch, 6u, 0xc0u);
     dst_p[1] |= pack_left_shift_u8(src_p->accelerator_pedal_position1, 0u, 0xffu);
     dst_p[2] |= pack_left_shift_u8(src_p->engine_percent_load_at_current_speed, 0u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->remote_accelerator_pedal_position, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u8(src_p->accelerator_pedal_position2, 0u, 0xffu);
+    dst_p[5] |= pack_left_shift_u8(src_p->vehicle_acceleration_rate_limit_status, 0u, 0x03u);
+    dst_p[5] |= pack_left_shift_u8(src_p->momentary_engine_maximum_power_enable_feedback, 2u, 0x0cu);
+    dst_p[5] |= pack_left_shift_u8(src_p->dpf_thermal_management_active, 4u, 0x30u);
+    dst_p[5] |= pack_left_shift_u8(src_p->scr_thermal_management_active, 6u, 0xc0u);
+    dst_p[6] |= pack_left_shift_u8(src_p->actual_maximum_available_engine_percent_torque, 0u, 0xffu);
+    dst_p[7] |= pack_left_shift_u8(src_p->estimated_pumping_percent_torque, 0u, 0xffu);
 
     return (8);
 }
@@ -222,8 +368,20 @@ int genset_eec2_unpack(
         return (-EINVAL);
     }
 
+    dst_p->accelerator_pedal1_low_idle_switch = unpack_right_shift_u8(src_p[0], 0u, 0x03u);
+    dst_p->accelerator_pedal_kickdown_switch = unpack_right_shift_u8(src_p[0], 2u, 0x0cu);
+    dst_p->road_speed_limit_status = unpack_right_shift_u8(src_p[0], 4u, 0x30u);
+    dst_p->accelerator_pedal2_low_idle_switch = unpack_right_shift_u8(src_p[0], 6u, 0xc0u);
     dst_p->accelerator_pedal_position1 = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
     dst_p->engine_percent_load_at_current_speed = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
+    dst_p->remote_accelerator_pedal_position = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->accelerator_pedal_position2 = unpack_right_shift_u8(src_p[4], 0u, 0xffu);
+    dst_p->vehicle_acceleration_rate_limit_status = unpack_right_shift_u8(src_p[5], 0u, 0x03u);
+    dst_p->momentary_engine_maximum_power_enable_feedback = unpack_right_shift_u8(src_p[5], 2u, 0x0cu);
+    dst_p->dpf_thermal_management_active = unpack_right_shift_u8(src_p[5], 4u, 0x30u);
+    dst_p->scr_thermal_management_active = unpack_right_shift_u8(src_p[5], 6u, 0xc0u);
+    dst_p->actual_maximum_available_engine_percent_torque = unpack_right_shift_u8(src_p[6], 0u, 0xffu);
+    dst_p->estimated_pumping_percent_torque = unpack_right_shift_u8(src_p[7], 0u, 0xffu);
 
     return (0);
 }
@@ -235,6 +393,86 @@ int genset_eec2_init(struct genset_eec2_t *msg_p)
     memset(msg_p, 0, sizeof(struct genset_eec2_t));
 
     return 0;
+}
+
+uint8_t genset_eec2_accelerator_pedal1_low_idle_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec2_accelerator_pedal1_low_idle_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec2_accelerator_pedal1_low_idle_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec2_accelerator_pedal1_low_idle_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_eec2_accelerator_pedal_kickdown_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec2_accelerator_pedal_kickdown_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec2_accelerator_pedal_kickdown_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec2_accelerator_pedal_kickdown_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_eec2_road_speed_limit_status_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec2_road_speed_limit_status_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec2_road_speed_limit_status_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec2_road_speed_limit_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_eec2_accelerator_pedal2_low_idle_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec2_accelerator_pedal2_low_idle_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec2_accelerator_pedal2_low_idle_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec2_accelerator_pedal2_low_idle_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
 }
 
 uint8_t genset_eec2_accelerator_pedal_position1_encode(float value)
@@ -275,6 +513,1143 @@ bool genset_eec2_engine_percent_load_at_current_speed_is_in_range(uint8_t value)
 bool genset_eec2_engine_percent_load_at_current_speed_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 250.0f));
+}
+
+uint8_t genset_eec2_remote_accelerator_pedal_position_encode(float value)
+{
+    return (uint8_t)(value / 0.4f);
+}
+
+float genset_eec2_remote_accelerator_pedal_position_decode(uint8_t value)
+{
+    return ((float)value * 0.4f);
+}
+
+bool genset_eec2_remote_accelerator_pedal_position_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_eec2_remote_accelerator_pedal_position_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 100.0f));
+}
+
+uint8_t genset_eec2_accelerator_pedal_position2_encode(float value)
+{
+    return (uint8_t)(value / 0.4f);
+}
+
+float genset_eec2_accelerator_pedal_position2_decode(uint8_t value)
+{
+    return ((float)value * 0.4f);
+}
+
+bool genset_eec2_accelerator_pedal_position2_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_eec2_accelerator_pedal_position2_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 100.0f));
+}
+
+uint8_t genset_eec2_vehicle_acceleration_rate_limit_status_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec2_vehicle_acceleration_rate_limit_status_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec2_vehicle_acceleration_rate_limit_status_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec2_vehicle_acceleration_rate_limit_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_eec2_momentary_engine_maximum_power_enable_feedback_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec2_momentary_engine_maximum_power_enable_feedback_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec2_momentary_engine_maximum_power_enable_feedback_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec2_momentary_engine_maximum_power_enable_feedback_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_eec2_dpf_thermal_management_active_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec2_dpf_thermal_management_active_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec2_dpf_thermal_management_active_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec2_dpf_thermal_management_active_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_eec2_scr_thermal_management_active_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec2_scr_thermal_management_active_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec2_scr_thermal_management_active_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec2_scr_thermal_management_active_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_eec2_actual_maximum_available_engine_percent_torque_encode(float value)
+{
+    return (uint8_t)(value / 0.4f);
+}
+
+float genset_eec2_actual_maximum_available_engine_percent_torque_decode(uint8_t value)
+{
+    return ((float)value * 0.4f);
+}
+
+bool genset_eec2_actual_maximum_available_engine_percent_torque_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_eec2_actual_maximum_available_engine_percent_torque_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 100.0f));
+}
+
+uint8_t genset_eec2_estimated_pumping_percent_torque_encode(float value)
+{
+    return (uint8_t)(value - -125.0f);
+}
+
+float genset_eec2_estimated_pumping_percent_torque_decode(uint8_t value)
+{
+    return ((float)value + -125.0f);
+}
+
+bool genset_eec2_estimated_pumping_percent_torque_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_eec2_estimated_pumping_percent_torque_is_in_phys_range(float value)
+{
+    return ((value >= -125.0f) && (value <= 125.0f));
+}
+
+int genset_eec3_pack(
+    uint8_t *dst_p,
+    const struct genset_eec3_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->nominal_friction_percent_torque, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u16(src_p->engines_desired_operating_speed, 0u, 0xffu);
+    dst_p[2] |= pack_right_shift_u16(src_p->engines_desired_operating_speed, 8u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->engines_desired_operating_speed_asymmetry_adjustment, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u8(src_p->estimated_engine_parasitic_losses_percent_torque, 0u, 0xffu);
+    dst_p[5] |= pack_left_shift_u16(src_p->aftertreatment_exhaust_gas_mass_flow_rate, 0u, 0xffu);
+    dst_p[6] |= pack_right_shift_u16(src_p->aftertreatment_exhaust_gas_mass_flow_rate, 8u, 0xffu);
+    dst_p[7] |= pack_left_shift_u8(src_p->aftertreatment1_intake_dew_point, 0u, 0x03u);
+    dst_p[7] |= pack_left_shift_u8(src_p->aftertreatment1_exhaust_dew_point, 2u, 0x0cu);
+    dst_p[7] |= pack_left_shift_u8(src_p->aftertreatment2_intake_dew_point, 4u, 0x30u);
+    dst_p[7] |= pack_left_shift_u8(src_p->aftertreatment2_exhaust_dew_point, 6u, 0xc0u);
+
+    return (8);
+}
+
+int genset_eec3_unpack(
+    struct genset_eec3_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->nominal_friction_percent_torque = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->engines_desired_operating_speed = unpack_right_shift_u16(src_p[1], 0u, 0xffu);
+    dst_p->engines_desired_operating_speed |= unpack_left_shift_u16(src_p[2], 8u, 0xffu);
+    dst_p->engines_desired_operating_speed_asymmetry_adjustment = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->estimated_engine_parasitic_losses_percent_torque = unpack_right_shift_u8(src_p[4], 0u, 0xffu);
+    dst_p->aftertreatment_exhaust_gas_mass_flow_rate = unpack_right_shift_u16(src_p[5], 0u, 0xffu);
+    dst_p->aftertreatment_exhaust_gas_mass_flow_rate |= unpack_left_shift_u16(src_p[6], 8u, 0xffu);
+    dst_p->aftertreatment1_intake_dew_point = unpack_right_shift_u8(src_p[7], 0u, 0x03u);
+    dst_p->aftertreatment1_exhaust_dew_point = unpack_right_shift_u8(src_p[7], 2u, 0x0cu);
+    dst_p->aftertreatment2_intake_dew_point = unpack_right_shift_u8(src_p[7], 4u, 0x30u);
+    dst_p->aftertreatment2_exhaust_dew_point = unpack_right_shift_u8(src_p[7], 6u, 0xc0u);
+
+    return (0);
+}
+
+int genset_eec3_init(struct genset_eec3_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_eec3_t));
+
+    return 0;
+}
+
+uint8_t genset_eec3_nominal_friction_percent_torque_encode(float value)
+{
+    return (uint8_t)(value - -125.0f);
+}
+
+float genset_eec3_nominal_friction_percent_torque_decode(uint8_t value)
+{
+    return ((float)value + -125.0f);
+}
+
+bool genset_eec3_nominal_friction_percent_torque_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_eec3_nominal_friction_percent_torque_is_in_phys_range(float value)
+{
+    return ((value >= -125.0f) && (value <= 125.0f));
+}
+
+uint16_t genset_eec3_engines_desired_operating_speed_encode(float value)
+{
+    return (uint16_t)(value / 0.125f);
+}
+
+float genset_eec3_engines_desired_operating_speed_decode(uint16_t value)
+{
+    return ((float)value * 0.125f);
+}
+
+bool genset_eec3_engines_desired_operating_speed_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_eec3_engines_desired_operating_speed_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 8031.875f));
+}
+
+uint8_t genset_eec3_engines_desired_operating_speed_asymmetry_adjustment_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec3_engines_desired_operating_speed_asymmetry_adjustment_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec3_engines_desired_operating_speed_asymmetry_adjustment_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_eec3_engines_desired_operating_speed_asymmetry_adjustment_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 250.0f));
+}
+
+uint8_t genset_eec3_estimated_engine_parasitic_losses_percent_torque_encode(float value)
+{
+    return (uint8_t)(value - -125.0f);
+}
+
+float genset_eec3_estimated_engine_parasitic_losses_percent_torque_decode(uint8_t value)
+{
+    return ((float)value + -125.0f);
+}
+
+bool genset_eec3_estimated_engine_parasitic_losses_percent_torque_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_eec3_estimated_engine_parasitic_losses_percent_torque_is_in_phys_range(float value)
+{
+    return ((value >= -125.0f) && (value <= 125.0f));
+}
+
+uint16_t genset_eec3_aftertreatment_exhaust_gas_mass_flow_rate_encode(float value)
+{
+    return (uint16_t)(value / 0.2f);
+}
+
+float genset_eec3_aftertreatment_exhaust_gas_mass_flow_rate_decode(uint16_t value)
+{
+    return ((float)value * 0.2f);
+}
+
+bool genset_eec3_aftertreatment_exhaust_gas_mass_flow_rate_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_eec3_aftertreatment_exhaust_gas_mass_flow_rate_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 12851.0f));
+}
+
+uint8_t genset_eec3_aftertreatment1_intake_dew_point_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec3_aftertreatment1_intake_dew_point_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec3_aftertreatment1_intake_dew_point_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec3_aftertreatment1_intake_dew_point_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_eec3_aftertreatment1_exhaust_dew_point_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec3_aftertreatment1_exhaust_dew_point_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec3_aftertreatment1_exhaust_dew_point_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec3_aftertreatment1_exhaust_dew_point_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_eec3_aftertreatment2_intake_dew_point_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec3_aftertreatment2_intake_dew_point_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec3_aftertreatment2_intake_dew_point_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec3_aftertreatment2_intake_dew_point_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_eec3_aftertreatment2_exhaust_dew_point_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_eec3_aftertreatment2_exhaust_dew_point_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_eec3_aftertreatment2_exhaust_dew_point_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_eec3_aftertreatment2_exhaust_dew_point_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+int genset_ccvs1_pack(
+    uint8_t *dst_p,
+    const struct genset_ccvs1_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->two_speed_axle_switch, 0u, 0x03u);
+    dst_p[0] |= pack_left_shift_u8(src_p->parking_brake_switch, 2u, 0x0cu);
+    dst_p[0] |= pack_left_shift_u8(src_p->cruise_control_pause_switch, 4u, 0x30u);
+    dst_p[0] |= pack_left_shift_u8(src_p->park_brake_release_inhibit_request, 6u, 0xc0u);
+    dst_p[1] |= pack_left_shift_u16(src_p->wheel_based_vehicle_speed, 0u, 0xffu);
+    dst_p[2] |= pack_right_shift_u16(src_p->wheel_based_vehicle_speed, 8u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->cruise_control_active, 0u, 0x03u);
+    dst_p[3] |= pack_left_shift_u8(src_p->cruise_control_enable_switch, 2u, 0x0cu);
+    dst_p[3] |= pack_left_shift_u8(src_p->brake_switch, 4u, 0x30u);
+    dst_p[3] |= pack_left_shift_u8(src_p->clutch_switch, 6u, 0xc0u);
+    dst_p[4] |= pack_left_shift_u8(src_p->cruise_control_set_switch, 0u, 0x03u);
+    dst_p[4] |= pack_left_shift_u8(src_p->cruise_control_coast_decelerate_switch, 2u, 0x0cu);
+    dst_p[4] |= pack_left_shift_u8(src_p->cruise_control_resume_switch, 4u, 0x30u);
+    dst_p[4] |= pack_left_shift_u8(src_p->cruise_control_accelerate_switch, 6u, 0xc0u);
+    dst_p[5] |= pack_left_shift_u8(src_p->cruise_control_set_speed, 0u, 0xffu);
+    dst_p[6] |= pack_left_shift_u8(src_p->pto_governor_state, 0u, 0x1fu);
+    dst_p[6] |= pack_left_shift_u8(src_p->cruise_control_states, 5u, 0xe0u);
+    dst_p[7] |= pack_left_shift_u8(src_p->engine_idle_increment_switch, 0u, 0x03u);
+    dst_p[7] |= pack_left_shift_u8(src_p->engine_idle_decrement_switch, 2u, 0x0cu);
+    dst_p[7] |= pack_left_shift_u8(src_p->engine_test_mode_switch, 4u, 0x30u);
+    dst_p[7] |= pack_left_shift_u8(src_p->engine_shutdown_override_switch, 6u, 0xc0u);
+
+    return (8);
+}
+
+int genset_ccvs1_unpack(
+    struct genset_ccvs1_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->two_speed_axle_switch = unpack_right_shift_u8(src_p[0], 0u, 0x03u);
+    dst_p->parking_brake_switch = unpack_right_shift_u8(src_p[0], 2u, 0x0cu);
+    dst_p->cruise_control_pause_switch = unpack_right_shift_u8(src_p[0], 4u, 0x30u);
+    dst_p->park_brake_release_inhibit_request = unpack_right_shift_u8(src_p[0], 6u, 0xc0u);
+    dst_p->wheel_based_vehicle_speed = unpack_right_shift_u16(src_p[1], 0u, 0xffu);
+    dst_p->wheel_based_vehicle_speed |= unpack_left_shift_u16(src_p[2], 8u, 0xffu);
+    dst_p->cruise_control_active = unpack_right_shift_u8(src_p[3], 0u, 0x03u);
+    dst_p->cruise_control_enable_switch = unpack_right_shift_u8(src_p[3], 2u, 0x0cu);
+    dst_p->brake_switch = unpack_right_shift_u8(src_p[3], 4u, 0x30u);
+    dst_p->clutch_switch = unpack_right_shift_u8(src_p[3], 6u, 0xc0u);
+    dst_p->cruise_control_set_switch = unpack_right_shift_u8(src_p[4], 0u, 0x03u);
+    dst_p->cruise_control_coast_decelerate_switch = unpack_right_shift_u8(src_p[4], 2u, 0x0cu);
+    dst_p->cruise_control_resume_switch = unpack_right_shift_u8(src_p[4], 4u, 0x30u);
+    dst_p->cruise_control_accelerate_switch = unpack_right_shift_u8(src_p[4], 6u, 0xc0u);
+    dst_p->cruise_control_set_speed = unpack_right_shift_u8(src_p[5], 0u, 0xffu);
+    dst_p->pto_governor_state = unpack_right_shift_u8(src_p[6], 0u, 0x1fu);
+    dst_p->cruise_control_states = unpack_right_shift_u8(src_p[6], 5u, 0xe0u);
+    dst_p->engine_idle_increment_switch = unpack_right_shift_u8(src_p[7], 0u, 0x03u);
+    dst_p->engine_idle_decrement_switch = unpack_right_shift_u8(src_p[7], 2u, 0x0cu);
+    dst_p->engine_test_mode_switch = unpack_right_shift_u8(src_p[7], 4u, 0x30u);
+    dst_p->engine_shutdown_override_switch = unpack_right_shift_u8(src_p[7], 6u, 0xc0u);
+
+    return (0);
+}
+
+int genset_ccvs1_init(struct genset_ccvs1_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_ccvs1_t));
+
+    return 0;
+}
+
+uint8_t genset_ccvs1_two_speed_axle_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_two_speed_axle_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_two_speed_axle_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_two_speed_axle_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_parking_brake_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_parking_brake_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_parking_brake_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_parking_brake_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_cruise_control_pause_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_cruise_control_pause_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_cruise_control_pause_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_cruise_control_pause_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_park_brake_release_inhibit_request_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_park_brake_release_inhibit_request_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_park_brake_release_inhibit_request_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_park_brake_release_inhibit_request_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint16_t genset_ccvs1_wheel_based_vehicle_speed_encode(float value)
+{
+    return (uint16_t)(value / 0.00390625f);
+}
+
+float genset_ccvs1_wheel_based_vehicle_speed_decode(uint16_t value)
+{
+    return ((float)value * 0.00390625f);
+}
+
+bool genset_ccvs1_wheel_based_vehicle_speed_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_ccvs1_wheel_based_vehicle_speed_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 250.996f));
+}
+
+uint8_t genset_ccvs1_cruise_control_active_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_cruise_control_active_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_cruise_control_active_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_cruise_control_active_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_cruise_control_enable_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_cruise_control_enable_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_cruise_control_enable_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_cruise_control_enable_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_brake_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_brake_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_brake_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_brake_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_clutch_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_clutch_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_clutch_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_clutch_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_cruise_control_set_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_cruise_control_set_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_cruise_control_set_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_cruise_control_set_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_cruise_control_coast_decelerate_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_cruise_control_coast_decelerate_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_cruise_control_coast_decelerate_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_cruise_control_coast_decelerate_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_cruise_control_resume_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_cruise_control_resume_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_cruise_control_resume_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_cruise_control_resume_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_cruise_control_accelerate_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_cruise_control_accelerate_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_cruise_control_accelerate_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_cruise_control_accelerate_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_cruise_control_set_speed_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_cruise_control_set_speed_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_cruise_control_set_speed_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_ccvs1_cruise_control_set_speed_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 250.0f));
+}
+
+uint8_t genset_ccvs1_pto_governor_state_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_pto_governor_state_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_pto_governor_state_is_in_range(uint8_t value)
+{
+    return (value <= 31u);
+}
+
+bool genset_ccvs1_pto_governor_state_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 31.0f));
+}
+
+uint8_t genset_ccvs1_cruise_control_states_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_cruise_control_states_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_cruise_control_states_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_ccvs1_cruise_control_states_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
+uint8_t genset_ccvs1_engine_idle_increment_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_engine_idle_increment_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_engine_idle_increment_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_engine_idle_increment_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_engine_idle_decrement_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_engine_idle_decrement_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_engine_idle_decrement_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_engine_idle_decrement_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_engine_test_mode_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_engine_test_mode_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_engine_test_mode_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_engine_test_mode_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_ccvs1_engine_shutdown_override_switch_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ccvs1_engine_shutdown_override_switch_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ccvs1_engine_shutdown_override_switch_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_ccvs1_engine_shutdown_override_switch_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+int genset_tsc1_pack(
+    uint8_t *dst_p,
+    const struct genset_tsc1_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->engine_override_control_mode, 0u, 0x03u);
+    dst_p[0] |= pack_left_shift_u8(src_p->engine_requested_speed_control_conditions, 2u, 0x0cu);
+    dst_p[0] |= pack_left_shift_u8(src_p->override_control_mode_priority, 4u, 0x30u);
+    dst_p[1] |= pack_left_shift_u16(src_p->engine_requested_speed_speed_limit, 0u, 0xffu);
+    dst_p[2] |= pack_right_shift_u16(src_p->engine_requested_speed_speed_limit, 8u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->engine_requested_torque_torque_limit, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u8(src_p->tsc1_transmission_rate, 0u, 0x07u);
+    dst_p[4] |= pack_left_shift_u8(src_p->tsc1_control_purpose, 3u, 0xf8u);
+    dst_p[5] |= pack_left_shift_u8(src_p->engine_requested_torque_high_resolution, 0u, 0x0fu);
+    dst_p[7] |= pack_left_shift_u8(src_p->message_counter, 0u, 0x0fu);
+    dst_p[7] |= pack_left_shift_u8(src_p->message_checksum, 4u, 0xf0u);
+
+    return (8);
+}
+
+int genset_tsc1_unpack(
+    struct genset_tsc1_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->engine_override_control_mode = unpack_right_shift_u8(src_p[0], 0u, 0x03u);
+    dst_p->engine_requested_speed_control_conditions = unpack_right_shift_u8(src_p[0], 2u, 0x0cu);
+    dst_p->override_control_mode_priority = unpack_right_shift_u8(src_p[0], 4u, 0x30u);
+    dst_p->engine_requested_speed_speed_limit = unpack_right_shift_u16(src_p[1], 0u, 0xffu);
+    dst_p->engine_requested_speed_speed_limit |= unpack_left_shift_u16(src_p[2], 8u, 0xffu);
+    dst_p->engine_requested_torque_torque_limit = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->tsc1_transmission_rate = unpack_right_shift_u8(src_p[4], 0u, 0x07u);
+    dst_p->tsc1_control_purpose = unpack_right_shift_u8(src_p[4], 3u, 0xf8u);
+    dst_p->engine_requested_torque_high_resolution = unpack_right_shift_u8(src_p[5], 0u, 0x0fu);
+    dst_p->message_counter = unpack_right_shift_u8(src_p[7], 0u, 0x0fu);
+    dst_p->message_checksum = unpack_right_shift_u8(src_p[7], 4u, 0xf0u);
+
+    return (0);
+}
+
+int genset_tsc1_init(struct genset_tsc1_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_tsc1_t));
+
+    return 0;
+}
+
+uint8_t genset_tsc1_engine_override_control_mode_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_tsc1_engine_override_control_mode_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_tsc1_engine_override_control_mode_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_tsc1_engine_override_control_mode_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_tsc1_engine_requested_speed_control_conditions_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_tsc1_engine_requested_speed_control_conditions_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_tsc1_engine_requested_speed_control_conditions_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_tsc1_engine_requested_speed_control_conditions_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_tsc1_override_control_mode_priority_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_tsc1_override_control_mode_priority_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_tsc1_override_control_mode_priority_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_tsc1_override_control_mode_priority_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint16_t genset_tsc1_engine_requested_speed_speed_limit_encode(float value)
+{
+    return (uint16_t)(value / 0.125f);
+}
+
+float genset_tsc1_engine_requested_speed_speed_limit_decode(uint16_t value)
+{
+    return ((float)value * 0.125f);
+}
+
+bool genset_tsc1_engine_requested_speed_speed_limit_is_in_range(uint16_t value)
+{
+    return (value <= 64255u);
+}
+
+bool genset_tsc1_engine_requested_speed_speed_limit_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 8031.875f));
+}
+
+uint8_t genset_tsc1_engine_requested_torque_torque_limit_encode(float value)
+{
+    return (uint8_t)(value - -125.0f);
+}
+
+float genset_tsc1_engine_requested_torque_torque_limit_decode(uint8_t value)
+{
+    return ((float)value + -125.0f);
+}
+
+bool genset_tsc1_engine_requested_torque_torque_limit_is_in_range(uint8_t value)
+{
+    return (value <= 250u);
+}
+
+bool genset_tsc1_engine_requested_torque_torque_limit_is_in_phys_range(float value)
+{
+    return ((value >= -125.0f) && (value <= 125.0f));
+}
+
+uint8_t genset_tsc1_tsc1_transmission_rate_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_tsc1_tsc1_transmission_rate_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_tsc1_tsc1_transmission_rate_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_tsc1_tsc1_transmission_rate_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
+uint8_t genset_tsc1_tsc1_control_purpose_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_tsc1_tsc1_control_purpose_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_tsc1_tsc1_control_purpose_is_in_range(uint8_t value)
+{
+    return (value <= 31u);
+}
+
+bool genset_tsc1_tsc1_control_purpose_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 31.0f));
+}
+
+uint8_t genset_tsc1_engine_requested_torque_high_resolution_encode(float value)
+{
+    return (uint8_t)(value / 0.125f);
+}
+
+float genset_tsc1_engine_requested_torque_high_resolution_decode(uint8_t value)
+{
+    return ((float)value * 0.125f);
+}
+
+bool genset_tsc1_engine_requested_torque_high_resolution_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_tsc1_engine_requested_torque_high_resolution_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 0.875f));
+}
+
+uint8_t genset_tsc1_message_counter_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_tsc1_message_counter_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_tsc1_message_counter_is_in_range(uint8_t value)
+{
+    return (value <= 15u);
+}
+
+bool genset_tsc1_message_counter_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 15.0f));
+}
+
+uint8_t genset_tsc1_message_checksum_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_tsc1_message_checksum_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_tsc1_message_checksum_is_in_range(uint8_t value)
+{
+    return (value <= 15u);
+}
+
+bool genset_tsc1_message_checksum_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 15.0f));
 }
 
 int genset_et1_pack(
@@ -2805,6 +4180,859 @@ bool genset_dm2_dtc2_cm_is_in_range(uint8_t value)
 bool genset_dm2_dtc2_cm_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 1.0f));
+}
+
+int genset_ci_pack(
+    uint8_t *dst_p,
+    const struct genset_ci_t *src_p,
+    size_t size)
+{
+    if (size < 34u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 34);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->component_id_byte01, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->component_id_byte02, 0u, 0xffu);
+    dst_p[2] |= pack_left_shift_u8(src_p->component_id_byte03, 0u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->component_id_byte04, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u8(src_p->component_id_byte05, 0u, 0xffu);
+    dst_p[5] |= pack_left_shift_u8(src_p->component_id_byte06, 0u, 0xffu);
+    dst_p[6] |= pack_left_shift_u8(src_p->component_id_byte07, 0u, 0xffu);
+    dst_p[7] |= pack_left_shift_u8(src_p->component_id_byte08, 0u, 0xffu);
+    dst_p[8] |= pack_left_shift_u8(src_p->component_id_byte09, 0u, 0xffu);
+    dst_p[9] |= pack_left_shift_u8(src_p->component_id_byte10, 0u, 0xffu);
+    dst_p[10] |= pack_left_shift_u8(src_p->component_id_byte11, 0u, 0xffu);
+    dst_p[11] |= pack_left_shift_u8(src_p->component_id_byte12, 0u, 0xffu);
+    dst_p[12] |= pack_left_shift_u8(src_p->component_id_byte13, 0u, 0xffu);
+    dst_p[13] |= pack_left_shift_u8(src_p->component_id_byte14, 0u, 0xffu);
+    dst_p[14] |= pack_left_shift_u8(src_p->component_id_byte15, 0u, 0xffu);
+    dst_p[15] |= pack_left_shift_u8(src_p->component_id_byte16, 0u, 0xffu);
+    dst_p[16] |= pack_left_shift_u8(src_p->component_id_byte17, 0u, 0xffu);
+    dst_p[17] |= pack_left_shift_u8(src_p->component_id_byte18, 0u, 0xffu);
+    dst_p[18] |= pack_left_shift_u8(src_p->component_id_byte19, 0u, 0xffu);
+    dst_p[19] |= pack_left_shift_u8(src_p->component_id_byte20, 0u, 0xffu);
+    dst_p[20] |= pack_left_shift_u8(src_p->component_id_byte21, 0u, 0xffu);
+    dst_p[21] |= pack_left_shift_u8(src_p->component_id_byte22, 0u, 0xffu);
+    dst_p[22] |= pack_left_shift_u8(src_p->component_id_byte23, 0u, 0xffu);
+    dst_p[23] |= pack_left_shift_u8(src_p->component_id_byte24, 0u, 0xffu);
+    dst_p[24] |= pack_left_shift_u8(src_p->component_id_byte25, 0u, 0xffu);
+    dst_p[25] |= pack_left_shift_u8(src_p->component_id_byte26, 0u, 0xffu);
+    dst_p[26] |= pack_left_shift_u8(src_p->component_id_byte27, 0u, 0xffu);
+    dst_p[27] |= pack_left_shift_u8(src_p->component_id_byte28, 0u, 0xffu);
+    dst_p[28] |= pack_left_shift_u8(src_p->component_id_byte29, 0u, 0xffu);
+    dst_p[29] |= pack_left_shift_u8(src_p->component_id_byte30, 0u, 0xffu);
+    dst_p[30] |= pack_left_shift_u8(src_p->component_id_byte31, 0u, 0xffu);
+    dst_p[31] |= pack_left_shift_u8(src_p->component_id_byte32, 0u, 0xffu);
+    dst_p[32] |= pack_left_shift_u8(src_p->component_id_byte33, 0u, 0xffu);
+    dst_p[33] |= pack_left_shift_u8(src_p->component_id_byte34, 0u, 0xffu);
+
+    return (34);
+}
+
+int genset_ci_unpack(
+    struct genset_ci_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 34u) {
+        return (-EINVAL);
+    }
+
+    dst_p->component_id_byte01 = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->component_id_byte02 = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->component_id_byte03 = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
+    dst_p->component_id_byte04 = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->component_id_byte05 = unpack_right_shift_u8(src_p[4], 0u, 0xffu);
+    dst_p->component_id_byte06 = unpack_right_shift_u8(src_p[5], 0u, 0xffu);
+    dst_p->component_id_byte07 = unpack_right_shift_u8(src_p[6], 0u, 0xffu);
+    dst_p->component_id_byte08 = unpack_right_shift_u8(src_p[7], 0u, 0xffu);
+    dst_p->component_id_byte09 = unpack_right_shift_u8(src_p[8], 0u, 0xffu);
+    dst_p->component_id_byte10 = unpack_right_shift_u8(src_p[9], 0u, 0xffu);
+    dst_p->component_id_byte11 = unpack_right_shift_u8(src_p[10], 0u, 0xffu);
+    dst_p->component_id_byte12 = unpack_right_shift_u8(src_p[11], 0u, 0xffu);
+    dst_p->component_id_byte13 = unpack_right_shift_u8(src_p[12], 0u, 0xffu);
+    dst_p->component_id_byte14 = unpack_right_shift_u8(src_p[13], 0u, 0xffu);
+    dst_p->component_id_byte15 = unpack_right_shift_u8(src_p[14], 0u, 0xffu);
+    dst_p->component_id_byte16 = unpack_right_shift_u8(src_p[15], 0u, 0xffu);
+    dst_p->component_id_byte17 = unpack_right_shift_u8(src_p[16], 0u, 0xffu);
+    dst_p->component_id_byte18 = unpack_right_shift_u8(src_p[17], 0u, 0xffu);
+    dst_p->component_id_byte19 = unpack_right_shift_u8(src_p[18], 0u, 0xffu);
+    dst_p->component_id_byte20 = unpack_right_shift_u8(src_p[19], 0u, 0xffu);
+    dst_p->component_id_byte21 = unpack_right_shift_u8(src_p[20], 0u, 0xffu);
+    dst_p->component_id_byte22 = unpack_right_shift_u8(src_p[21], 0u, 0xffu);
+    dst_p->component_id_byte23 = unpack_right_shift_u8(src_p[22], 0u, 0xffu);
+    dst_p->component_id_byte24 = unpack_right_shift_u8(src_p[23], 0u, 0xffu);
+    dst_p->component_id_byte25 = unpack_right_shift_u8(src_p[24], 0u, 0xffu);
+    dst_p->component_id_byte26 = unpack_right_shift_u8(src_p[25], 0u, 0xffu);
+    dst_p->component_id_byte27 = unpack_right_shift_u8(src_p[26], 0u, 0xffu);
+    dst_p->component_id_byte28 = unpack_right_shift_u8(src_p[27], 0u, 0xffu);
+    dst_p->component_id_byte29 = unpack_right_shift_u8(src_p[28], 0u, 0xffu);
+    dst_p->component_id_byte30 = unpack_right_shift_u8(src_p[29], 0u, 0xffu);
+    dst_p->component_id_byte31 = unpack_right_shift_u8(src_p[30], 0u, 0xffu);
+    dst_p->component_id_byte32 = unpack_right_shift_u8(src_p[31], 0u, 0xffu);
+    dst_p->component_id_byte33 = unpack_right_shift_u8(src_p[32], 0u, 0xffu);
+    dst_p->component_id_byte34 = unpack_right_shift_u8(src_p[33], 0u, 0xffu);
+
+    return (0);
+}
+
+int genset_ci_init(struct genset_ci_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_ci_t));
+
+    return 0;
+}
+
+uint8_t genset_ci_component_id_byte01_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte01_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte01_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte01_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte02_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte02_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte02_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte02_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte03_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte03_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte03_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte03_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte04_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte04_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte04_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte04_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte05_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte05_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte05_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte05_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte06_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte06_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte06_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte06_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte07_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte07_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte07_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte07_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte08_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte08_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte08_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte08_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte09_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte09_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte09_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte09_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte10_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte10_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte10_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte10_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte11_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte11_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte11_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte11_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte12_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte12_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte12_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte12_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte13_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte13_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte13_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte13_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte14_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte14_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte14_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte14_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte15_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte15_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte15_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte15_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte16_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte16_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte16_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte16_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte17_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte17_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte17_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte17_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte18_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte18_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte18_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte18_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte19_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte19_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte19_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte19_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte20_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte20_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte20_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte20_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte21_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte21_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte21_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte21_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte22_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte22_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte22_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte22_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte23_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte23_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte23_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte23_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte24_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte24_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte24_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte24_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte25_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte25_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte25_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte25_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte26_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte26_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte26_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte26_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte27_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte27_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte27_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte27_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte28_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte28_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte28_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte28_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte29_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte29_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte29_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte29_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte30_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte30_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte30_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte30_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte31_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte31_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte31_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte31_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte32_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte32_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte32_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte32_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte33_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte33_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte33_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte33_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_ci_component_id_byte34_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_ci_component_id_byte34_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_ci_component_id_byte34_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_ci_component_id_byte34_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
 }
 
 int genset_soft_pack(
