@@ -16,6 +16,12 @@ TOOLCHAIN := "zelos-examples-toolchain:" + ZEPHYR + "-" + `shasum -a 256 toolcha
 BOARD := "nucleo_h753zi"
 # The part on that board, for probe-rs.
 CHIP := "STM32H753ZITx"
+# The V2G SIL image: EVerest pinned by digest, plus the suite's tools. Tagged by
+# its Dockerfile, as TOOLCHAIN is.
+V2G_SIL := "zelos-examples-v2g-sil:" + `shasum -a 256 testing/suites/v2g/Dockerfile | cut -c1-12`
+# The SIL's container: the suite mounted, the capabilities its link needs, and
+# IPv6, which V2G runs on.
+V2G_RUN := "--cap-add NET_ADMIN --cap-add SYS_ADMIN --sysctl net.ipv6.conf.all.disable_ipv6=0 -v \"$PWD/testing/suites/v2g:/suite:ro\""
 # The Docker volume holding the west workspace, or an absolute host path to
 # bind instead. Override to build two trees at once.
 WORKSPACE := env("ZELOS_WEST_VOLUME", "zxws")
@@ -140,6 +146,28 @@ hil ELF CHANNEL +SUITES:
     # --durations: the slowest tests, timed, after the results.
     cd testing && uv run --frozen pytest "${suites[@]}" --channel {{ CHANNEL }} --a2l "${elf%.elf}.a2l" --durations=10
 
+# The SIL needs CAP_NET_ADMIN for the veth and CAP_SYS_ADMIN for the EV's
+# network namespace. ARGS go to pytest, e.g. `-k din`.
+#
+# Run the V2G suite: EVerest's EVSE and EV charge over a veth pair, captured.
+test-v2g *ARGS: _v2g_sil
+    docker run --rm {{ V2G_RUN }} {{ V2G_SIL }} /suite {{ ARGS }}
+
+# Record the V2G demo captures and their message sidecars again, ISO 15118-2 and DIN 70121.
+v2g-record: _v2g_sil
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out=$(mktemp -d)
+    trap 'rm -rf "$out"' EXIT
+    docker run --rm {{ V2G_RUN }} -v "$out:/out" --entrypoint bash {{ V2G_SIL }} -c \
+        "python3 -m pytest -p no:cacheprovider -q /suite/test_session.py::test_session --record /out; \
+         status=\$?; chown -R $(id -u):$(id -g) /out; exit \$status"
+    for p in iso2 din; do
+        cp "$out/test_session[$p]/$p.pcapng" "testing/suites/v2g/captures/$p-dc.pcapng"
+        cp "$out/test_session[$p]/$p.messages.csv" "testing/suites/v2g/captures/$p-dc.messages.csv"
+    done
+    ls -l testing/suites/v2g/captures/
+
 # Remove the cached Zephyr workspace. Frees about 2 GB.
 clean-workspace:
     docker volume rm {{ WORKSPACE }}
@@ -160,6 +188,11 @@ _fresh ELFS +SOURCES:
         echo "    just build" >&2
         exit 1
     fi
+
+# Build the V2G SIL image. Cached by Docker after the first run.
+_v2g_sil:
+    docker image inspect {{ V2G_SIL }} > /dev/null 2>&1 || \
+        docker build -q -t {{ V2G_SIL }} testing/suites/v2g > /dev/null
 
 # Build the firmware toolchain image. Cached by Docker after the first run.
 _toolchain:
