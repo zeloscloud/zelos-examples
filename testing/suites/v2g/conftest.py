@@ -1,6 +1,6 @@
 """An EVerest EVSE and EV charging over a veth pair, one session per run.
 
-The EVSE side (EvseV2G and the simulated hardware) runs under the EVerest
+The EVSE side (EvseV2G, or Evse15118D20 for ISO 15118-20, and the simulated hardware) runs under the EVerest
 manager in the container's namespace on v2g-evse. The EV (PyEvJosev, which
 encodes with its own EXI codec) runs standalone in a namespace of its own on
 the peer, v2g-ev, so SDP and the V2G TCP connection cross the link. The two
@@ -33,6 +33,8 @@ SOCKET = "/run/mqtt.sock"
 EVSE_IF, EV_IF = "v2g-evse", "v2g-ev"
 # EvManager: matched, start DC, wait for the EVSE's power, close the contactors.
 START = "iso_wait_slac_matched;iso_start_v2g_session DC 86400 0;iso_wait_pwr_ready;iso_dc_power_on"
+# AC: draw 16 A on three phases instead.
+START_AC = "iso_wait_slac_matched;iso_start_v2g_session AC 86400 0;iso_wait_pwr_ready;iso_draw_power_regulated 16,3"
 # Boot to a finished session, with every module's start-up.
 SESSION_S = 90.0
 
@@ -100,11 +102,27 @@ def broker(tmp_path_factory) -> Iterator[None]:
 
 
 def config(protocol: str, commands: str, imd: dict | None) -> dict:
-    cfg = yaml.safe_load((HERE / "everest.yaml").read_text())
+    """protocol: "iso2", "din", or "iso20-" and the energy service: "dc", "ac", "dc-bpt", "ac-bpt"."""
+    iso20, _, service = protocol.partition("-")
+    ac = service.startswith("ac")
+    cfg = yaml.safe_load((HERE / ("everest-ac.yaml" if ac else "everest.yaml")).read_text())
     mods = cfg["active_modules"]
     ev = mods["iso15118_car"]["config_module"]
+    mods["ev_manager"]["config_module"]["auto_exec_commands"] = f"{START_AC if ac else START};{commands}"
+    if service:
+        # The EV's first service is the one selected.
+        ev["supported_d20_energy_services"] = ",".join(s.upper().replace("-", "_") for s in (service, service.removesuffix("-bpt")))
+    if ac:
+        return cfg
     ev["supported_DIN70121"], ev["supported_ISO15118_2"] = protocol == "din", protocol == "iso2"
-    mods["ev_manager"]["config_module"]["auto_exec_commands"] = commands
+    if service:
+        ev["supported_ISO15118_20_DC"] = True
+        # Plain TCP, as EvseV2G's tls_security: prohibit.
+        mods["iso15118_charger"] = {
+            **mods["iso15118_charger"],
+            "module": "Evse15118D20",
+            "config_module": {"device": EVSE_IF, "tls_negotiation_strategy": "ENFORCE_NO_TLS", "logging_path": "/tmp/everest-logs"},
+        }
     mods["imd"]["config_implementation"]["main"].update(imd or {})
     return cfg
 
@@ -113,7 +131,7 @@ def config(protocol: str, commands: str, imd: dict | None) -> dict:
 def charge(broker, request, tmp_path) -> Callable[..., Session]:
     """charge(protocol, commands, done, imd=None): one session, until done(session) holds.
 
-    protocol: "iso2" or "din", the one the EV offers. commands: EvManager's
+    protocol: the one the EV offers, as config takes it. commands: EvManager's
     script after START. done: the end the test expects, on MQTT variables.
     """
     record = request.config.getoption("record")
@@ -121,7 +139,7 @@ def charge(broker, request, tmp_path) -> Callable[..., Session]:
     out.mkdir(parents=True, exist_ok=True)
 
     def charge(protocol: str, commands: str, done: Callable[[Session], bool], imd: dict | None = None) -> Session:
-        (out / "everest.yaml").write_text(yaml.safe_dump(config(protocol, f"{START};{commands}", imd)))
+        (out / "everest.yaml").write_text(yaml.safe_dump(config(protocol, commands, imd)))
         session = Session(out / f"{protocol}.pcapng")
         run("ip", "link", "add", EVSE_IF, "type", "veth", "peer", "name", EV_IF)
         try:

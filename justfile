@@ -153,7 +153,7 @@ hil ELF CHANNEL +SUITES:
 test-v2g *ARGS: _v2g_sil
     docker run --rm {{ V2G_RUN }} {{ V2G_SIL }} /suite {{ ARGS }}
 
-# Record the V2G demo captures and their message sidecars again, ISO 15118-2 and DIN 70121.
+# Record the V2G demo captures and their message sidecars again: ISO 15118-2, DIN 70121, ISO 15118-20.
 v2g-record: _v2g_sil
     #!/usr/bin/env bash
     set -euo pipefail
@@ -162,9 +162,10 @@ v2g-record: _v2g_sil
     docker run --rm {{ V2G_RUN }} -v "$out:/out" --entrypoint bash {{ V2G_SIL }} -c \
         "python3 -m pytest -p no:cacheprovider -q /suite/test_session.py::test_session --record /out; \
          status=\$?; chown -R $(id -u):$(id -g) /out; exit \$status"
-    for p in iso2 din; do
-        cp "$out/test_session[$p]/$p.pcapng" "testing/suites/v2g/captures/$p-dc.pcapng"
-        cp "$out/test_session[$p]/$p.messages.csv" "testing/suites/v2g/captures/$p-dc.messages.csv"
+    for p in iso2:iso2-dc din:din-dc iso20-dc iso20-dc-bpt iso20-ac iso20-ac-bpt; do
+        name=${p#*:} p=${p%:*}
+        cp "$out/test_session[$p]/$p.pcapng" "testing/suites/v2g/captures/$name.pcapng"
+        cp "$out/test_session[$p]/$p.messages.csv" "testing/suites/v2g/captures/$name.messages.csv"
     done
     ls -l testing/suites/v2g/captures/
 

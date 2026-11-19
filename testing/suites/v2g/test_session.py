@@ -1,12 +1,14 @@
-"""DC charging sessions between EVerest's EVSE and EV, ISO 15118-2 and DIN 70121,
-checked on the link they crossed.
+"""Charging sessions between EVerest's EVSE and EV, DC over ISO 15118-2 and
+DIN 70121, DC and AC over ISO 15118-20, checked on the link they crossed.
 
 The capture is walked at the V2GTP layer (ISO 15118-2 clause 7.8): SDP on UDP
 15118, then each direction of the TCP connection split into V2GTP frames with
 nothing left over. EXI is not decoded here. Each frame is named by the EVSE's
-own record of it (EvseV2G's v2g_messages variable), accepted only where that
-record carries the frame's bytes; the EV encodes with another codec
-(EXIficient, in Josev), so a session that completes is two codecs agreeing.
+own record of it (the v2g_messages variable). EvseV2G's carries the frame's
+bytes and is accepted only where they match; Evse15118D20's is the name alone,
+accepted where it fits the frame's direction and payload type. The EV encodes
+with another codec (EXIficient, in Josev), so a session that completes is two
+codecs agreeing.
 
     just test-v2g                 # every test
     just v2g-record               # re-record captures/ from the sessions
@@ -14,6 +16,7 @@ record carries the frame's bytes; the EV encodes with another codec
 
 import csv
 import itertools
+import re
 import shutil
 import struct
 import subprocess
@@ -25,14 +28,38 @@ import pytest
 HERE = Path(__file__).parent
 V2G_PORT = 15118
 SDP_REQ, SDP_RES, EXI = 0x9000, 0x9001, 0x8001
+# ISO 15118-20 names a message's schema in its payload type: common, AC, DC.
+ISO20 = {"AC_": 0x8003, "DC_": 0x8004, "": 0x8002}
 # What the EV's script does after START (conftest), and the end each test waits for.
 STOP_AFTER_S = 5
 EV_STOP = f"sleep {STOP_AFTER_S};iso_stop_charging;iso_wait_v2g_session_stopped;unplug"
-PROTOCOLS = {"iso2": "ISO15118-2-2013", "din": "DIN70121"}
+
+
+@dataclass
+class Protocol:
+    # The EVSE's selected_protocol, and the committed capture's name.
+    selected: str
+    capture: str
+    # The session's first exchanges, its charge sequence ending in the loop, and its last.
+    setup: list[str]
+    charge: list[str]
+    stop: list[str]
+
 
 SETUP = ["SupportedAppProtocol", "SessionSetup", "ServiceDiscovery"]
 CHARGE = ["CableCheck", "PreCharge", "PowerDelivery", "CurrentDemand"]
 STOP = ["PowerDelivery", "WeldingDetection", "SessionStop"]
+SETUP20 = ["SupportedAppProtocol", "SessionSetup", "AuthorizationSetup", "Authorization", "ServiceDiscovery"]
+DC20 = (SETUP20, ["DC_CableCheck", "DC_PreCharge", "PowerDelivery", "DC_ChargeLoop"], ["PowerDelivery", "DC_WeldingDetection", "SessionStop"])
+AC20 = (SETUP20, ["AC_ChargeParameterDiscovery", "ScheduleExchange", "PowerDelivery", "AC_ChargeLoop"], ["AC_ChargeLoop", "PowerDelivery", "SessionStop"])
+PROTOCOLS = {
+    "iso2": Protocol("ISO15118-2-2013", "iso2-dc", SETUP, CHARGE, STOP),
+    "din": Protocol("DIN70121", "din-dc", SETUP, CHARGE, STOP),
+    "iso20-dc": Protocol("ISO15118-20:DC", "iso20-dc", *DC20),
+    "iso20-dc-bpt": Protocol("ISO15118-20:DC", "iso20-dc-bpt", *DC20),
+    "iso20-ac": Protocol("ISO15118-20:AC", "iso20-ac", *AC20),
+    "iso20-ac-bpt": Protocol("ISO15118-20:AC", "iso20-ac-bpt", *AC20),
+}
 
 
 @dataclass
@@ -125,8 +152,15 @@ def names(session, frames: list[Frame]) -> list[str]:
     assert unread == 0 or (unread == 1 and frames[-1].from_ev), f"{len(record)} recorded, {len(frames)} on the wire"
     got = []
     for f, r in zip(frames, record, strict=False):
-        exi = bytes.fromhex(r["exi"])
         assert r["id"].endswith("Req") == f.from_ev, r["id"]
+        if "exi" not in r:
+            # Evse15118D20 records the name alone, DcChargeLoopReq for DC_ChargeLoopReq.
+            name = re.sub("^(Ac|Dc)", lambda m: m[1].upper() + "_", r["id"])
+            ptype = EXI if name.startswith("SupportedAppProtocol") else ISO20.get(name[:3], ISO20[""])
+            assert f.type == ptype, (name, hex(f.type))
+            got.append(name)
+            continue
+        exi = bytes.fromhex(r["exi"])
         if f.from_ev:
             assert exi == f.raw, f"{r['id']}: recorded {exi.hex()}, wire {f.raw.hex()}"
         else:
@@ -155,7 +189,7 @@ def runs(seq: list[str]) -> list[str]:
 
 
 def check_link(pcap: Path) -> tuple[list[Frame], set[str]]:
-    """SDP found the EVSE that served the connection; every frame is EXI."""
+    """SDP found the EVSE that served the connection; every frame is EXI, of one protocol."""
     found = sdp(pcap)
     reqs = [(s, b) for s, _, t, b in found if t == SDP_REQ]
     res = [(s, b) for s, _, t, b in found if t == SDP_RES]
@@ -167,7 +201,7 @@ def check_link(pcap: Path) -> tuple[list[Frame], set[str]]:
     for src, b in res:
         assert len(b) == 20 and b[18:] == bytes([0x10, 0x00]), b.hex()
         assert (src, struct.unpack_from("!H", b, 16)[0]) == server
-    assert all(f.type == EXI for f in frames)
+    assert all(f.type == EXI for f in frames) or (all(f.type == EXI for f in frames[:2]) and all(f.type in ISO20.values() for f in frames[2:]))
     # Request, response, request, ...
     assert [f.from_ev for f in frames] == [i % 2 == 0 for i in range(len(frames))]
     return frames, flags
@@ -193,21 +227,25 @@ def unplugged(s) -> bool:
 @pytest.mark.parametrize("protocol", PROTOCOLS)
 def test_session(charge, protocol):
     """The EV charges STOP_AFTER_S in CurrentDemand, then ends the session itself."""
+    p = PROTOCOLS[protocol]
     s = charge(protocol, EV_STOP, ended)
     frames, flags = check_link(s.pcap)
     msgs = names(s, frames)
     write_messages(s.pcap.with_suffix(".messages.csv"), frames, msgs)
     seq = exchanges(msgs)
-    assert s.var("iso15118_charger", "selected_protocol") == [PROTOCOLS[protocol]]
-    assert runs(seq)[:3] == SETUP, seq
-    assert runs(seq)[-3:] == STOP, seq
-    # The DC sequence, in order, with the loop between.
+    assert s.var("iso15118_charger", "selected_protocol") == [p.selected]
+    assert runs(seq)[: len(p.setup)] == p.setup, seq
+    assert runs(seq)[-3:] == p.stop, seq
+    # The charge sequence, in order, with the loop between.
     it = iter(runs(seq))
-    assert all(m in it for m in CHARGE), seq
-    # Some of the loop, not a single exchange: Josev sends about two a second.
-    assert seq.count("CurrentDemand") >= STOP_AFTER_S, seq
+    assert all(m in it for m in p.charge), seq
+    # Some of the loop, not a single exchange: Josev sends about two a second,
+    # fewer over ISO 15118-20, where PowerDelivery can repeat first.
+    assert seq.count(p.charge[-1]) >= (STOP_AFTER_S if p.setup is SETUP else 3), seq
     assert "F" in flags and "R" not in flags, flags
-    assert s.var("iso15118_charger", "current_demand_started") and s.var("iso15118_charger", "current_demand_finished")
+    # Evse15118D20 publishes no start of an AC loop.
+    assert s.var("iso15118_charger", "current_demand_started") or "AC_ChargeLoop" in seq
+    assert s.var("iso15118_charger", "current_demand_finished")
 
 
 def test_ev_unplug_mid_current_demand(charge):
@@ -233,10 +271,11 @@ def test_capture_fixture(protocol):
     connection of whole frames, each named in its sidecar at the frame it starts in."""
     if shutil.which("tshark") is None:
         pytest.skip("needs tshark")
-    frames, flags = check_link(HERE / "captures" / f"{protocol}-dc.pcapng")
-    assert len(frames) >= 2 * (len(SETUP) + len(CHARGE) + len(STOP)) and "F" in flags
-    with (HERE / "captures" / f"{protocol}-dc.messages.csv").open(newline="") as f:
+    p = PROTOCOLS[protocol]
+    frames, flags = check_link(HERE / "captures" / f"{p.capture}.pcapng")
+    assert len(frames) >= 2 * (len(p.setup) + len(p.charge) + len(p.stop)) and "F" in flags
+    with (HERE / "captures" / f"{p.capture}.messages.csv").open(newline="") as f:
         rows = list(csv.DictReader(f))
     assert [(int(r["frame"]), r["direction"]) for r in rows] == [(fr.number, "ev" if fr.from_ev else "evse") for fr in frames]
     seq = exchanges([r["message"] for r in rows])
-    assert runs(seq)[:3] == SETUP and runs(seq)[-3:] == STOP, seq
+    assert runs(seq)[: len(p.setup)] == p.setup and runs(seq)[-3:] == p.stop, seq

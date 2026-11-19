@@ -8,5 +8,9 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && pip install --no-cache-dir --break-system-packages pytest==9.1.1
 
+# EVerest's test PKI, where its modules look: Evse15118D20 and Josev's
+# ISO 15118-20 states read the V2G certificates even without TLS.
+RUN cd /ext/source/tests/ocpp_tests/test_sets/everest-aux && ./install_certs.sh /ext/dist
+
 WORKDIR /suite
 ENTRYPOINT ["python3", "-m", "pytest", "-p", "no:cacheprovider"]
