@@ -37,6 +37,8 @@ START = "iso_wait_slac_matched;iso_start_v2g_session DC 86400 0;iso_wait_pwr_rea
 START_AC = "iso_wait_slac_matched;iso_start_v2g_session AC 86400 0;iso_wait_pwr_ready;iso_draw_power_regulated 16,3"
 # Boot to a finished session, with every module's start-up.
 SESSION_S = 90.0
+# Where the EVSE writes tls_session_keys.log in a TLS session.
+KEYS = "/tmp/everest-keys"
 
 
 def pytest_addoption(parser):
@@ -50,6 +52,8 @@ class Session:
     pcap: Path
     # (topic, payload) of every module variable, in the order published.
     vars: list[tuple[str, dict]] = field(default_factory=list)
+    # A TLS session's secrets, as the EVSE logged them (NSS key log format).
+    keys: Path | None = None
 
     def var(self, module: str, name: str) -> list:
         """Every value module published for variable name."""
@@ -102,7 +106,12 @@ def broker(tmp_path_factory) -> Iterator[None]:
 
 
 def config(protocol: str, commands: str, imd: dict | None) -> dict:
-    """protocol: "iso2", "din", or "iso20-" and the energy service: "dc", "ac", "dc-bpt", "ac-bpt"."""
+    """protocol: "iso2", "din", or "iso20-" and the energy service: "dc", "ac", "dc-bpt", "ac-bpt".
+
+    "iso2-tls" and "iso20-dc-tls" run over TLS (1.2 and 1.3), the EVSE logging the session's secrets.
+    """
+    tls = protocol.endswith("-tls")
+    protocol = protocol.removesuffix("-tls")
     iso20, _, service = protocol.partition("-")
     ac = service.startswith("ac")
     cfg = yaml.safe_load((HERE / ("everest-ac.yaml" if ac else "everest.yaml")).read_text())
@@ -112,6 +121,12 @@ def config(protocol: str, commands: str, imd: dict | None) -> dict:
     if service:
         # The EV's first service is the one selected.
         ev["supported_d20_energy_services"] = ",".join(s.upper().replace("-", "_") for s in (service, service.removesuffix("-bpt")))
+    if tls:
+        ev.update(tls_active=True, enforce_tls=True, enable_tls_1_3=bool(service))
+        # Josev pays by contract over TLS where the EVSE offers it, and nothing here authorizes one.
+        mods["evse_manager"]["config_module"]["payment_enable_contract"] = False
+        # The EVSE's key log: a line per secret in KEYS/tls_session_keys.log, and each in a datagram to ff02::1 on the link.
+        mods["iso15118_charger"]["config_module"].update(tls_security="force", tls_key_logging=True, tls_key_logging_path=KEYS)
     if ac:
         return cfg
     ev["supported_DIN70121"], ev["supported_ISO15118_2"] = protocol == "din", protocol == "iso2"
@@ -123,6 +138,10 @@ def config(protocol: str, commands: str, imd: dict | None) -> dict:
             "module": "Evse15118D20",
             "config_module": {"device": EVSE_IF, "tls_negotiation_strategy": "ENFORCE_NO_TLS", "logging_path": "/tmp/everest-logs"},
         }
+        if tls:
+            mods["iso15118_charger"]["config_module"].update(
+                tls_negotiation_strategy="ENFORCE_TLS", enforce_tls_1_3=True, enable_tls_key_logging=True, tls_key_logging_path=KEYS
+            )
     mods["imd"]["config_implementation"]["main"].update(imd or {})
     return cfg
 
@@ -141,6 +160,9 @@ def charge(broker, request, tmp_path) -> Callable[..., Session]:
     def charge(protocol: str, commands: str, done: Callable[[Session], bool], imd: dict | None = None) -> Session:
         (out / "everest.yaml").write_text(yaml.safe_dump(config(protocol, commands, imd)))
         session = Session(out / f"{protocol}.pcapng")
+        keylog = Path(KEYS) / "tls_session_keys.log"
+        keylog.parent.mkdir(exist_ok=True)
+        keylog.unlink(missing_ok=True)
         run("ip", "link", "add", EVSE_IF, "type", "veth", "peer", "name", EV_IF)
         try:
             with contextlib.ExitStack() as stack:
@@ -193,6 +215,8 @@ def charge(broker, request, tmp_path) -> Callable[..., Session]:
         finally:
             subprocess.run(["ip", "link", "del", EVSE_IF], stderr=subprocess.DEVNULL)
         session.vars = read_vars(out / "vars.txt")
+        if keylog.exists():
+            session.keys = Path(shutil.copy(keylog, session.pcap.with_suffix(".keys")))
         return session
 
     return charge

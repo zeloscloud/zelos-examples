@@ -59,6 +59,9 @@ PROTOCOLS = {
     "iso20-dc-bpt": Protocol("ISO15118-20:DC", "iso20-dc-bpt", *DC20),
     "iso20-ac": Protocol("ISO15118-20:AC", "iso20-ac", *AC20),
     "iso20-ac-bpt": Protocol("ISO15118-20:AC", "iso20-ac-bpt", *AC20),
+    # Over TLS (1.2, and 1.3 for ISO 15118-20), walked through tshark's decryption. No committed capture.
+    "iso2-tls": Protocol("ISO15118-2-2013", "", SETUP, CHARGE, STOP),
+    "iso20-dc-tls": Protocol("ISO15118-20:DC", "", *DC20),
 }
 
 
@@ -73,9 +76,10 @@ class Frame:
     raw: bytes
 
 
-def fields(pcap: Path, *names: str) -> list[list[str]]:
+def fields(pcap: Path, *names: str, keys: Path | None = None) -> list[list[str]]:
+    """keys: a TLS key log file to decrypt with."""
     out = subprocess.run(
-        ["tshark", "-r", str(pcap), "-T", "fields", "-E", "separator=|", *itertools.chain.from_iterable(("-e", n) for n in names)],
+        ["tshark", "-r", str(pcap), *(["-o", f"tls.keylog_file:{keys}"] if keys else []), "-T", "fields", "-E", "separator=|", *itertools.chain.from_iterable(("-e", n) for n in names)],
         check=True,
         capture_output=True,
         text=True,
@@ -107,29 +111,34 @@ def sdp(pcap: Path) -> list[tuple[str, int, int, bytes]]:
     return got
 
 
-def tcp(pcap: Path) -> tuple[tuple[str, int], list[Frame], set[str]]:
-    """The one connection's server (address, port), its V2GTP frames in time order, and its flags seen."""
-    rows = fields(pcap, "frame.number", "frame.time_epoch", "ipv6.src", "ipv6.dst", "tcp.srcport", "tcp.dstport", "tcp.seq_raw", "tcp.len", "tcp.flags.str", "tcp.payload")
+def tcp(pcap: Path, keys: Path | None = None) -> tuple[tuple[str, int], list[Frame], set[str]]:
+    """The one connection's server (address, port), its V2GTP frames in time order, and its flags seen.
+
+    keys: the connection is TLS, and the frames are in what tshark decrypts with this key log file.
+    """
+    data = "data.data" if keys else "tcp.payload"
+    rows = fields(pcap, "frame.number", "frame.time_epoch", "ipv6.src", "ipv6.dst", "tcp.srcport", "tcp.dstport", "tcp.seq_raw", "tcp.len", "tcp.flags.str", data, keys=keys)
     rows = [r[1:] + r[:1] for r in rows if r[4]]
     syn = [r for r in rows if "S" in r[7] and "A" not in r[7].replace("·", "")]
     assert len(syn) == 1, f"{len(syn)} connections"
     ev, server = (syn[0][1], int(syn[0][3])), (syn[0][2], int(syn[0][4]))
     flags = set()
-    streams: dict[bool, list[tuple[float, int, bytes, int]]] = {True: [], False: []}
+    streams: dict[bool, list[tuple[float, int, int, bytes, int]]] = {True: [], False: []}
     for t, src, _, sport, _, seq, n, f, payload, number in rows:
         from_ev = (src, int(sport)) == ev
         assert from_ev or (src, int(sport)) == server, f"a second peer {src}:{sport}"
         flags.update(c for c in f if c.isalpha())
         if int(n):
-            streams[from_ev].append((float(t), int(seq), bytes.fromhex(payload), int(number)))
+            # A segment's TLS records, each decrypted, come comma separated.
+            streams[from_ev].append((float(t), int(seq), int(n), bytes.fromhex(payload.replace(",", "")), int(number)))
     frames = []
     for from_ev, segs in streams.items():
         # A veth loses and reorders nothing: each segment follows the last.
-        for (_, a, pa, _), (_, b, _, _) in itertools.pairwise(segs):
-            assert b == (a + len(pa)) % 2**32, "a gap or retransmission in the stream"
+        for (_, a, n, _, _), (_, b, _, _, _) in itertools.pairwise(segs):
+            assert b == (a + n) % 2**32, "a gap or retransmission in the stream"
         # A frame starts in the segment holding its first byte.
         starts, data = [], b""
-        for t, _, p, number in segs:
+        for t, _, _, p, number in segs:
             starts.append((len(data), t, number))
             data += p
         at = 0
@@ -188,18 +197,22 @@ def runs(seq: list[str]) -> list[str]:
     return [k for k, _ in itertools.groupby(seq)]
 
 
-def check_link(pcap: Path) -> tuple[list[Frame], set[str]]:
-    """SDP found the EVSE that served the connection; every frame is EXI, of one protocol."""
+def check_link(pcap: Path, keys: Path | None = None) -> tuple[list[Frame], set[str]]:
+    """SDP found the EVSE that served the connection; every frame is EXI, of one protocol.
+
+    keys: the session is over TLS, decrypted with this key log file.
+    """
     found = sdp(pcap)
     reqs = [(s, b) for s, _, t, b in found if t == SDP_REQ]
     res = [(s, b) for s, _, t, b in found if t == SDP_RES]
     assert reqs and res, found
-    # Request: security, transport (0x10 no TLS, 0x00 TCP). Response: the
-    # EVSE's address and port, then the same two.
-    assert all(b == bytes([0x10, 0x00]) for _, b in reqs), reqs
-    server, frames, flags = tcp(pcap)
+    # Request: security, transport (0x10 no TLS, 0x00 TLS; 0x00 TCP). Response:
+    # the EVSE's address and port, then the same two.
+    security = bytes([0x00 if keys else 0x10, 0x00])
+    assert all(b == security for _, b in reqs), reqs
+    server, frames, flags = tcp(pcap, keys)
     for src, b in res:
-        assert len(b) == 20 and b[18:] == bytes([0x10, 0x00]), b.hex()
+        assert len(b) == 20 and b[18:] == security, b.hex()
         assert (src, struct.unpack_from("!H", b, 16)[0]) == server
     assert all(f.type == EXI for f in frames) or (all(f.type == EXI for f in frames[:2]) and all(f.type in ISO20.values() for f in frames[2:]))
     # Request, response, request, ...
@@ -229,7 +242,8 @@ def test_session(charge, protocol):
     """The EV charges STOP_AFTER_S in CurrentDemand, then ends the session itself."""
     p = PROTOCOLS[protocol]
     s = charge(protocol, EV_STOP, ended)
-    frames, flags = check_link(s.pcap)
+    assert (s.keys is not None) == protocol.endswith("-tls")
+    frames, flags = check_link(s.pcap, s.keys)
     msgs = names(s, frames)
     write_messages(s.pcap.with_suffix(".messages.csv"), frames, msgs)
     seq = exchanges(msgs)
@@ -242,7 +256,8 @@ def test_session(charge, protocol):
     # Some of the loop, not a single exchange: Josev sends about two a second,
     # fewer over ISO 15118-20, where PowerDelivery can repeat first.
     assert seq.count(p.charge[-1]) >= (STOP_AFTER_S if p.setup is SETUP else 3), seq
-    assert "F" in flags and "R" not in flags, flags
+    # Over TLS the EVSE closes first and resets on the EV's close_notify.
+    assert "F" in flags and (s.keys or "R" not in flags), flags
     # Evse15118D20 publishes no start of an AC loop.
     assert s.var("iso15118_charger", "current_demand_started") or "AC_ChargeLoop" in seq
     assert s.var("iso15118_charger", "current_demand_finished")
@@ -265,7 +280,7 @@ def test_isolation_fault(charge):
     assert "CableCheck" in seq and "PreCharge" not in seq and "CurrentDemand" not in seq, seq
 
 
-@pytest.mark.parametrize("protocol", PROTOCOLS)
+@pytest.mark.parametrize("protocol", [p for p in PROTOCOLS if PROTOCOLS[p].capture])
 def test_capture_fixture(protocol):
     """The committed demo capture holds the session test_session checks: SDP, then one
     connection of whole frames, each named in its sidecar at the frame it starts in."""
