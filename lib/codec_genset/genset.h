@@ -68,6 +68,15 @@ extern "C" {
 #define GENSET_ACKM_FRAME_ID (0x18e8ff80u)
 #define GENSET_DM1_FRAME_ID (0x18feca80u)
 #define GENSET_DM2_FRAME_ID (0x18fecb80u)
+#define GENSET_DM5_FRAME_ID (0x18fece80u)
+#define GENSET_DM26_FRAME_ID (0x18fdb880u)
+#define GENSET_DM21_FRAME_ID (0x18c1f980u)
+#define GENSET_DM29_FRAME_ID (0x189ef980u)
+#define GENSET_DM34_FRAME_ID (0x18a0f980u)
+#define GENSET_DM15_FRAME_ID (0x18d8f980u)
+#define GENSET_DM22_FRAME_ID (0x18c3f980u)
+#define GENSET_DM14_FRAME_ID (0x18d980f9u)
+#define GENSET_DM7_FRAME_ID (0x18e380f9u)
 #define GENSET_CI_FRAME_ID (0x18feeb80u)
 #define GENSET_SOFT_FRAME_ID (0x18feda80u)
 
@@ -95,6 +104,15 @@ extern "C" {
 #define GENSET_ACKM_LENGTH (8u)
 #define GENSET_DM1_LENGTH (10u)
 #define GENSET_DM2_LENGTH (10u)
+#define GENSET_DM5_LENGTH (8u)
+#define GENSET_DM26_LENGTH (8u)
+#define GENSET_DM21_LENGTH (8u)
+#define GENSET_DM29_LENGTH (8u)
+#define GENSET_DM34_LENGTH (8u)
+#define GENSET_DM15_LENGTH (8u)
+#define GENSET_DM22_LENGTH (8u)
+#define GENSET_DM14_LENGTH (8u)
+#define GENSET_DM7_LENGTH (8u)
 #define GENSET_CI_LENGTH (34u)
 #define GENSET_SOFT_LENGTH (48u)
 
@@ -122,6 +140,15 @@ extern "C" {
 #define GENSET_ACKM_IS_EXTENDED (1)
 #define GENSET_DM1_IS_EXTENDED (1)
 #define GENSET_DM2_IS_EXTENDED (1)
+#define GENSET_DM5_IS_EXTENDED (1)
+#define GENSET_DM26_IS_EXTENDED (1)
+#define GENSET_DM21_IS_EXTENDED (1)
+#define GENSET_DM29_IS_EXTENDED (1)
+#define GENSET_DM34_IS_EXTENDED (1)
+#define GENSET_DM15_IS_EXTENDED (1)
+#define GENSET_DM22_IS_EXTENDED (1)
+#define GENSET_DM14_IS_EXTENDED (1)
+#define GENSET_DM7_IS_EXTENDED (1)
 #define GENSET_CI_IS_EXTENDED (1)
 #define GENSET_SOFT_IS_EXTENDED (1)
 
@@ -175,6 +202,15 @@ extern "C" {
 #define GENSET_ACKM_NAME "ACKM"
 #define GENSET_DM1_NAME "DM1"
 #define GENSET_DM2_NAME "DM2"
+#define GENSET_DM5_NAME "DM5"
+#define GENSET_DM26_NAME "DM26"
+#define GENSET_DM21_NAME "DM21"
+#define GENSET_DM29_NAME "DM29"
+#define GENSET_DM34_NAME "DM34"
+#define GENSET_DM15_NAME "DM15"
+#define GENSET_DM22_NAME "DM22"
+#define GENSET_DM14_NAME "DM14"
+#define GENSET_DM7_NAME "DM7"
 #define GENSET_CI_NAME "CI"
 #define GENSET_SOFT_NAME "SOFT"
 
@@ -319,6 +355,54 @@ extern "C" {
 #define GENSET_DM2_DTC2_SPN_HIGH_NAME "DTC2_SPN_High"
 #define GENSET_DM2_DTC2_OC_NAME "DTC2_OC"
 #define GENSET_DM2_DTC2_CM_NAME "DTC2_CM"
+#define GENSET_DM5_ACTIVE_TROUBLE_CODES_NAME "ActiveTroubleCodes"
+#define GENSET_DM5_PREVIOUSLY_ACTIVE_DIAGNOSTIC_TROUBLE_CODES_NAME "PreviouslyActiveDiagnosticTroubleCodes"
+#define GENSET_DM5_OBD_COMPLIANCE_NAME "OBDCompliance"
+#define GENSET_DM5_CONTINUOUSLY_MONITORED_SYSTEMS_SUPPORT_STATUS_NAME "ContinuouslyMonitoredSystemsSupportStatus"
+#define GENSET_DM5_NON_CONTINUOUSLY_MONITORED_SYSTEMS_SUPPORT_NAME "NonContinuouslyMonitoredSystemsSupport"
+#define GENSET_DM5_NON_CONTINUOUSLY_MONITORED_SYSTEMS_STATUS_NAME "NonContinuouslyMonitoredSystemsStatus"
+#define GENSET_DM26_TIME_SINCE_ENGINE_START_NAME "TimeSinceEngineStart"
+#define GENSET_DM26_NUMBER_OF_WARM_UPS_SINCE_DT_CS_CLEARED_NAME "NumberOfWarmUpsSinceDTCsCleared"
+#define GENSET_DM26_CONTINUOUSLY_MONITORED_SYSTEMS_ENABLE_COMPLETED_STATUS_NAME "ContinuouslyMonitoredSystemsEnableCompletedStatus"
+#define GENSET_DM26_NON_CONTINUOUSLY_MONITORED_SYSTEMS_ENABLE_STATUS_NAME "NonContinuouslyMonitoredSystemsEnableStatus"
+#define GENSET_DM26_NON_CONTINUOUSLY_MONITORED_SYSTEMS_COMPLETE_STATUS_NAME "NonContinuouslyMonitoredSystemsCompleteStatus"
+#define GENSET_DM21_DISTANCE_TRAVELLED_WHILE_MIL_IS_ACTIVATED_NAME "DistanceTravelledWhileMILIsActivated"
+#define GENSET_DM21_DISTANCE_SINCE_DT_CS_CLEARED_NAME "DistanceSinceDTCsCleared"
+#define GENSET_DM21_MINUTES_RUN_BY_ENGINE_WHILE_MIL_IS_ACTIVATED_NAME "MinutesRunByEngineWhileMILIsActivated"
+#define GENSET_DM21_TIME_SINCE_DT_CS_CLEARED_NAME "TimeSinceDTCsCleared"
+#define GENSET_DM29_PENDING_DT_CS_NAME "PendingDTCs"
+#define GENSET_DM29_ALL_PENDING_DT_CS_NAME "AllPendingDTCs"
+#define GENSET_DM29_MIL_ON_DT_CS_NAME "MILOnDTCs"
+#define GENSET_DM29_PREVIOUSLY_MIL_ON_DT_CS_NAME "PreviouslyMILOnDTCs"
+#define GENSET_DM29_PERMANENT_DT_CS_NAME "PermanentDTCs"
+#define GENSET_DM34_N_OX_NTE_DEFICIENCY_AREA_STATUS_NAME "NOxNTEDeficiencyAreaStatus"
+#define GENSET_DM34_MANUFACTURER_SPECIFIC_N_OX_NTE_CARVE_OUT_AREA_STATUS_NAME "ManufacturerSpecificNOxNTECarveOutAreaStatus"
+#define GENSET_DM34_N_OX_NTE_CONTROL_AREA_STATUS_NAME "NOxNTEControlAreaStatus"
+#define GENSET_DM34_PMNTE_DEFICIENCY_AREA_STATUS_NAME "PMNTEDeficiencyAreaStatus"
+#define GENSET_DM34_MANUFACTURER_SPECIFIC_PMNTE_CARVE_OUT_AREA_STATUS_NAME "ManufacturerSpecificPMNTECarveOutAreaStatus"
+#define GENSET_DM34_PMNTE_CONTROL_AREA_STATUS_NAME "PMNTEControlAreaStatus"
+#define GENSET_DM15_LENGTH_ALLOWED_NAME "LengthAllowed"
+#define GENSET_DM15_STATUS_NAME "Status"
+#define GENSET_DM15_LENGTH_ALLOWED_HIGH_NAME "LengthAllowedHigh"
+#define GENSET_DM15_EDC_PARAMETER_NAME "EDCParameter"
+#define GENSET_DM15_EDCP_EXTENSION_NAME "EDCPExtension"
+#define GENSET_DM15_SEED_NAME "Seed"
+#define GENSET_DM22_CONTROL_BYTE_NAME "ControlByte"
+#define GENSET_DM22_CONTROL_BYTE_SPECIFIC_INDICATOR_NAME "ControlByteSpecificIndicator"
+#define GENSET_DM22_SPN_LOW_NAME "SPN_Low"
+#define GENSET_DM22_FMI_NAME "FMI"
+#define GENSET_DM22_SPN_HIGH_NAME "SPN_High"
+#define GENSET_DM14_LENGTH_NAME "Length"
+#define GENSET_DM14_COMMAND_NAME "Command"
+#define GENSET_DM14_POINTER_TYPE_NAME "PointerType"
+#define GENSET_DM14_LENGTH_HIGH_NAME "LengthHigh"
+#define GENSET_DM14_POINTER_NAME "Pointer"
+#define GENSET_DM14_POINTER_EXTENSION_NAME "PointerExtension"
+#define GENSET_DM14_KEY_OR_USER_LEVEL_NAME "KeyOrUserLevel"
+#define GENSET_DM7_TEST_IDENTIFIER_NAME "TestIdentifier"
+#define GENSET_DM7_SPN_LOW_NAME "SPN_Low"
+#define GENSET_DM7_FMI_NAME "FMI"
+#define GENSET_DM7_SPN_HIGH_NAME "SPN_High"
 #define GENSET_CI_COMPONENT_ID_BYTE01_NAME "ComponentIdByte01"
 #define GENSET_CI_COMPONENT_ID_BYTE02_NAME "ComponentIdByte02"
 #define GENSET_CI_COMPONENT_ID_BYTE03_NAME "ComponentIdByte03"
@@ -1587,6 +1671,423 @@ struct genset_dm2_t {
      * Offset: 0
      */
     uint8_t dtc2_cm;
+};
+
+/**
+ * Signals in message DM5.
+ *
+ * Diagnostic readiness 1, PGN 65230, on request only. Byte 1 active and 2 previously active DTC counts, 3 OBD compliance, 4 continuously monitored systems (bits 1-3 misfire, fuel system, comprehensive component supported; bits 5-7 the same not complete), 5-6 other monitors supported, 7-8 the same not complete (byte 5/7 bits 1-8: catalyst, heated catalyst, evaporative system, secondary air, A/C refrigerant, exhaust gas sensor, its heater, EGR/VVT; byte 6/8 bits 1-5: cold start aid, boost pressure control, particulate filter, NOx catalyst, NMHC catalyst).
+ *
+ * All signal values are as on the CAN bus.
+ */
+struct genset_dm5_t {
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t active_trouble_codes;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t previously_active_diagnostic_trouble_codes;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t obd_compliance;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t continuously_monitored_systems_support_status;
+
+    /**
+     * Range: 0..65535 (0..65535 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t non_continuously_monitored_systems_support;
+
+    /**
+     * Range: 0..65535 (0..65535 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t non_continuously_monitored_systems_status;
+};
+
+/**
+ * Signals in message DM26.
+ *
+ * Diagnostic readiness 3 (this trip), PGN 64952, on request only. Bytes 1-2 time since engine start, 3 warm-ups since DTCs cleared, 4-8 monitors enabled and not complete, laid out as DM5 bytes 4-8.
+ *
+ * All signal values are as on the CAN bus.
+ */
+struct genset_dm26_t {
+    /**
+     * Range: 0..65535 (0..65535 s)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t time_since_engine_start;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t number_of_warm_ups_since_dt_cs_cleared;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t continuously_monitored_systems_enable_completed_status;
+
+    /**
+     * Range: 0..65535 (0..65535 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t non_continuously_monitored_systems_enable_status;
+
+    /**
+     * Range: 0..65535 (0..65535 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t non_continuously_monitored_systems_complete_status;
+};
+
+/**
+ * Signals in message DM21.
+ *
+ * Diagnostic readiness 2, PGN 49408, PDU1, on request only, sent to the requester (0xF9 here).
+ *
+ * All signal values are as on the CAN bus.
+ */
+struct genset_dm21_t {
+    /**
+     * Range: 0..65535 (0..65535 km)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t distance_travelled_while_mil_is_activated;
+
+    /**
+     * Range: 0..65535 (0..65535 km)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t distance_since_dt_cs_cleared;
+
+    /**
+     * Range: 0..65535 (0..65535 min)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t minutes_run_by_engine_while_mil_is_activated;
+
+    /**
+     * Range: 0..65535 (0..65535 min)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t time_since_dt_cs_cleared;
+};
+
+/**
+ * Signals in message DM29.
+ *
+ * DTC counts, PGN 40448, PDU1, on request only, sent to the requester (0xF9 here): how many DTCs DM6, DM27, DM12, DM23 and DM28 list.
+ *
+ * All signal values are as on the CAN bus.
+ */
+struct genset_dm29_t {
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t pending_dt_cs;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t all_pending_dt_cs;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t mil_on_dt_cs;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t previously_mil_on_dt_cs;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t permanent_dt_cs;
+};
+
+/**
+ * Signals in message DM34.
+ *
+ * NTE status, PGN 40960, PDU1, on request only, sent to the requester (0xF9 here). Each field: 0 outside the area, 1 inside, 3 not available.
+ *
+ * All signal values are as on the CAN bus.
+ */
+struct genset_dm34_t {
+    /**
+     * Range: 0..3 (0..3 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t n_ox_nte_deficiency_area_status;
+
+    /**
+     * Range: 0..3 (0..3 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t manufacturer_specific_n_ox_nte_carve_out_area_status;
+
+    /**
+     * Range: 0..3 (0..3 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t n_ox_nte_control_area_status;
+
+    /**
+     * Range: 0..3 (0..3 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t pmnte_deficiency_area_status;
+
+    /**
+     * Range: 0..3 (0..3 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t manufacturer_specific_pmnte_carve_out_area_status;
+
+    /**
+     * Range: 0..3 (0..3 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t pmnte_control_area_status;
+};
+
+/**
+ * Signals in message DM15.
+ *
+ * Memory access response, PGN 55296, PDU1, to the tool that sent DM14 (0xF9 here). Status 0 proceed, 1 busy, 4 operation completed, 5 operation failed. On a failure EDCParameter is the error indicator and EDCPExtension 7. Seed 0xFFFF: no key wanted. Byte 2 bits 1 and 5 are sent as ones.
+ *
+ * All signal values are as on the CAN bus.
+ */
+struct genset_dm15_t {
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t length_allowed;
+
+    /**
+     * Range: 0..7 (0..7 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t status;
+
+    /**
+     * Range: 0..7 (0..7 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t length_allowed_high;
+
+    /**
+     * Range: 0..16777215 (0..16777215 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint32_t edc_parameter;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t edcp_extension;
+
+    /**
+     * Range: 0..65535 (0..65535 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t seed;
+};
+
+/**
+ * Signals in message DM22.
+ *
+ * Individual clear of one DTC, PGN 49920, PDU1: the genset's answer to the tool (0xF9 here); the tool's command has the same layout. Control byte 1 clear a previously active DTC (2 done, 3 refused), 17 clear an active DTC (18 done, 19 refused). Indicator of a refusal: 0 general, 1 access denied, 2 DTC unknown, 3 no longer previously active, 4 no longer active.
+ *
+ * All signal values are as on the CAN bus.
+ */
+struct genset_dm22_t {
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t control_byte;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t control_byte_specific_indicator;
+
+    /**
+     * Range: 0..65535 (0..65535 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t spn_low;
+
+    /**
+     * Range: 0..31 (0..31 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t fmi;
+
+    /**
+     * Range: 0..7 (0..7 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t spn_high;
+};
+
+/**
+ * Signals in message DM14.
+ *
+ * Memory access request, PGN 55552, PDU1, received by the genset (destination 0x80 here; the id carries the tester's 0xF9 as source). Command 1 read, 2 write, 4 operation completed, 5 operation failed. Byte 2 bit 1 is sent as one.
+ *
+ * All signal values are as on the CAN bus.
+ */
+struct genset_dm14_t {
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t length;
+
+    /**
+     * Range: 0..7 (0..7 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t command;
+
+    /**
+     * Range: 0..1 (0..1 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t pointer_type;
+
+    /**
+     * Range: 0..7 (0..7 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t length_high;
+
+    /**
+     * Range: 0..16777215 (0..16777215 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint32_t pointer;
+
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t pointer_extension;
+
+    /**
+     * Range: 0..65535 (0..65535 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t key_or_user_level;
+};
+
+/**
+ * Signals in message DM7.
+ *
+ * Command non-continuously monitored test, PGN 58112, PDU1, received by the genset (destination 0x80 here; the id carries the tester's 0xF9 as source); answered by DM30. Bytes 5-8 are 0xFF.
+ *
+ * All signal values are as on the CAN bus.
+ */
+struct genset_dm7_t {
+    /**
+     * Range: 0..255 (0..255 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t test_identifier;
+
+    /**
+     * Range: 0..65535 (0..65535 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint16_t spn_low;
+
+    /**
+     * Range: 0..31 (0..31 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t fmi;
+
+    /**
+     * Range: 0..7 (0..7 -)
+     * Scale: 1
+     * Offset: 0
+     */
+    uint8_t spn_high;
 };
 
 /**
@@ -8631,6 +9132,2259 @@ bool genset_dm2_dtc2_cm_is_in_range(uint8_t value);
  * @return true if in range, false otherwise.
  */
 bool genset_dm2_dtc2_cm_is_in_phys_range(float value);
+
+/**
+ * Pack message DM5.
+ *
+ * @param[out] dst_p Buffer to pack the message into.
+ * @param[in] src_p Data to pack.
+ * @param[in] size Size of dst_p.
+ *
+ * @return Size of packed data, or negative error code.
+ */
+int genset_dm5_pack(
+    uint8_t *dst_p,
+    const struct genset_dm5_t *src_p,
+    size_t size);
+
+/**
+ * Unpack message DM5.
+ *
+ * @param[out] dst_p Object to unpack the message into.
+ * @param[in] src_p Message to unpack.
+ * @param[in] size Size of src_p.
+ *
+ * @return zero(0) or negative error code.
+ */
+int genset_dm5_unpack(
+    struct genset_dm5_t *dst_p,
+    const uint8_t *src_p,
+    size_t size);
+
+/**
+ * Init message fields to default values from DM5.
+ *
+ * @param[in] msg_p Message to init.
+ *
+ * @return zero(0) on success or (-1) in case of nullptr argument.
+ */
+int genset_dm5_init(struct genset_dm5_t *msg_p);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm5_active_trouble_codes_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm5_active_trouble_codes_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_active_trouble_codes_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_active_trouble_codes_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm5_previously_active_diagnostic_trouble_codes_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm5_previously_active_diagnostic_trouble_codes_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_previously_active_diagnostic_trouble_codes_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_previously_active_diagnostic_trouble_codes_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm5_obd_compliance_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm5_obd_compliance_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_obd_compliance_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_obd_compliance_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm5_continuously_monitored_systems_support_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm5_continuously_monitored_systems_support_status_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_continuously_monitored_systems_support_status_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_continuously_monitored_systems_support_status_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm5_non_continuously_monitored_systems_support_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm5_non_continuously_monitored_systems_support_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_non_continuously_monitored_systems_support_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_non_continuously_monitored_systems_support_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm5_non_continuously_monitored_systems_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm5_non_continuously_monitored_systems_status_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_non_continuously_monitored_systems_status_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm5_non_continuously_monitored_systems_status_is_in_phys_range(float value);
+
+/**
+ * Pack message DM26.
+ *
+ * @param[out] dst_p Buffer to pack the message into.
+ * @param[in] src_p Data to pack.
+ * @param[in] size Size of dst_p.
+ *
+ * @return Size of packed data, or negative error code.
+ */
+int genset_dm26_pack(
+    uint8_t *dst_p,
+    const struct genset_dm26_t *src_p,
+    size_t size);
+
+/**
+ * Unpack message DM26.
+ *
+ * @param[out] dst_p Object to unpack the message into.
+ * @param[in] src_p Message to unpack.
+ * @param[in] size Size of src_p.
+ *
+ * @return zero(0) or negative error code.
+ */
+int genset_dm26_unpack(
+    struct genset_dm26_t *dst_p,
+    const uint8_t *src_p,
+    size_t size);
+
+/**
+ * Init message fields to default values from DM26.
+ *
+ * @param[in] msg_p Message to init.
+ *
+ * @return zero(0) on success or (-1) in case of nullptr argument.
+ */
+int genset_dm26_init(struct genset_dm26_t *msg_p);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm26_time_since_engine_start_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm26_time_since_engine_start_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm26_time_since_engine_start_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm26_time_since_engine_start_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm26_number_of_warm_ups_since_dt_cs_cleared_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm26_number_of_warm_ups_since_dt_cs_cleared_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm26_number_of_warm_ups_since_dt_cs_cleared_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm26_number_of_warm_ups_since_dt_cs_cleared_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm26_continuously_monitored_systems_enable_completed_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm26_continuously_monitored_systems_enable_completed_status_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm26_continuously_monitored_systems_enable_completed_status_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm26_continuously_monitored_systems_enable_completed_status_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm26_non_continuously_monitored_systems_enable_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm26_non_continuously_monitored_systems_enable_status_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm26_non_continuously_monitored_systems_enable_status_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm26_non_continuously_monitored_systems_enable_status_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm26_non_continuously_monitored_systems_complete_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm26_non_continuously_monitored_systems_complete_status_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm26_non_continuously_monitored_systems_complete_status_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm26_non_continuously_monitored_systems_complete_status_is_in_phys_range(float value);
+
+/**
+ * Pack message DM21.
+ *
+ * @param[out] dst_p Buffer to pack the message into.
+ * @param[in] src_p Data to pack.
+ * @param[in] size Size of dst_p.
+ *
+ * @return Size of packed data, or negative error code.
+ */
+int genset_dm21_pack(
+    uint8_t *dst_p,
+    const struct genset_dm21_t *src_p,
+    size_t size);
+
+/**
+ * Unpack message DM21.
+ *
+ * @param[out] dst_p Object to unpack the message into.
+ * @param[in] src_p Message to unpack.
+ * @param[in] size Size of src_p.
+ *
+ * @return zero(0) or negative error code.
+ */
+int genset_dm21_unpack(
+    struct genset_dm21_t *dst_p,
+    const uint8_t *src_p,
+    size_t size);
+
+/**
+ * Init message fields to default values from DM21.
+ *
+ * @param[in] msg_p Message to init.
+ *
+ * @return zero(0) on success or (-1) in case of nullptr argument.
+ */
+int genset_dm21_init(struct genset_dm21_t *msg_p);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm21_distance_travelled_while_mil_is_activated_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm21_distance_travelled_while_mil_is_activated_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm21_distance_travelled_while_mil_is_activated_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm21_distance_travelled_while_mil_is_activated_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm21_distance_since_dt_cs_cleared_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm21_distance_since_dt_cs_cleared_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm21_distance_since_dt_cs_cleared_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm21_distance_since_dt_cs_cleared_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm21_minutes_run_by_engine_while_mil_is_activated_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm21_minutes_run_by_engine_while_mil_is_activated_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm21_minutes_run_by_engine_while_mil_is_activated_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm21_minutes_run_by_engine_while_mil_is_activated_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm21_time_since_dt_cs_cleared_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm21_time_since_dt_cs_cleared_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm21_time_since_dt_cs_cleared_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm21_time_since_dt_cs_cleared_is_in_phys_range(float value);
+
+/**
+ * Pack message DM29.
+ *
+ * @param[out] dst_p Buffer to pack the message into.
+ * @param[in] src_p Data to pack.
+ * @param[in] size Size of dst_p.
+ *
+ * @return Size of packed data, or negative error code.
+ */
+int genset_dm29_pack(
+    uint8_t *dst_p,
+    const struct genset_dm29_t *src_p,
+    size_t size);
+
+/**
+ * Unpack message DM29.
+ *
+ * @param[out] dst_p Object to unpack the message into.
+ * @param[in] src_p Message to unpack.
+ * @param[in] size Size of src_p.
+ *
+ * @return zero(0) or negative error code.
+ */
+int genset_dm29_unpack(
+    struct genset_dm29_t *dst_p,
+    const uint8_t *src_p,
+    size_t size);
+
+/**
+ * Init message fields to default values from DM29.
+ *
+ * @param[in] msg_p Message to init.
+ *
+ * @return zero(0) on success or (-1) in case of nullptr argument.
+ */
+int genset_dm29_init(struct genset_dm29_t *msg_p);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm29_pending_dt_cs_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm29_pending_dt_cs_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm29_pending_dt_cs_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm29_pending_dt_cs_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm29_all_pending_dt_cs_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm29_all_pending_dt_cs_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm29_all_pending_dt_cs_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm29_all_pending_dt_cs_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm29_mil_on_dt_cs_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm29_mil_on_dt_cs_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm29_mil_on_dt_cs_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm29_mil_on_dt_cs_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm29_previously_mil_on_dt_cs_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm29_previously_mil_on_dt_cs_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm29_previously_mil_on_dt_cs_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm29_previously_mil_on_dt_cs_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm29_permanent_dt_cs_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm29_permanent_dt_cs_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm29_permanent_dt_cs_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm29_permanent_dt_cs_is_in_phys_range(float value);
+
+/**
+ * Pack message DM34.
+ *
+ * @param[out] dst_p Buffer to pack the message into.
+ * @param[in] src_p Data to pack.
+ * @param[in] size Size of dst_p.
+ *
+ * @return Size of packed data, or negative error code.
+ */
+int genset_dm34_pack(
+    uint8_t *dst_p,
+    const struct genset_dm34_t *src_p,
+    size_t size);
+
+/**
+ * Unpack message DM34.
+ *
+ * @param[out] dst_p Object to unpack the message into.
+ * @param[in] src_p Message to unpack.
+ * @param[in] size Size of src_p.
+ *
+ * @return zero(0) or negative error code.
+ */
+int genset_dm34_unpack(
+    struct genset_dm34_t *dst_p,
+    const uint8_t *src_p,
+    size_t size);
+
+/**
+ * Init message fields to default values from DM34.
+ *
+ * @param[in] msg_p Message to init.
+ *
+ * @return zero(0) on success or (-1) in case of nullptr argument.
+ */
+int genset_dm34_init(struct genset_dm34_t *msg_p);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm34_n_ox_nte_deficiency_area_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm34_n_ox_nte_deficiency_area_status_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_n_ox_nte_deficiency_area_status_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_n_ox_nte_deficiency_area_status_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm34_n_ox_nte_control_area_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm34_n_ox_nte_control_area_status_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_n_ox_nte_control_area_status_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_n_ox_nte_control_area_status_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm34_pmnte_deficiency_area_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm34_pmnte_deficiency_area_status_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_pmnte_deficiency_area_status_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_pmnte_deficiency_area_status_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm34_pmnte_control_area_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm34_pmnte_control_area_status_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_pmnte_control_area_status_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm34_pmnte_control_area_status_is_in_phys_range(float value);
+
+/**
+ * Pack message DM15.
+ *
+ * @param[out] dst_p Buffer to pack the message into.
+ * @param[in] src_p Data to pack.
+ * @param[in] size Size of dst_p.
+ *
+ * @return Size of packed data, or negative error code.
+ */
+int genset_dm15_pack(
+    uint8_t *dst_p,
+    const struct genset_dm15_t *src_p,
+    size_t size);
+
+/**
+ * Unpack message DM15.
+ *
+ * @param[out] dst_p Object to unpack the message into.
+ * @param[in] src_p Message to unpack.
+ * @param[in] size Size of src_p.
+ *
+ * @return zero(0) or negative error code.
+ */
+int genset_dm15_unpack(
+    struct genset_dm15_t *dst_p,
+    const uint8_t *src_p,
+    size_t size);
+
+/**
+ * Init message fields to default values from DM15.
+ *
+ * @param[in] msg_p Message to init.
+ *
+ * @return zero(0) on success or (-1) in case of nullptr argument.
+ */
+int genset_dm15_init(struct genset_dm15_t *msg_p);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm15_length_allowed_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm15_length_allowed_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_length_allowed_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_length_allowed_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm15_status_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm15_status_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_status_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_status_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm15_length_allowed_high_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm15_length_allowed_high_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_length_allowed_high_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_length_allowed_high_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint32_t genset_dm15_edc_parameter_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm15_edc_parameter_decode(uint32_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_edc_parameter_is_in_range(uint32_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_edc_parameter_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm15_edcp_extension_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm15_edcp_extension_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_edcp_extension_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_edcp_extension_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm15_seed_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm15_seed_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_seed_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm15_seed_is_in_phys_range(float value);
+
+/**
+ * Pack message DM22.
+ *
+ * @param[out] dst_p Buffer to pack the message into.
+ * @param[in] src_p Data to pack.
+ * @param[in] size Size of dst_p.
+ *
+ * @return Size of packed data, or negative error code.
+ */
+int genset_dm22_pack(
+    uint8_t *dst_p,
+    const struct genset_dm22_t *src_p,
+    size_t size);
+
+/**
+ * Unpack message DM22.
+ *
+ * @param[out] dst_p Object to unpack the message into.
+ * @param[in] src_p Message to unpack.
+ * @param[in] size Size of src_p.
+ *
+ * @return zero(0) or negative error code.
+ */
+int genset_dm22_unpack(
+    struct genset_dm22_t *dst_p,
+    const uint8_t *src_p,
+    size_t size);
+
+/**
+ * Init message fields to default values from DM22.
+ *
+ * @param[in] msg_p Message to init.
+ *
+ * @return zero(0) on success or (-1) in case of nullptr argument.
+ */
+int genset_dm22_init(struct genset_dm22_t *msg_p);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm22_control_byte_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm22_control_byte_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm22_control_byte_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm22_control_byte_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm22_control_byte_specific_indicator_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm22_control_byte_specific_indicator_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm22_control_byte_specific_indicator_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm22_control_byte_specific_indicator_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm22_spn_low_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm22_spn_low_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm22_spn_low_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm22_spn_low_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm22_fmi_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm22_fmi_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm22_fmi_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm22_fmi_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm22_spn_high_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm22_spn_high_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm22_spn_high_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm22_spn_high_is_in_phys_range(float value);
+
+/**
+ * Pack message DM14.
+ *
+ * @param[out] dst_p Buffer to pack the message into.
+ * @param[in] src_p Data to pack.
+ * @param[in] size Size of dst_p.
+ *
+ * @return Size of packed data, or negative error code.
+ */
+int genset_dm14_pack(
+    uint8_t *dst_p,
+    const struct genset_dm14_t *src_p,
+    size_t size);
+
+/**
+ * Unpack message DM14.
+ *
+ * @param[out] dst_p Object to unpack the message into.
+ * @param[in] src_p Message to unpack.
+ * @param[in] size Size of src_p.
+ *
+ * @return zero(0) or negative error code.
+ */
+int genset_dm14_unpack(
+    struct genset_dm14_t *dst_p,
+    const uint8_t *src_p,
+    size_t size);
+
+/**
+ * Init message fields to default values from DM14.
+ *
+ * @param[in] msg_p Message to init.
+ *
+ * @return zero(0) on success or (-1) in case of nullptr argument.
+ */
+int genset_dm14_init(struct genset_dm14_t *msg_p);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm14_length_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm14_length_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_length_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_length_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm14_command_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm14_command_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_command_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_command_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm14_pointer_type_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm14_pointer_type_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_pointer_type_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_pointer_type_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm14_length_high_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm14_length_high_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_length_high_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_length_high_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint32_t genset_dm14_pointer_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm14_pointer_decode(uint32_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_pointer_is_in_range(uint32_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_pointer_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm14_pointer_extension_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm14_pointer_extension_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_pointer_extension_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_pointer_extension_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm14_key_or_user_level_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm14_key_or_user_level_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_key_or_user_level_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm14_key_or_user_level_is_in_phys_range(float value);
+
+/**
+ * Pack message DM7.
+ *
+ * @param[out] dst_p Buffer to pack the message into.
+ * @param[in] src_p Data to pack.
+ * @param[in] size Size of dst_p.
+ *
+ * @return Size of packed data, or negative error code.
+ */
+int genset_dm7_pack(
+    uint8_t *dst_p,
+    const struct genset_dm7_t *src_p,
+    size_t size);
+
+/**
+ * Unpack message DM7.
+ *
+ * @param[out] dst_p Object to unpack the message into.
+ * @param[in] src_p Message to unpack.
+ * @param[in] size Size of src_p.
+ *
+ * @return zero(0) or negative error code.
+ */
+int genset_dm7_unpack(
+    struct genset_dm7_t *dst_p,
+    const uint8_t *src_p,
+    size_t size);
+
+/**
+ * Init message fields to default values from DM7.
+ *
+ * @param[in] msg_p Message to init.
+ *
+ * @return zero(0) on success or (-1) in case of nullptr argument.
+ */
+int genset_dm7_init(struct genset_dm7_t *msg_p);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm7_test_identifier_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm7_test_identifier_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm7_test_identifier_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm7_test_identifier_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint16_t genset_dm7_spn_low_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm7_spn_low_decode(uint16_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm7_spn_low_is_in_range(uint16_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm7_spn_low_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm7_fmi_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm7_fmi_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm7_fmi_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm7_fmi_is_in_phys_range(float value);
+
+/**
+ * Encode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to encode.
+ *
+ * @return Encoded signal.
+ */
+uint8_t genset_dm7_spn_high_encode(float value);
+
+/**
+ * Decode given signal by applying scaling and offset.
+ *
+ * @param[in] value Signal to decode.
+ *
+ * @return Decoded signal.
+ */
+float genset_dm7_spn_high_decode(uint8_t value);
+
+/**
+ * Check that given signal is in allowed range.
+ *
+ * @param[in] value Signal to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm7_spn_high_is_in_range(uint8_t value);
+
+/**
+ * Check that given physical value is in allowed range before encoding.
+ *
+ * Use this BEFORE calling _encode() to avoid silent integer overflow:
+ *   encode(-1.0) on a [0,100] signal wraps to 255 and passes is_in_range().
+ *   is_in_phys_range(-1.0) correctly returns false.
+ *
+ * @param[in] value Physical signal value to check.
+ *
+ * @return true if in range, false otherwise.
+ */
+bool genset_dm7_spn_high_is_in_phys_range(float value);
 
 /**
  * Pack message CI.

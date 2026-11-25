@@ -17,10 +17,11 @@ LOG_MODULE_REGISTER(zelos_j1939, LOG_LEVEL_INF);
 #define PF_MASK 0x03FF0000U
 
 /*
- * A poll sends at most a claim, a NACK, a BAM packet, an RTS/CTS frame and
- * one frame per message, so this many messages bound what it can queue.
+ * A poll sends at most a claim, an Acknowledgment, a BAM packet, an RTS/CTS
+ * frame and one frame per message, so this many messages bound what it can
+ * queue.
  */
-#define MAX_MSGS 24
+#define MAX_MSGS 48
 
 /* K_MSGQ_DEFINE cannot be static, so its name carries the library's. */
 K_MSGQ_DEFINE(zelos_j1939_rx_msgq, sizeof(struct can_frame), 16, 4);
@@ -86,16 +87,14 @@ int zelos_j1939_start(struct zelos_j1939 *j)
 	}
 
 	j->send = queue_frame;
-	err = zelos_j1939_init(j, k_uptime_get_32());
-	if (err < 0) {
-		LOG_ERR("a message has a PDU1 PGN");
-		return err;
-	}
+	(void)zelos_j1939_init(j, k_uptime_get_32());
 
-	for (size_t i = 0; i < ARRAY_SIZE(pgns); i++) {
-		err = zelos_can_subscribe_ext(pgns[i] << 8, PF_MASK, &zelos_j1939_rx_msgq);
+	for (size_t i = 0; i < ARRAY_SIZE(pgns) + j->n_rx_pgns; i++) {
+		uint32_t pgn = i < ARRAY_SIZE(pgns) ? pgns[i] : j->rx_pgns[i - ARRAY_SIZE(pgns)];
+
+		err = zelos_can_subscribe_ext(pgn << 8, PF_MASK, &zelos_j1939_rx_msgq);
 		if (err < 0) {
-			LOG_ERR("subscribe to PGN %u: %d", pgns[i], err);
+			LOG_ERR("subscribe to PGN %u: %d", pgn, err);
 			return err;
 		}
 	}
@@ -116,5 +115,35 @@ void zelos_j1939_set(struct zelos_j1939_msg *msg, const uint8_t *data, uint16_t 
 	k_mutex_lock(&lock, K_FOREVER);
 	memcpy(msg->data, data, len);
 	msg->len = len;
+	k_mutex_unlock(&lock);
+}
+
+void zelos_j1939_send_to(struct zelos_j1939_msg *msg, uint8_t da)
+{
+	k_mutex_lock(&lock, K_FOREVER);
+	msg->requested = true;
+	msg->requester = da;
+	k_mutex_unlock(&lock);
+}
+
+bool zelos_j1939_pending(struct zelos_j1939 *j, const struct zelos_j1939_msg *msg)
+{
+	bool pending;
+
+	k_mutex_lock(&lock, K_FOREVER);
+	pending = msg->requested || (j->bam.active && j->bam.pgn == msg->pgn) ||
+		  (j->rts.state != ZELOS_J1939_RTS_IDLE && j->rts.pgn == msg->pgn);
+	k_mutex_unlock(&lock);
+
+	return pending;
+}
+
+void zelos_j1939_ack(struct zelos_j1939 *j, uint8_t to, uint32_t pgn)
+{
+	k_mutex_lock(&lock, K_FOREVER);
+	j->ack_pending = true;
+	j->ack_control = ZELOS_J1939_ACK;
+	j->ack_to = to;
+	j->ack_pgn = pgn;
 	k_mutex_unlock(&lock);
 }

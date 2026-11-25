@@ -12,6 +12,8 @@
 #define TESTER   0xF9U
 #define PGN_ET1  65262U
 #define PGN_DM1  65226U
+#define PGN_DM11 65235U
+#define PGN_DM21 0xC100U /* PDU1 */
 #define TICK_MS  10U
 
 #define ID(prio, pgn, sa) (((uint32_t)(prio) << 26) | ((uint32_t)(pgn) << 8) | (sa))
@@ -29,7 +31,8 @@ static uint32_t now;
 
 static uint8_t et1[8] = {0x80, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 static uint8_t dm1[20];
-static struct zelos_j1939_msg msgs[2];
+static uint8_t dm21[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+static struct zelos_j1939_msg msgs[3];
 static struct zelos_j1939 j;
 
 static void capture(const struct zelos_j1939_frame *frame, void *user)
@@ -49,6 +52,8 @@ static void start_at(uint64_t name, uint32_t t0)
 		.pgn = PGN_ET1, .priority = 6, .period_ms = 1000, .len = 8, .data = et1};
 	msgs[1] = (struct zelos_j1939_msg){
 		.pgn = PGN_DM1, .priority = 6, .period_ms = 0, .len = sizeof(dm1), .data = dm1};
+	msgs[2] = (struct zelos_j1939_msg){
+		.pgn = PGN_DM21, .priority = 6, .period_ms = 0, .len = sizeof(dm21), .data = dm21};
 	j = (struct zelos_j1939){
 		.name = name,
 		.preferred = SA,
@@ -202,6 +207,71 @@ ZTEST(j1939, test_requests)
 	inject_request(SA + 1, PGN_ET1);
 	run_until(540);
 	zassert_equal(n_sent, from + 1);
+}
+
+static uint32_t command_pgn;
+static uint8_t command_len;
+
+static bool take_dm11(uint32_t pgn, uint8_t sa, uint8_t da, void *user)
+{
+	return pgn == PGN_DM11;
+}
+
+static void take_command(uint32_t pgn, uint8_t sa, const uint8_t *data, uint8_t len, void *user)
+{
+	command_pgn = pgn;
+	command_len = len;
+}
+
+/* What the application adds: requests it takes, commands to it, PDU1 answers, its ACK. */
+ZTEST(j1939, test_application_hooks)
+{
+	int from;
+
+	start(FIXED);
+	j.on_request = take_dm11;
+	j.on_pg = take_command;
+	run_until(500);
+	from = n_sent;
+
+	/* Taken: no NACK. Not taken: the NACK as before. */
+	inject_request(SA, PGN_DM11);
+	run_until(510);
+	zassert_equal(n_sent, from);
+	inject_request(SA, 0xFEE5U);
+	run_until(520);
+	zassert_equal(n_sent, from + 1);
+	zassert_equal(sent[from].frame.data[0], ZELOS_J1939_NACK);
+
+	/* The ACK the application asks for goes as the NACK does. */
+	j.ack_pending = true;
+	j.ack_control = ZELOS_J1939_ACK;
+	j.ack_to = TESTER;
+	j.ack_pgn = PGN_DM11;
+	run_until(530);
+	zassert_equal(sent[from + 1].frame.id, ID(6, 0xE8FFU, SA));
+	zassert_mem_equal(sent[from + 1].frame.data, "\x00\xFF\xFF\xFF\xF9\xD3\xFE\x00", 8);
+
+	/* A PDU1 PG goes to whoever asked, a global request included. */
+	inject_request(ZELOS_J1939_ADDR_GLOBAL, PGN_DM21);
+	run_until(540);
+	zassert_equal(n_sent, from + 3);
+	zassert_equal(sent[from + 2].frame.id, ID(6, PGN_DM21 | TESTER, SA));
+	zassert_mem_equal(sent[from + 2].frame.data, dm21, 8);
+
+	/* A reply-only message is not for requests. */
+	msgs[2].reply_only = true;
+	inject_request(SA, PGN_DM21);
+	run_until(550);
+	zassert_equal(n_sent, from + 4);
+	zassert_equal(sent[from + 3].frame.data[0], ZELOS_J1939_NACK);
+
+	/* A command to this node reaches the application; one to another node does not. */
+	inject(ID(6, 0xE300U | (SA + 1), TESTER), dm21, 8);
+	zassert_equal(command_len, 0);
+	inject(ID(6, 0xE300U | SA, TESTER), dm21, 8);
+	zassert_equal(command_pgn, 0xE300U);
+	zassert_equal(command_len, 8);
 }
 
 /* DM1 went out by BAM: the announcement, then three packets at legal gaps. */

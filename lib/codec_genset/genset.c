@@ -4182,6 +4182,1491 @@ bool genset_dm2_dtc2_cm_is_in_phys_range(float value)
     return ((value >= 0.0f) && (value <= 1.0f));
 }
 
+int genset_dm5_pack(
+    uint8_t *dst_p,
+    const struct genset_dm5_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->active_trouble_codes, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->previously_active_diagnostic_trouble_codes, 0u, 0xffu);
+    dst_p[2] |= pack_left_shift_u8(src_p->obd_compliance, 0u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->continuously_monitored_systems_support_status, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->non_continuously_monitored_systems_support, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->non_continuously_monitored_systems_support, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->non_continuously_monitored_systems_status, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->non_continuously_monitored_systems_status, 8u, 0xffu);
+
+    return (8);
+}
+
+int genset_dm5_unpack(
+    struct genset_dm5_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->active_trouble_codes = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->previously_active_diagnostic_trouble_codes = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->obd_compliance = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
+    dst_p->continuously_monitored_systems_support_status = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->non_continuously_monitored_systems_support = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->non_continuously_monitored_systems_support |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->non_continuously_monitored_systems_status = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->non_continuously_monitored_systems_status |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+
+    return (0);
+}
+
+int genset_dm5_init(struct genset_dm5_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_dm5_t));
+
+    return 0;
+}
+
+uint8_t genset_dm5_active_trouble_codes_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm5_active_trouble_codes_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm5_active_trouble_codes_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm5_active_trouble_codes_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_dm5_previously_active_diagnostic_trouble_codes_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm5_previously_active_diagnostic_trouble_codes_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm5_previously_active_diagnostic_trouble_codes_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm5_previously_active_diagnostic_trouble_codes_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_dm5_obd_compliance_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm5_obd_compliance_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm5_obd_compliance_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm5_obd_compliance_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_dm5_continuously_monitored_systems_support_status_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm5_continuously_monitored_systems_support_status_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm5_continuously_monitored_systems_support_status_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm5_continuously_monitored_systems_support_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint16_t genset_dm5_non_continuously_monitored_systems_support_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm5_non_continuously_monitored_systems_support_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm5_non_continuously_monitored_systems_support_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm5_non_continuously_monitored_systems_support_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint16_t genset_dm5_non_continuously_monitored_systems_status_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm5_non_continuously_monitored_systems_status_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm5_non_continuously_monitored_systems_status_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm5_non_continuously_monitored_systems_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+int genset_dm26_pack(
+    uint8_t *dst_p,
+    const struct genset_dm26_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u16(src_p->time_since_engine_start, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u16(src_p->time_since_engine_start, 8u, 0xffu);
+    dst_p[2] |= pack_left_shift_u8(src_p->number_of_warm_ups_since_dt_cs_cleared, 0u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->continuously_monitored_systems_enable_completed_status, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->non_continuously_monitored_systems_enable_status, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->non_continuously_monitored_systems_enable_status, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->non_continuously_monitored_systems_complete_status, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->non_continuously_monitored_systems_complete_status, 8u, 0xffu);
+
+    return (8);
+}
+
+int genset_dm26_unpack(
+    struct genset_dm26_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->time_since_engine_start = unpack_right_shift_u16(src_p[0], 0u, 0xffu);
+    dst_p->time_since_engine_start |= unpack_left_shift_u16(src_p[1], 8u, 0xffu);
+    dst_p->number_of_warm_ups_since_dt_cs_cleared = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
+    dst_p->continuously_monitored_systems_enable_completed_status = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->non_continuously_monitored_systems_enable_status = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->non_continuously_monitored_systems_enable_status |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->non_continuously_monitored_systems_complete_status = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->non_continuously_monitored_systems_complete_status |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+
+    return (0);
+}
+
+int genset_dm26_init(struct genset_dm26_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_dm26_t));
+
+    return 0;
+}
+
+uint16_t genset_dm26_time_since_engine_start_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm26_time_since_engine_start_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm26_time_since_engine_start_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm26_time_since_engine_start_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint8_t genset_dm26_number_of_warm_ups_since_dt_cs_cleared_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm26_number_of_warm_ups_since_dt_cs_cleared_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm26_number_of_warm_ups_since_dt_cs_cleared_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm26_number_of_warm_ups_since_dt_cs_cleared_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_dm26_continuously_monitored_systems_enable_completed_status_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm26_continuously_monitored_systems_enable_completed_status_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm26_continuously_monitored_systems_enable_completed_status_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm26_continuously_monitored_systems_enable_completed_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint16_t genset_dm26_non_continuously_monitored_systems_enable_status_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm26_non_continuously_monitored_systems_enable_status_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm26_non_continuously_monitored_systems_enable_status_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm26_non_continuously_monitored_systems_enable_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint16_t genset_dm26_non_continuously_monitored_systems_complete_status_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm26_non_continuously_monitored_systems_complete_status_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm26_non_continuously_monitored_systems_complete_status_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm26_non_continuously_monitored_systems_complete_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+int genset_dm21_pack(
+    uint8_t *dst_p,
+    const struct genset_dm21_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u16(src_p->distance_travelled_while_mil_is_activated, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u16(src_p->distance_travelled_while_mil_is_activated, 8u, 0xffu);
+    dst_p[2] |= pack_left_shift_u16(src_p->distance_since_dt_cs_cleared, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(src_p->distance_since_dt_cs_cleared, 8u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->minutes_run_by_engine_while_mil_is_activated, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->minutes_run_by_engine_while_mil_is_activated, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->time_since_dt_cs_cleared, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->time_since_dt_cs_cleared, 8u, 0xffu);
+
+    return (8);
+}
+
+int genset_dm21_unpack(
+    struct genset_dm21_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->distance_travelled_while_mil_is_activated = unpack_right_shift_u16(src_p[0], 0u, 0xffu);
+    dst_p->distance_travelled_while_mil_is_activated |= unpack_left_shift_u16(src_p[1], 8u, 0xffu);
+    dst_p->distance_since_dt_cs_cleared = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    dst_p->distance_since_dt_cs_cleared |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
+    dst_p->minutes_run_by_engine_while_mil_is_activated = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->minutes_run_by_engine_while_mil_is_activated |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->time_since_dt_cs_cleared = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->time_since_dt_cs_cleared |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+
+    return (0);
+}
+
+int genset_dm21_init(struct genset_dm21_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_dm21_t));
+
+    return 0;
+}
+
+uint16_t genset_dm21_distance_travelled_while_mil_is_activated_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm21_distance_travelled_while_mil_is_activated_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm21_distance_travelled_while_mil_is_activated_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm21_distance_travelled_while_mil_is_activated_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint16_t genset_dm21_distance_since_dt_cs_cleared_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm21_distance_since_dt_cs_cleared_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm21_distance_since_dt_cs_cleared_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm21_distance_since_dt_cs_cleared_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint16_t genset_dm21_minutes_run_by_engine_while_mil_is_activated_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm21_minutes_run_by_engine_while_mil_is_activated_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm21_minutes_run_by_engine_while_mil_is_activated_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm21_minutes_run_by_engine_while_mil_is_activated_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint16_t genset_dm21_time_since_dt_cs_cleared_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm21_time_since_dt_cs_cleared_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm21_time_since_dt_cs_cleared_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm21_time_since_dt_cs_cleared_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+int genset_dm29_pack(
+    uint8_t *dst_p,
+    const struct genset_dm29_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->pending_dt_cs, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->all_pending_dt_cs, 0u, 0xffu);
+    dst_p[2] |= pack_left_shift_u8(src_p->mil_on_dt_cs, 0u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->previously_mil_on_dt_cs, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u8(src_p->permanent_dt_cs, 0u, 0xffu);
+
+    return (8);
+}
+
+int genset_dm29_unpack(
+    struct genset_dm29_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->pending_dt_cs = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->all_pending_dt_cs = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->mil_on_dt_cs = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
+    dst_p->previously_mil_on_dt_cs = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->permanent_dt_cs = unpack_right_shift_u8(src_p[4], 0u, 0xffu);
+
+    return (0);
+}
+
+int genset_dm29_init(struct genset_dm29_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_dm29_t));
+
+    return 0;
+}
+
+uint8_t genset_dm29_pending_dt_cs_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm29_pending_dt_cs_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm29_pending_dt_cs_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm29_pending_dt_cs_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_dm29_all_pending_dt_cs_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm29_all_pending_dt_cs_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm29_all_pending_dt_cs_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm29_all_pending_dt_cs_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_dm29_mil_on_dt_cs_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm29_mil_on_dt_cs_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm29_mil_on_dt_cs_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm29_mil_on_dt_cs_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_dm29_previously_mil_on_dt_cs_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm29_previously_mil_on_dt_cs_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm29_previously_mil_on_dt_cs_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm29_previously_mil_on_dt_cs_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_dm29_permanent_dt_cs_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm29_permanent_dt_cs_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm29_permanent_dt_cs_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm29_permanent_dt_cs_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+int genset_dm34_pack(
+    uint8_t *dst_p,
+    const struct genset_dm34_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->n_ox_nte_deficiency_area_status, 2u, 0x0cu);
+    dst_p[0] |= pack_left_shift_u8(src_p->manufacturer_specific_n_ox_nte_carve_out_area_status, 4u, 0x30u);
+    dst_p[0] |= pack_left_shift_u8(src_p->n_ox_nte_control_area_status, 6u, 0xc0u);
+    dst_p[1] |= pack_left_shift_u8(src_p->pmnte_deficiency_area_status, 2u, 0x0cu);
+    dst_p[1] |= pack_left_shift_u8(src_p->manufacturer_specific_pmnte_carve_out_area_status, 4u, 0x30u);
+    dst_p[1] |= pack_left_shift_u8(src_p->pmnte_control_area_status, 6u, 0xc0u);
+
+    return (8);
+}
+
+int genset_dm34_unpack(
+    struct genset_dm34_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->n_ox_nte_deficiency_area_status = unpack_right_shift_u8(src_p[0], 2u, 0x0cu);
+    dst_p->manufacturer_specific_n_ox_nte_carve_out_area_status = unpack_right_shift_u8(src_p[0], 4u, 0x30u);
+    dst_p->n_ox_nte_control_area_status = unpack_right_shift_u8(src_p[0], 6u, 0xc0u);
+    dst_p->pmnte_deficiency_area_status = unpack_right_shift_u8(src_p[1], 2u, 0x0cu);
+    dst_p->manufacturer_specific_pmnte_carve_out_area_status = unpack_right_shift_u8(src_p[1], 4u, 0x30u);
+    dst_p->pmnte_control_area_status = unpack_right_shift_u8(src_p[1], 6u, 0xc0u);
+
+    return (0);
+}
+
+int genset_dm34_init(struct genset_dm34_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_dm34_t));
+
+    return 0;
+}
+
+uint8_t genset_dm34_n_ox_nte_deficiency_area_status_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm34_n_ox_nte_deficiency_area_status_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm34_n_ox_nte_deficiency_area_status_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm34_n_ox_nte_deficiency_area_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_dm34_n_ox_nte_control_area_status_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm34_n_ox_nte_control_area_status_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm34_n_ox_nte_control_area_status_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm34_n_ox_nte_control_area_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_dm34_pmnte_deficiency_area_status_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm34_pmnte_deficiency_area_status_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm34_pmnte_deficiency_area_status_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm34_pmnte_deficiency_area_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+uint8_t genset_dm34_pmnte_control_area_status_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm34_pmnte_control_area_status_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm34_pmnte_control_area_status_is_in_range(uint8_t value)
+{
+    return (value <= 3u);
+}
+
+bool genset_dm34_pmnte_control_area_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 3.0f));
+}
+
+int genset_dm15_pack(
+    uint8_t *dst_p,
+    const struct genset_dm15_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->length_allowed, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->status, 1u, 0x0eu);
+    dst_p[1] |= pack_left_shift_u8(src_p->length_allowed_high, 5u, 0xe0u);
+    dst_p[2] |= pack_left_shift_u32(src_p->edc_parameter, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u32(src_p->edc_parameter, 8u, 0xffu);
+    dst_p[4] |= pack_right_shift_u32(src_p->edc_parameter, 16u, 0xffu);
+    dst_p[5] |= pack_left_shift_u8(src_p->edcp_extension, 0u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->seed, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->seed, 8u, 0xffu);
+
+    return (8);
+}
+
+int genset_dm15_unpack(
+    struct genset_dm15_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->length_allowed = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->status = unpack_right_shift_u8(src_p[1], 1u, 0x0eu);
+    dst_p->length_allowed_high = unpack_right_shift_u8(src_p[1], 5u, 0xe0u);
+    dst_p->edc_parameter = unpack_right_shift_u32(src_p[2], 0u, 0xffu);
+    dst_p->edc_parameter |= unpack_left_shift_u32(src_p[3], 8u, 0xffu);
+    dst_p->edc_parameter |= unpack_left_shift_u32(src_p[4], 16u, 0xffu);
+    dst_p->edcp_extension = unpack_right_shift_u8(src_p[5], 0u, 0xffu);
+    dst_p->seed = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->seed |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+
+    return (0);
+}
+
+int genset_dm15_init(struct genset_dm15_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_dm15_t));
+
+    return 0;
+}
+
+uint8_t genset_dm15_length_allowed_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm15_length_allowed_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm15_length_allowed_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm15_length_allowed_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_dm15_status_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm15_status_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm15_status_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_dm15_status_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
+uint8_t genset_dm15_length_allowed_high_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm15_length_allowed_high_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm15_length_allowed_high_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_dm15_length_allowed_high_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
+uint32_t genset_dm15_edc_parameter_encode(float value)
+{
+    return (uint32_t)(value);
+}
+
+float genset_dm15_edc_parameter_decode(uint32_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm15_edc_parameter_is_in_range(uint32_t value)
+{
+    return (value <= 16777215u);
+}
+
+bool genset_dm15_edc_parameter_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 16777215.0f));
+}
+
+uint8_t genset_dm15_edcp_extension_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm15_edcp_extension_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm15_edcp_extension_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm15_edcp_extension_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint16_t genset_dm15_seed_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm15_seed_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm15_seed_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm15_seed_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+int genset_dm22_pack(
+    uint8_t *dst_p,
+    const struct genset_dm22_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->control_byte, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->control_byte_specific_indicator, 0u, 0xffu);
+    dst_p[5] |= pack_left_shift_u16(src_p->spn_low, 0u, 0xffu);
+    dst_p[6] |= pack_right_shift_u16(src_p->spn_low, 8u, 0xffu);
+    dst_p[7] |= pack_left_shift_u8(src_p->fmi, 0u, 0x1fu);
+    dst_p[7] |= pack_left_shift_u8(src_p->spn_high, 5u, 0xe0u);
+
+    return (8);
+}
+
+int genset_dm22_unpack(
+    struct genset_dm22_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->control_byte = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->control_byte_specific_indicator = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->spn_low = unpack_right_shift_u16(src_p[5], 0u, 0xffu);
+    dst_p->spn_low |= unpack_left_shift_u16(src_p[6], 8u, 0xffu);
+    dst_p->fmi = unpack_right_shift_u8(src_p[7], 0u, 0x1fu);
+    dst_p->spn_high = unpack_right_shift_u8(src_p[7], 5u, 0xe0u);
+
+    return (0);
+}
+
+int genset_dm22_init(struct genset_dm22_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_dm22_t));
+
+    return 0;
+}
+
+uint8_t genset_dm22_control_byte_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm22_control_byte_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm22_control_byte_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm22_control_byte_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_dm22_control_byte_specific_indicator_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm22_control_byte_specific_indicator_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm22_control_byte_specific_indicator_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm22_control_byte_specific_indicator_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint16_t genset_dm22_spn_low_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm22_spn_low_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm22_spn_low_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm22_spn_low_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint8_t genset_dm22_fmi_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm22_fmi_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm22_fmi_is_in_range(uint8_t value)
+{
+    return (value <= 31u);
+}
+
+bool genset_dm22_fmi_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 31.0f));
+}
+
+uint8_t genset_dm22_spn_high_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm22_spn_high_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm22_spn_high_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_dm22_spn_high_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
+int genset_dm14_pack(
+    uint8_t *dst_p,
+    const struct genset_dm14_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->length, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->command, 1u, 0x0eu);
+    dst_p[1] |= pack_left_shift_u8(src_p->pointer_type, 4u, 0x10u);
+    dst_p[1] |= pack_left_shift_u8(src_p->length_high, 5u, 0xe0u);
+    dst_p[2] |= pack_left_shift_u32(src_p->pointer, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u32(src_p->pointer, 8u, 0xffu);
+    dst_p[4] |= pack_right_shift_u32(src_p->pointer, 16u, 0xffu);
+    dst_p[5] |= pack_left_shift_u8(src_p->pointer_extension, 0u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->key_or_user_level, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->key_or_user_level, 8u, 0xffu);
+
+    return (8);
+}
+
+int genset_dm14_unpack(
+    struct genset_dm14_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->length = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->command = unpack_right_shift_u8(src_p[1], 1u, 0x0eu);
+    dst_p->pointer_type = unpack_right_shift_u8(src_p[1], 4u, 0x10u);
+    dst_p->length_high = unpack_right_shift_u8(src_p[1], 5u, 0xe0u);
+    dst_p->pointer = unpack_right_shift_u32(src_p[2], 0u, 0xffu);
+    dst_p->pointer |= unpack_left_shift_u32(src_p[3], 8u, 0xffu);
+    dst_p->pointer |= unpack_left_shift_u32(src_p[4], 16u, 0xffu);
+    dst_p->pointer_extension = unpack_right_shift_u8(src_p[5], 0u, 0xffu);
+    dst_p->key_or_user_level = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->key_or_user_level |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+
+    return (0);
+}
+
+int genset_dm14_init(struct genset_dm14_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_dm14_t));
+
+    return 0;
+}
+
+uint8_t genset_dm14_length_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm14_length_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm14_length_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm14_length_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint8_t genset_dm14_command_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm14_command_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm14_command_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_dm14_command_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
+uint8_t genset_dm14_pointer_type_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm14_pointer_type_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm14_pointer_type_is_in_range(uint8_t value)
+{
+    return (value <= 1u);
+}
+
+bool genset_dm14_pointer_type_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 1.0f));
+}
+
+uint8_t genset_dm14_length_high_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm14_length_high_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm14_length_high_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_dm14_length_high_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
+uint32_t genset_dm14_pointer_encode(float value)
+{
+    return (uint32_t)(value);
+}
+
+float genset_dm14_pointer_decode(uint32_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm14_pointer_is_in_range(uint32_t value)
+{
+    return (value <= 16777215u);
+}
+
+bool genset_dm14_pointer_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 16777215.0f));
+}
+
+uint8_t genset_dm14_pointer_extension_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm14_pointer_extension_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm14_pointer_extension_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm14_pointer_extension_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint16_t genset_dm14_key_or_user_level_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm14_key_or_user_level_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm14_key_or_user_level_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm14_key_or_user_level_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+int genset_dm7_pack(
+    uint8_t *dst_p,
+    const struct genset_dm7_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    memset(&dst_p[0], 0, 8);
+
+    dst_p[0] |= pack_left_shift_u8(src_p->test_identifier, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u16(src_p->spn_low, 0u, 0xffu);
+    dst_p[2] |= pack_right_shift_u16(src_p->spn_low, 8u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->fmi, 0u, 0x1fu);
+    dst_p[3] |= pack_left_shift_u8(src_p->spn_high, 5u, 0xe0u);
+
+    return (8);
+}
+
+int genset_dm7_unpack(
+    struct genset_dm7_t *dst_p,
+    const uint8_t *src_p,
+    size_t size)
+{
+    if (size < 8u) {
+        return (-EINVAL);
+    }
+
+    dst_p->test_identifier = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->spn_low = unpack_right_shift_u16(src_p[1], 0u, 0xffu);
+    dst_p->spn_low |= unpack_left_shift_u16(src_p[2], 8u, 0xffu);
+    dst_p->fmi = unpack_right_shift_u8(src_p[3], 0u, 0x1fu);
+    dst_p->spn_high = unpack_right_shift_u8(src_p[3], 5u, 0xe0u);
+
+    return (0);
+}
+
+int genset_dm7_init(struct genset_dm7_t *msg_p)
+{
+    if (msg_p == NULL) return -1;
+
+    memset(msg_p, 0, sizeof(struct genset_dm7_t));
+
+    return 0;
+}
+
+uint8_t genset_dm7_test_identifier_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm7_test_identifier_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm7_test_identifier_is_in_range(uint8_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm7_test_identifier_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 255.0f));
+}
+
+uint16_t genset_dm7_spn_low_encode(float value)
+{
+    return (uint16_t)(value);
+}
+
+float genset_dm7_spn_low_decode(uint16_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm7_spn_low_is_in_range(uint16_t value)
+{
+    (void)value;
+
+    return (true);
+}
+
+bool genset_dm7_spn_low_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 65535.0f));
+}
+
+uint8_t genset_dm7_fmi_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm7_fmi_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm7_fmi_is_in_range(uint8_t value)
+{
+    return (value <= 31u);
+}
+
+bool genset_dm7_fmi_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 31.0f));
+}
+
+uint8_t genset_dm7_spn_high_encode(float value)
+{
+    return (uint8_t)(value);
+}
+
+float genset_dm7_spn_high_decode(uint8_t value)
+{
+    return ((float)value);
+}
+
+bool genset_dm7_spn_high_is_in_range(uint8_t value)
+{
+    return (value <= 7u);
+}
+
+bool genset_dm7_spn_high_is_in_phys_range(float value)
+{
+    return ((value >= 0.0f) && (value <= 7.0f));
+}
+
 int genset_ci_pack(
     uint8_t *dst_p,
     const struct genset_ci_t *src_p,

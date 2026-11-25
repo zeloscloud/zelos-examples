@@ -14,6 +14,15 @@
  * on request only, like SOFT and CI: by RTS/CTS to the requester, by BAM to
  * everyone. A controller's TSC1 overrides the governor: the engine follows the
  * requested speed or torque and names the controller in EEC1.
+ *
+ * A service tool gets the rest of J1939-73 on request: the other DTC lists
+ * (DM6, DM12, DM23, DM27, DM28), readiness and counts that agree with them
+ * (DM5, DM21, DM26, DM29), calibration, ratios, supported SPNs and a freeze
+ * frame (DM19, DM20, DM24, DM25), lamps, timers, NTE status and engine family
+ * (DM31, DM33, DM34, DM56). It clears DTCs (DM3, DM11, DM22), commands a test
+ * (DM7, answered by DM30) and reads and writes a small memory behind a seed
+ * and key (DM14, DM15, DM16). A cleared fault whose cause persists is back on
+ * the next model step.
  */
 
 #include <bench.h>
@@ -24,9 +33,11 @@
 #include "genset_node.h"
 
 #include <math.h>
+#include <string.h>
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/byteorder.h>
 
 LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 
@@ -137,6 +148,76 @@ LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 #define HISTORY_W 85000ULL
 #define HISTORY_ML_PER_H 22750ULL /* IDLE_LPH + LPKWH * 85 kW, in mL */
 
+/* J1939-73 PGNs the DBC does not describe: variable length, or a request with no data. */
+#define PGN_DM3  65228U
+#define PGN_DM6  65231U
+#define PGN_DM11 65235U
+#define PGN_DM12 65236U
+#define PGN_DM16 55040U
+#define PGN_DM19 54016U
+#define PGN_DM20 49664U
+#define PGN_DM23 64949U
+#define PGN_DM24 64950U
+#define PGN_DM25 64951U
+#define PGN_DM27 64898U
+#define PGN_DM28 64896U
+#define PGN_DM30 41984U
+#define PGN_DM31 41728U
+#define PGN_DM33 41216U
+#define PGN_DM56 64711U
+
+/* DM5 and DM26. Compliance 17: engine manufacturer diagnostics. */
+#define OBD_COMPLIANCE 17U
+/* Fuel system and comprehensive component monitors, both complete. */
+#define MONITORS_CONTINUOUS 0x06U
+/* Exhaust gas sensor (byte 5 bit 6) and boost pressure control (byte 6 bit 2); the second not complete. */
+#define MONITORS_SUPPORT    0x0220U
+#define MONITORS_INCOMPLETE 0x0200U
+/* A warm-up: the coolant from below the first to above the second. */
+#define WARM_OFF_C 40.0f
+#define WARM_ON_C  70.0f
+/* 16-bit times and counts stop below the not-available and error ranges. */
+#define MAX_16 64255U
+#define MAX_8  250U
+
+/* DM7 and DM30: the test identifier for every test of an SPN, and the special values. */
+#define TEST_ALL         247U
+#define TEST_CANNOT_RUN  0xFB01U
+#define TEST_NO_LIMIT    0xFFFFU
+#define SLOT_UNAVAILABLE 0xFFFFU
+
+/* DM22 control bytes; a positive answer is the command + 1, a negative one + 2. */
+#define DM22_CLEAR_PREVIOUS      1U
+#define DM22_CLEAR_ACTIVE        17U
+#define DM22_UNKNOWN_DTC         2U
+#define DM22_NOT_PREVIOUS_ACTIVE 3U
+#define DM22_NOT_ACTIVE          4U
+
+/*
+ * DM14 to DM16: 64 bytes at pointer 0, byte n starting as 0xA0 + n. A request
+ * is first answered with a seed; repeated with the key, seed ^ MEM_KEY, it
+ * proceeds. A read is as long as one transport message carries after DM16's
+ * count byte; a write is one frame, as the node receives no transport.
+ */
+#define MEM_SIZE      64U
+#define MEM_KEY       0x1939U
+#define MEM_READ_MAX  (ZELOS_J1939_MAX_LEN - 1U)
+#define MEM_WRITE_MAX 7U
+#define MEM_READ      1U /* DM14 commands */
+#define MEM_WRITE     2U
+#define MEM_COMPLETED 4U
+#define MEM_FAILED    5U
+#define MEM_PROCEED   0U /* DM15 status, beside completed and failed */
+#define MEM_NO_KEY    0xFFFFU
+#define MEM_NO_ERROR  0xFFFFFFU
+/* DM15 error indicators. */
+#define MEM_ERR_UNKNOWN 0x1U
+#define MEM_ERR_ADDRESS 0x100U
+#define MEM_ERR_LENGTH  0x102U
+#define MEM_ERR_KEY     0x1003U
+/* DM15 EDCP extension: the EDC parameter is an error indicator. */
+#define MEM_EDCP_ERROR 0x07U
+
 /* DM1 lamps, J1939-73 byte 1: amber warning bits 3-4, red stop bits 5-6. */
 enum lamp {
 	LAMP_AMBER,
@@ -151,22 +232,89 @@ struct dtc {
 	/* Occurrence count, J1939-73: times it became active, from one earlier run. */
 	uint8_t oc;
 	bool active;
+	/* Past its early threshold: on the way to active, or active. */
+	bool pending;
+	/* Emission-related: the derate. */
+	bool emission;
 };
 
 /* Coolant temperature and oil pressure, each FMI "most severe". */
 static struct dtc dtcs[] = {
-	{.spn = 110, .fmi = 0, .lamp = LAMP_AMBER, .oc = 1},
+	{.spn = 110, .fmi = 0, .lamp = LAMP_AMBER, .oc = 1, .emission = true},
 	{.spn = 100, .fmi = 1, .lamp = LAMP_RED, .oc = 1},
 };
 #define DTC_COOLANT 0
 #define DTC_OIL     1
 
+/* The DTC lists, one per DM. */
+enum list {
+	LIST_ACTIVE,           /* DM1 */
+	LIST_PREVIOUS,         /* DM2 */
+	LIST_PENDING_EMISSION, /* DM6 */
+	LIST_MIL_ON,           /* DM12: active and emission-related */
+	LIST_PREVIOUS_MIL_ON,  /* DM23 */
+	LIST_PENDING,          /* DM27 */
+	LIST_PERMANENT,        /* DM28: both, whatever is cleared */
+};
+
+static bool listed(const struct dtc *dtc, enum list list)
+{
+	const bool previous = !dtc->active && dtc->oc > 0U;
+
+	switch (list) {
+	case LIST_ACTIVE:
+		return dtc->active;
+	case LIST_PREVIOUS:
+		return previous;
+	case LIST_PENDING_EMISSION:
+		return dtc->pending && dtc->emission;
+	case LIST_MIL_ON:
+		return dtc->active && dtc->emission;
+	case LIST_PREVIOUS_MIL_ON:
+		return previous && dtc->emission;
+	case LIST_PENDING:
+		return dtc->pending;
+	default:
+		return true;
+	}
+}
+
+static uint8_t count(enum list list)
+{
+	uint8_t n = 0;
+
+	for (size_t i = 0; i < ARRAY_SIZE(dtcs); i++) {
+		n += listed(&dtcs[i], list) ? 1U : 0U;
+	}
+	return n;
+}
+
+/* J1939-73 DTC, 4 bytes: SPN, FMI beside the SPN's top bits, occurrence count. */
+static void put_dtc(uint8_t *d, const struct dtc *dtc)
+{
+	sys_put_le16(dtc->spn & 0xFFFFU, d);
+	d[2] = (uint8_t)(((dtc->spn >> 16) << 5) | dtc->fmi);
+	d[3] = dtc->oc;
+}
+
+/* A request or command for the diagnostics, from the J1939 thread to the model's. */
+struct diag_rx {
+	uint32_t pgn;
+	uint8_t sa;
+	/* Addressed to this node, not to everyone. */
+	bool to_us;
+	uint8_t len;
+	uint8_t data[8];
+};
+
 K_MSGQ_DEFINE(genset_vcu_msgq, sizeof(struct can_frame), 4, 4);
 K_MSGQ_DEFINE(genset_tsc1_msgq, sizeof(struct can_frame), 8, 4);
+K_MSGQ_DEFINE(genset_diag_msgq, sizeof(struct diag_rx), 8, 4);
 
 /*
  * The node's messages. The codec packs the first N_PG, 8 bytes each; DM1 and
- * DM2 grow with their DTCs; SOFT is text.
+ * the other DTC lists grow with their DTCs; SOFT is text. The four at the end
+ * answer a command, not a request.
  */
 enum msg {
 	M_EEC1,
@@ -188,17 +336,90 @@ enum msg {
 	M_GTACE,
 	M_EEC3,
 	M_CCVS,
+	M_DM5,
+	M_DM21,
+	M_DM26,
+	M_DM29,
+	M_DM34,
 	N_PG,
 	M_DM1 = N_PG,
 	M_DM2,
 	M_SOFT,
 	M_CI,
+	M_DM6,
+	M_DM12,
+	M_DM23,
+	M_DM27,
+	M_DM28,
+	M_DM19,
+	M_DM20,
+	M_DM24,
+	M_DM25,
+	M_DM31,
+	M_DM33,
+	M_DM56,
+	M_DM15,
+	M_DM16,
+	M_DM22,
+	M_DM30,
 	N_MSGS,
 };
+
+#define DTC_LIST_LEN (2U + 4U * ARRAY_SIZE(dtcs))
 
 static uint8_t pg[N_PG][8];
 static uint8_t dm1[ZELOS_J1939_MAX_LEN];
 static uint8_t dm2[ZELOS_J1939_MAX_LEN];
+static uint8_t dm6[DTC_LIST_LEN];
+static uint8_t dm12[DTC_LIST_LEN];
+static uint8_t dm23[DTC_LIST_LEN];
+static uint8_t dm27[DTC_LIST_LEN];
+static uint8_t dm28[DTC_LIST_LEN];
+/* DM19: the calibration verification number, then the calibration's name in 16 bytes. */
+static uint8_t dm19[20] = {0x1B, 0xCA, 0x11, 0x0A, 'Z', 'E', 'L', 'O', 'S', '-', 'G', 'E', 'N', 'S', 'E', 'T'};
+/*
+ * DM20: 120 ignition cycles, 100 with monitoring conditions met, then per
+ * monitor its SPN (the 5 bits above it ones), numerator and denominator:
+ * coolant 95/100, oil pressure 98/100, engine speed not supported.
+ */
+static uint8_t dm20[] = {
+	120, 0, 100, 0,
+	110, 0, 0xF8, 95, 0, 100, 0,
+	100, 0, 0xF8, 98, 0, 100, 0,
+	190, 0, 0xF8, 0xFF, 0xFF, 0xFF, 0xFF,
+};
+/*
+ * DM24, per SPN: byte 3 bit 1 clear when in the freeze frame, bit 2 in the
+ * data stream, bit 3 in test results, bits 4-5 ones; byte 4 its length. The
+ * freeze frame holds the first four, in this order.
+ */
+#define DM24_DATA_STREAM 0x1DU
+#define DM24_FREEZE      0x1CU /* and the data stream */
+#define DM24_TESTED      0x18U /* and both */
+static uint8_t dm24[] = {
+	190, 0, DM24_FREEZE, 2,      /* engine speed */
+	110, 0, DM24_TESTED, 1,      /* coolant temperature */
+	100, 0, DM24_TESTED, 1,      /* oil pressure */
+	92,  0, DM24_FREEZE, 1,      /* percent load */
+	175, 0, DM24_DATA_STREAM, 2, /* oil temperature */
+	183, 0, DM24_DATA_STREAM, 2, /* fuel rate */
+};
+#define FREEZE_DATA_LEN 5U
+/* DM25: the bytes that follow, the DTC, its data; or the form of no freeze frame. */
+static uint8_t dm25[1U + 4U + FREEZE_DATA_LEN] = {0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF};
+/* DM25 and DM31 with nothing to list. */
+static const uint8_t no_record[8] = {0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF};
+/* DM31: per DTC its 4 bytes, then the lamp it lights and the flash byte. */
+static uint8_t dm31[6U * ARRAY_SIZE(dtcs)];
+/* DM33: timer number 1, minutes derated, and a second timer, not available. */
+static uint8_t dm33[9];
+/* DM56: model year as 2026E-MY, then the engine family, ending in '*'. */
+static uint8_t dm56[] = "2026E-MYZELOS GENSET*";
+#define DM56_LEN (sizeof(dm56) - 1U)
+static uint8_t dm15[8];
+static uint8_t dm16[1U + MEM_READ_MAX];
+static uint8_t dm22[8];
+static uint8_t dm30[12];
 /* J1939-71 SOFT: the number of fields, then each field ending in '*'. */
 static uint8_t soft[] = "\x03" "ZELOS-GENSET*" "v1.1.0*" "zelos-examples node genset*";
 #define SOFT_LEN (sizeof(soft) - 1U)
@@ -209,12 +430,20 @@ static uint8_t ci[] = "Zelos*GENSET-FULL*0A11*ZELOSBENCH*";
 BUILD_ASSERT(CI_LEN == GENSET_CI_LENGTH && CI_LEN > 8U, "CI goes by transport, as long as the DBC says");
 
 /* dbc/genset.dbc is the one list: PGN and priority from the frame id, period from the cycle time. */
-#define PGN_OF(id)  (((id) >> 8) & 0x3FFFFU)
+#define PGN_OF(id)  (((id) >> 8) & ((((id) >> 16) & 0xFFU) < 240U ? 0x3FF00U : 0x3FFFFU))
 #define PRIO_OF(id) (((id) >> 26) & 7U)
 #define PG(m, name, offset)                                                                    \
 	[m] = {.pgn = PGN_OF(GENSET_##name##_FRAME_ID), .priority = PRIO_OF(GENSET_##name##_FRAME_ID), \
 	       .period_ms = GENSET_##name##_CYCLE_TIME_MS, .offset_ms = offset, .len = 8,          \
 	       .data = pg[m]}
+/* On request only: 8 bytes the codec packs, or longer and packed here. */
+#define DM8(m, name)                                                                           \
+	[m] = {.pgn = PGN_OF(GENSET_##name##_FRAME_ID), .priority = PRIO_OF(GENSET_##name##_FRAME_ID), \
+	       .len = 8, .data = pg[m]}
+#define DM(m, n, buf, length) [m] = {.pgn = n, .priority = 6, .len = length, .data = buf}
+/* Sent to whoever commanded it. */
+#define REPLY(m, n, prio, buf)                                                                 \
+	[m] = {.pgn = n, .priority = prio, .len = sizeof(buf), .data = buf, .reply_only = true}
 
 /*
  * Offsets spread the periodic sends over the 10 ms ticks: the nine 100 ms
@@ -250,6 +479,38 @@ static struct zelos_j1939_msg msgs[N_MSGS] = {
 		    .period_ms = 0, .len = SOFT_LEN, .data = soft},
 	[M_CI] = {.pgn = PGN_OF(GENSET_CI_FRAME_ID), .priority = PRIO_OF(GENSET_CI_FRAME_ID),
 		  .period_ms = 0, .len = CI_LEN, .data = ci},
+	DM8(M_DM5, DM5),
+	DM8(M_DM21, DM21),
+	DM8(M_DM26, DM26),
+	DM8(M_DM29, DM29),
+	DM8(M_DM34, DM34),
+	DM(M_DM6, PGN_DM6, dm6, 8),
+	DM(M_DM12, PGN_DM12, dm12, 8),
+	DM(M_DM23, PGN_DM23, dm23, 8),
+	DM(M_DM27, PGN_DM27, dm27, 8),
+	DM(M_DM28, PGN_DM28, dm28, 8),
+	DM(M_DM19, PGN_DM19, dm19, sizeof(dm19)),
+	DM(M_DM20, PGN_DM20, dm20, sizeof(dm20)),
+	DM(M_DM24, PGN_DM24, dm24, sizeof(dm24)),
+	DM(M_DM25, PGN_DM25, dm25, 8),
+	DM(M_DM31, PGN_DM31, dm31, 8),
+	DM(M_DM33, PGN_DM33, dm33, sizeof(dm33)),
+	DM(M_DM56, PGN_DM56, dm56, DM56_LEN),
+	/* DM15 before DM16: a poll that sends both sends them in this order. */
+	REPLY(M_DM15, PGN_OF(GENSET_DM15_FRAME_ID), 6, dm15),
+	REPLY(M_DM16, PGN_DM16, 7, dm16),
+	REPLY(M_DM22, PGN_OF(GENSET_DM22_FRAME_ID), 6, dm22),
+	REPLY(M_DM30, PGN_DM30, 6, dm30),
+};
+
+/* Which list each DTC-list DM carries. */
+static const struct {
+	enum msg msg;
+	enum list list;
+} dtc_lists[] = {
+	{M_DM1, LIST_ACTIVE},      {M_DM2, LIST_PREVIOUS},         {M_DM6, LIST_PENDING_EMISSION},
+	{M_DM12, LIST_MIL_ON},     {M_DM23, LIST_PREVIOUS_MIL_ON}, {M_DM27, LIST_PENDING},
+	{M_DM28, LIST_PERMANENT},
 };
 
 /* The bits of each PG the DBC leaves out, sent as ones: not available. */
@@ -264,13 +525,49 @@ static const uint8_t na[N_PG][8] = {
 	[M_AMB] = {0, 0xFF, 0xFF, 0, 0, 0, 0xFF, 0xFF},
 	[M_IC1] = {0xFF, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
 	[M_GTACR] = {0, 0, 0, 0, 0, 0, 0xFC, 0xFF},
+	[M_DM29] = {0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF},
+	[M_DM34] = {0x03, 0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
 };
+
+/* The J1939 thread hands requests and commands to the model's thread. */
+static bool on_request(uint32_t pgn, uint8_t sa, uint8_t da, void *user)
+{
+	const struct diag_rx rx = {.pgn = pgn, .sa = sa, .to_us = da != ZELOS_J1939_ADDR_GLOBAL};
+
+	ARG_UNUSED(user);
+
+	if (pgn != PGN_DM3 && pgn != PGN_DM11) {
+		return false;
+	}
+	(void)k_msgq_put(&genset_diag_msgq, &rx, K_NO_WAIT);
+	return true;
+}
+
+static void on_pg(uint32_t pgn, uint8_t sa, const uint8_t *data, uint8_t len, void *user)
+{
+	struct diag_rx rx = {.pgn = pgn, .sa = sa, .to_us = true, .len = len};
+
+	ARG_UNUSED(user);
+
+	memcpy(rx.data, data, len);
+	(void)k_msgq_put(&genset_diag_msgq, &rx, K_NO_WAIT);
+}
+
+#define PGN_DM7  PGN_OF(GENSET_DM7_FRAME_ID)
+#define PGN_DM14 PGN_OF(GENSET_DM14_FRAME_ID)
+#define PGN_DM22 PGN_OF(GENSET_DM22_FRAME_ID)
+
+static const uint32_t rx_pgns[] = {PGN_DM7, PGN_DM14, PGN_DM16, PGN_DM22};
 
 static struct zelos_j1939 j1939 = {
 	.name = NAME,
 	.preferred = PREFERRED_ADDRESS,
 	.msgs = msgs,
 	.n_msgs = ARRAY_SIZE(msgs),
+	.on_request = on_request,
+	.on_pg = on_pg,
+	.rx_pgns = rx_pgns,
+	.n_rx_pgns = ARRAY_SIZE(rx_pgns),
 };
 
 /* What a TSC1 sender asks of the engine, while its messages keep coming. */
@@ -313,6 +610,14 @@ struct engine {
 	float rev_frac;
 	float wh_frac;
 	float ml_frac;
+	/* Diagnostics: this run, time derated, and since a tool last cleared DTCs. */
+	uint32_t since_start_ms;
+	uint32_t hot_ms;
+	uint32_t since_clear_ms;
+	uint8_t warmups;
+	bool warm;
+	/* A freeze frame is held, taken when the first DTC set. */
+	bool frozen;
 };
 
 static void follow_vcu(struct engine *e, int64_t now_ms)
@@ -457,9 +762,13 @@ static void step(struct engine *e)
 
 	if (!e->hot && e->coolant_c > HOT_ON_C) {
 		e->hot = true;
-		dtc_on(&dtcs[DTC_COOLANT], "coolant hot, derating");
 	} else if (e->hot && e->coolant_c < HOT_OFF_C) {
 		e->hot = false;
+	}
+	/* By level, not edge: cleared by a tool while still hot, it sets again. */
+	if (e->hot) {
+		dtc_on(&dtcs[DTC_COOLANT], "coolant hot, derating");
+	} else {
 		dtc_off(&dtcs[DTC_COOLANT], "derate");
 	}
 	/* Judged from idle speed up: pressure builds as the engine starts. */
@@ -467,6 +776,22 @@ static void step(struct engine *e)
 		dtc_on(&dtcs[DTC_OIL], "oil pressure low");
 	} else if (e->rpm == 0.0f || e->oil_kpa > OIL_OK_KPA) {
 		dtc_off(&dtcs[DTC_OIL], "oil pressure");
+	}
+	/* Pending from the threshold each fault clears at, so before it is active. */
+	dtcs[DTC_COOLANT].pending = e->hot || e->coolant_c >= HOT_OFF_C;
+	dtcs[DTC_OIL].pending = dtcs[DTC_OIL].active ||
+				(e->rpm >= IDLE_RPM && e->oil_kpa < OIL_OK_KPA);
+
+	if (!e->warm && e->coolant_c > WARM_ON_C) {
+		e->warm = true;
+		e->warmups = (uint8_t)MIN(e->warmups + 1U, MAX_8);
+	} else if (e->warm && e->coolant_c < WARM_OFF_C) {
+		e->warm = false;
+	}
+	e->since_start_ms = e->rpm > 0.0f ? e->since_start_ms + LOOP_MS : 0U;
+	e->since_clear_ms += LOOP_MS;
+	if (e->hot) {
+		e->hot_ms += LOOP_MS;
 	}
 
 	/* Electrical: P = T * w, S = P / pf, I = P / (3 V pf). */
@@ -513,12 +838,12 @@ static void put(enum msg m, uint8_t *d)
 #define POWER_RAW(w) ((uint32_t)((int64_t)(w) + 2000000000LL))
 
 /*
- * DM1 (active) or DM2 (previously active): the lamps the listed DTCs light,
- * then the DTCs, J1939-73. None leaves bytes 3-6 zero; one fits the frame,
- * bytes 7-8 not available; two go by transport, 10 bytes. The flash byte is
- * not available.
+ * DM1 (active), DM2 (previously active) or another DTC list: the lamps the
+ * listed DTCs light, then the DTCs, J1939-73. None leaves bytes 3-6 zero; one
+ * fits the frame, bytes 7-8 not available; two go by transport, 10 bytes. The
+ * flash byte is not available.
  */
-static uint16_t encode_dm(uint8_t *d, bool active)
+static uint16_t encode_dm(uint8_t *d, enum list list)
 {
 	struct genset_dm1_t m = {0};
 	uint16_t len = 2;
@@ -527,7 +852,7 @@ static uint16_t encode_dm(uint8_t *d, bool active)
 	for (size_t i = 0; i < ARRAY_SIZE(dtcs); i++) {
 		const struct dtc *dtc = &dtcs[i];
 
-		if (dtc->active != active || dtc->oc == 0U) {
+		if (!listed(dtc, list)) {
 			continue;
 		}
 		if (dtc->lamp == LAMP_AMBER) {
@@ -548,7 +873,7 @@ static uint16_t encode_dm(uint8_t *d, bool active)
 		}
 		len += 4;
 	}
-	/* DM2 shares DM1's layout. */
+	/* Every list shares DM1's layout. */
 	(void)genset_dm1_pack(d, &m, GENSET_DM1_LENGTH);
 	d[1] = 0xFF;
 	if (len <= 8) {
@@ -593,6 +918,7 @@ static uint8_t pto_state(const struct engine *e)
 static void publish(const struct engine *e)
 {
 	uint8_t d[ZELOS_J1939_MAX_LEN];
+	uint16_t len;
 	const bool running = e->rpm > 0.0f;
 	const bool driving = e->mode == BENCH_VCU_COMMAND_REQUESTED_MODE_DRIVE_CHOICE;
 	const float load = (e->torque_pct / 100.0f) * (e->rpm / RATED_RPM);
@@ -673,8 +999,316 @@ static void publish(const struct engine *e)
 	PUT(M_GTACE, gtace, .generator_totalk_wh_export = (uint32_t)(e->wh / 1000U),
 	    .generator_totalk_wh_import = 0);
 
-	zelos_j1939_set(&msgs[M_DM1], d, encode_dm(d, true));
-	zelos_j1939_set(&msgs[M_DM2], d, encode_dm(d, false));
+	for (size_t i = 0; i < ARRAY_SIZE(dtc_lists); i++) {
+		zelos_j1939_set(&msgs[dtc_lists[i].msg], d, encode_dm(d, dtc_lists[i].list));
+	}
+
+	/* Readiness and counts, of the lists as just sent. No MIL, and a genset goes nowhere: zeros. */
+	PUT(M_DM5, dm5, .active_trouble_codes = count(LIST_ACTIVE),
+	    .previously_active_diagnostic_trouble_codes = count(LIST_PREVIOUS),
+	    .obd_compliance = OBD_COMPLIANCE,
+	    .continuously_monitored_systems_support_status = MONITORS_CONTINUOUS,
+	    .non_continuously_monitored_systems_support = MONITORS_SUPPORT,
+	    .non_continuously_monitored_systems_status = MONITORS_INCOMPLETE);
+	PUT(M_DM21, dm21, .distance_travelled_while_mil_is_activated = 0, .distance_since_dt_cs_cleared = 0,
+	    .minutes_run_by_engine_while_mil_is_activated = 0,
+	    .time_since_dt_cs_cleared = (uint16_t)MIN(e->since_clear_ms / 60000U, MAX_16));
+	PUT(M_DM26, dm26, .time_since_engine_start = (uint16_t)MIN(e->since_start_ms / 1000U, MAX_16),
+	    .number_of_warm_ups_since_dt_cs_cleared = e->warmups,
+	    .continuously_monitored_systems_enable_completed_status = MONITORS_CONTINUOUS,
+	    .non_continuously_monitored_systems_enable_status = MONITORS_SUPPORT,
+	    .non_continuously_monitored_systems_complete_status = MONITORS_INCOMPLETE);
+	PUT(M_DM29, dm29, .pending_dt_cs = count(LIST_PENDING_EMISSION), .all_pending_dt_cs = count(LIST_PENDING),
+	    .mil_on_dt_cs = count(LIST_MIL_ON), .previously_mil_on_dt_cs = count(LIST_PREVIOUS_MIL_ON),
+	    .permanent_dt_cs = count(LIST_PERMANENT));
+	/* In the control areas under load; no carve-out; deficiencies not available. */
+	PUT(M_DM34, dm34, .n_ox_nte_deficiency_area_status = 3, .manufacturer_specific_n_ox_nte_carve_out_area_status = 0,
+	    .n_ox_nte_control_area_status = load >= 0.5f, .pmnte_deficiency_area_status = 3,
+	    .manufacturer_specific_pmnte_carve_out_area_status = 0, .pmnte_control_area_status = load >= 0.5f);
+
+	/* DM31: every DTC that is or was active, with its lamp on. */
+	len = 0;
+	for (size_t i = 0; i < ARRAY_SIZE(dtcs); i++) {
+		if (dtcs[i].active || dtcs[i].oc > 0U) {
+			put_dtc(&d[len], &dtcs[i]);
+			d[len + 4U] = dtcs[i].lamp == LAMP_AMBER ? 0x04U : 0x10U;
+			d[len + 5U] = 0xFF;
+			len += 6U;
+		}
+	}
+	if (len == 0U) {
+		memcpy(d, no_record, sizeof(no_record));
+		len = sizeof(no_record);
+	}
+	zelos_j1939_set(&msgs[M_DM31], d, len);
+
+	d[0] = 1;
+	sys_put_le32(e->hot_ms / 60000U, &d[1]);
+	sys_put_le32(0xFFFFFFFFU, &d[5]);
+	zelos_j1939_set(&msgs[M_DM33], d, sizeof(dm33));
+}
+
+/*
+ * DM25: when the first DTC sets, its 4 bytes and the freeze-frame SPNs of
+ * DM24, in DM24's order and lengths, as their PGs carry them. Held while a DTC
+ * is active.
+ */
+static void freeze(struct engine *e)
+{
+	uint8_t d[sizeof(dm25)];
+
+	if (count(LIST_ACTIVE) == 0U) {
+		if (e->frozen) {
+			zelos_j1939_set(&msgs[M_DM25], no_record, sizeof(no_record));
+			e->frozen = false;
+		}
+		return;
+	}
+	if (e->frozen) {
+		return;
+	}
+	e->frozen = true;
+
+	d[0] = sizeof(d) - 1U;
+	put_dtc(&d[1], dtcs[DTC_COOLANT].active ? &dtcs[DTC_COOLANT] : &dtcs[DTC_OIL]);
+	sys_put_le16(ENC(eec1, engine_speed, e->rpm), &d[5]);
+	d[7] = ENC(et1, engine_coolant_temp, e->coolant_c);
+	d[8] = ENC(efl_p1, engine_oil_pressure, e->oil_kpa);
+	d[9] = ENC(eec2, engine_percent_load_at_current_speed, e->torque_pct);
+	zelos_j1939_set(&msgs[M_DM25], d, sizeof(d));
+}
+
+/* DM11 clears the active DTCs, DM3 the previously active: gone, their counts with them. */
+static void clear_dtcs(struct engine *e, bool active)
+{
+	for (size_t i = 0; i < ARRAY_SIZE(dtcs); i++) {
+		if (dtcs[i].active == active) {
+			dtcs[i].active = false;
+			dtcs[i].oc = 0;
+		}
+	}
+	e->since_clear_ms = 0;
+	e->warmups = 0;
+}
+
+/* DM22: clear one DTC, named by SPN and FMI; the answer is DM22 to the sender. */
+static void clear_one(const struct diag_rx *rx)
+{
+	const uint8_t control = rx->data[0];
+	const uint32_t spn = sys_get_le16(&rx->data[5]) | ((uint32_t)(rx->data[7] >> 5) << 16);
+	const uint8_t fmi = rx->data[7] & 0x1FU;
+	uint8_t d[8] = {0, 0xFF, 0xFF, 0xFF, 0xFF, rx->data[5], rx->data[6], rx->data[7]};
+	uint8_t refused = DM22_UNKNOWN_DTC;
+
+	if (control != DM22_CLEAR_PREVIOUS && control != DM22_CLEAR_ACTIVE) {
+		return;
+	}
+	for (size_t i = 0; i < ARRAY_SIZE(dtcs); i++) {
+		struct dtc *dtc = &dtcs[i];
+
+		if (dtc->spn != spn || dtc->fmi != fmi) {
+			continue;
+		}
+		if (control == DM22_CLEAR_ACTIVE && !dtc->active) {
+			refused = DM22_NOT_ACTIVE;
+		} else if (control == DM22_CLEAR_PREVIOUS && (dtc->active || dtc->oc == 0U)) {
+			refused = DM22_NOT_PREVIOUS_ACTIVE;
+		} else {
+			dtc->active = false;
+			dtc->oc = 0;
+			refused = 0;
+		}
+	}
+	d[0] = control + (refused != 0U ? 2U : 1U);
+	if (refused != 0U) {
+		d[1] = refused;
+	}
+	zelos_j1939_set(&msgs[M_DM22], d, sizeof(d));
+	zelos_j1939_send_to(&msgs[M_DM22], rx->sa);
+}
+
+/*
+ * DM7 commands a test; DM30 answers with its result: the SPN's value as its
+ * PG carries it, against the limit its DTC sets at. A test the node lacks, or
+ * oil pressure with the engine below idle, cannot be performed.
+ */
+static void command_test(const struct engine *e, const struct diag_rx *rx)
+{
+	const uint32_t spn = sys_get_le16(&rx->data[1]) | ((uint32_t)(rx->data[3] >> 5) << 16);
+	uint8_t d[sizeof(dm30)];
+	uint16_t value = TEST_CANNOT_RUN;
+	uint16_t max = TEST_NO_LIMIT;
+	uint16_t min = TEST_NO_LIMIT;
+
+	memcpy(d, rx->data, 4);
+	if (rx->data[0] == TEST_ALL && spn == dtcs[DTC_COOLANT].spn) {
+		d[3] = (rx->data[3] & 0xE0U) | dtcs[DTC_COOLANT].fmi;
+		value = ENC(et1, engine_coolant_temp, e->coolant_c);
+		max = ENC(et1, engine_coolant_temp, HOT_ON_C);
+	} else if (rx->data[0] == TEST_ALL && spn == dtcs[DTC_OIL].spn) {
+		d[3] = (rx->data[3] & 0xE0U) | dtcs[DTC_OIL].fmi;
+		if (e->rpm >= IDLE_RPM) {
+			value = ENC(efl_p1, engine_oil_pressure, e->oil_kpa);
+			min = ENC(efl_p1, engine_oil_pressure, OIL_LOW_KPA);
+		}
+	}
+	sys_put_le16(SLOT_UNAVAILABLE, &d[4]);
+	sys_put_le16(value, &d[6]);
+	sys_put_le16(max, &d[8]);
+	sys_put_le16(min, &d[10]);
+	zelos_j1939_set(&msgs[M_DM30], d, sizeof(d));
+	zelos_j1939_send_to(&msgs[M_DM30], rx->sa);
+}
+
+static uint8_t memory[MEM_SIZE];
+
+/* One memory access at a time: the last DM14 wins. */
+static struct {
+	enum {
+		MEM_IDLE,
+		MEM_KEYING,  /* seed sent, waiting for the same request with the key */
+		MEM_SEND,    /* read granted: DM16 goes on the next pass */
+		MEM_SENDING, /* DM16 on its way: completed once it has gone */
+		MEM_RECEIVE, /* write granted: waiting for DM16 */
+	} state;
+	uint8_t sa;
+	uint8_t command;
+	uint16_t len;
+	uint32_t pointer;
+	uint16_t seed;
+} mem;
+
+/* DM15 to the tool. Byte 2 bits 1 and 5 are ones. */
+static void mem_answer(uint16_t len, uint8_t status, uint32_t error, uint16_t seed)
+{
+	const struct genset_dm15_t m = {
+		.length_allowed = len & 0xFFU,
+		.length_allowed_high = len >> 8,
+		.status = status,
+		.edc_parameter = error,
+		.edcp_extension = error == MEM_NO_ERROR ? 0xFFU : MEM_EDCP_ERROR,
+		.seed = seed,
+	};
+	uint8_t d[8];
+
+	(void)genset_dm15_pack(d, &m, sizeof(d));
+	d[1] |= 0x11U;
+	zelos_j1939_set(&msgs[M_DM15], d, sizeof(d));
+	zelos_j1939_send_to(&msgs[M_DM15], mem.sa);
+}
+
+static void mem_fail(uint32_t error)
+{
+	mem.state = MEM_IDLE;
+	mem_answer(0, MEM_FAILED, error, MEM_NO_KEY);
+}
+
+/* DM14: a read or write of the memory, or the tool closing one. */
+static void mem_request(const struct diag_rx *rx)
+{
+	const uint8_t command = (rx->data[1] >> 1) & 7U;
+	const uint16_t len = rx->data[0] | ((uint16_t)(rx->data[1] >> 5) << 8);
+	/* Pointer and its extension as one address. */
+	const uint32_t pointer = sys_get_le32(&rx->data[2]);
+	const uint16_t key = sys_get_le16(&rx->data[6]);
+	const bool keyed = mem.state == MEM_KEYING && rx->sa == mem.sa && command == mem.command &&
+			   len == mem.len && pointer == mem.pointer;
+
+	mem.state = MEM_IDLE;
+	mem.sa = rx->sa;
+	if (command == MEM_COMPLETED || command == MEM_FAILED) {
+		return;
+	}
+	if (command != MEM_READ && command != MEM_WRITE) {
+		mem_fail(MEM_ERR_UNKNOWN);
+	} else if (pointer >= MEM_SIZE) {
+		mem_fail(MEM_ERR_ADDRESS);
+	} else if (len == 0U || len > MEM_SIZE - pointer ||
+		   len > (command == MEM_READ ? MEM_READ_MAX : MEM_WRITE_MAX)) {
+		mem_fail(MEM_ERR_LENGTH);
+	} else if (!keyed) {
+		/* The key field is a user level here; whatever it is, a key is wanted. */
+		mem.seed = (uint16_t)k_cycle_get_32();
+		if (mem.seed == 0U || mem.seed == MEM_NO_KEY) {
+			mem.seed = MEM_KEY;
+		}
+		mem.command = command;
+		mem.len = len;
+		mem.pointer = pointer;
+		mem.state = MEM_KEYING;
+		mem_answer(0, MEM_PROCEED, MEM_NO_ERROR, mem.seed);
+	} else if (key != (mem.seed ^ MEM_KEY)) {
+		mem_fail(MEM_ERR_KEY);
+	} else {
+		mem.state = command == MEM_READ ? MEM_SEND : MEM_RECEIVE;
+		mem_answer(len, MEM_PROCEED, MEM_NO_ERROR, MEM_NO_KEY);
+	}
+}
+
+/* DM16 from the tool: the bytes of the write it was granted. */
+static void mem_write(const struct diag_rx *rx)
+{
+	if (mem.state != MEM_RECEIVE || rx->sa != mem.sa || rx->len == 0U) {
+		return;
+	}
+	if (MIN(rx->data[0], rx->len - 1U) != mem.len) {
+		mem_fail(MEM_ERR_LENGTH);
+		return;
+	}
+	memcpy(&memory[mem.pointer], &rx->data[1], mem.len);
+	mem.state = MEM_IDLE;
+	mem_answer(0, MEM_COMPLETED, MEM_NO_ERROR, MEM_NO_KEY);
+}
+
+/*
+ * A granted read, a pass at a time so each DM15 has gone before the next
+ * replaces it: DM16 with the bytes, then DM15 completed once DM16 has gone.
+ * DM16's first byte counts the data, or is 0xFF above 7 bytes, where it goes
+ * by transport.
+ */
+static void mem_step(void)
+{
+	uint8_t d[sizeof(dm16)];
+
+	if (mem.state == MEM_SEND) {
+		memset(d, 0xFF, sizeof(d));
+		d[0] = mem.len > 7U ? 0xFFU : (uint8_t)mem.len;
+		memcpy(&d[1], &memory[mem.pointer], mem.len);
+		zelos_j1939_set(&msgs[M_DM16], d, MAX(1U + mem.len, 8U));
+		zelos_j1939_send_to(&msgs[M_DM16], mem.sa);
+		mem.state = MEM_SENDING;
+	} else if (mem.state == MEM_SENDING && !zelos_j1939_pending(&j1939, &msgs[M_DM16])) {
+		mem.state = MEM_IDLE;
+		mem_answer(0, MEM_COMPLETED, MEM_NO_ERROR, MEM_NO_KEY);
+	}
+}
+
+/* What a tool asked since the last pass. Before the model's step, so a cleared fault that persists is back in this pass. */
+static void diagnose(struct engine *e)
+{
+	struct diag_rx rx;
+
+	mem_step();
+
+	while (k_msgq_get(&genset_diag_msgq, &rx, K_NO_WAIT) == 0) {
+		if (rx.pgn == PGN_DM3 || rx.pgn == PGN_DM11) {
+			clear_dtcs(e, rx.pgn == PGN_DM11);
+			/* J1939-73: acknowledged to the one who asked this node, not to a global request. */
+			if (rx.to_us) {
+				zelos_j1939_ack(&j1939, rx.sa, rx.pgn);
+			}
+		} else if (rx.pgn == PGN_DM16) {
+			mem_write(&rx);
+		} else if (rx.len < 8U) {
+			continue;
+		} else if (rx.pgn == PGN_DM22) {
+			clear_one(&rx);
+		} else if (rx.pgn == PGN_DM7) {
+			command_test(e, &rx);
+		} else if (rx.pgn == PGN_DM14) {
+			mem_request(&rx);
+		}
+	}
 }
 
 static struct engine engine = {
@@ -700,7 +1334,9 @@ static void run(void *p1, void *p2, void *p3)
 	for (;;) {
 		follow_vcu(&engine, k_uptime_get());
 		follow_tsc1(&engine, k_uptime_get());
+		diagnose(&engine);
 		step(&engine);
+		freeze(&engine);
 		publish(&engine);
 
 		deadline += LOOP_MS;
@@ -711,7 +1347,7 @@ static void run(void *p1, void *p2, void *p3)
 /*
  * The model, on a thread of its own so an image can run it beside other
  * nodes; main()'s priority, where it ran before, and room for the float
- * model and two dozen packs.
+ * model, two dozen packs and a memory read on its way out.
  */
 K_THREAD_DEFINE(genset_tid, 3072, run, NULL, NULL, NULL, 0, 0, SYS_FOREVER_MS);
 
@@ -727,6 +1363,9 @@ int genset_start(void)
 		return -EIO;
 	}
 
+	for (size_t i = 0; i < MEM_SIZE; i++) {
+		memory[i] = (uint8_t)(0xA0U + i);
+	}
 	publish(&engine);
 	if (zelos_j1939_start(&j1939) != 0) {
 		return -EIO;

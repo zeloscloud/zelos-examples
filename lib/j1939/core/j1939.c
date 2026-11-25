@@ -4,7 +4,6 @@
 
 #include <zelos/j1939.h>
 
-#include <errno.h>
 #include <string.h>
 
 #include <zephyr/sys/byteorder.h>
@@ -21,7 +20,6 @@
 #define TP_CM_EOMA  19U
 #define TP_CM_BAM   32U
 #define TP_CM_ABORT 255U
-#define ACK_NACK  1U
 
 /* Where an arbitrary-address-capable node looks when it loses its address. */
 #define DYNAMIC_FIRST 128U
@@ -105,15 +103,11 @@ static void lose(struct zelos_j1939 *j, uint32_t now_ms)
 int zelos_j1939_init(struct zelos_j1939 *j, uint32_t now_ms)
 {
 	for (size_t i = 0; i < j->n_msgs; i++) {
-		/* Sent to global only: a PDU1 PGN would need the requester as DA. */
-		if (PDU1(j->msgs[i].pgn)) {
-			return -EINVAL;
-		}
 		j->msgs[i].requested = false;
 		j->msgs[i].requester = ZELOS_J1939_ADDR_GLOBAL;
 	}
 	j->tried = DYNAMIC(j->preferred) ? 1U : 0U;
-	j->nack_pending = false;
+	j->ack_pending = false;
 	claim(j, ZELOS_J1939_CLAIMING, j->preferred, now_ms);
 	return 0;
 }
@@ -164,12 +158,17 @@ static void on_request(struct zelos_j1939 *j, uint8_t da, uint8_t sa,
 
 	for (size_t i = 0; i < j->n_msgs; i++) {
 		struct zelos_j1939_msg *m = &j->msgs[i];
-		/* The null address cannot take a connection: answer everyone. */
-		uint8_t to = da == ZELOS_J1939_ADDR_GLOBAL || sa >= ZELOS_J1939_ADDR_NULL
+		/*
+		 * A global request is answered to everyone, unless the PG is
+		 * PDU1: that one goes to whoever asked. The null address
+		 * cannot take a connection: answer everyone.
+		 */
+		uint8_t to = (da == ZELOS_J1939_ADDR_GLOBAL && !PDU1(pgn)) ||
+					     sa >= ZELOS_J1939_ADDR_NULL
 				     ? ZELOS_J1939_ADDR_GLOBAL
 				     : sa;
 
-		if (m->pgn == pgn) {
+		if (m->pgn == pgn && !m->reply_only) {
 			/* Two requesters before it goes out: one BAM answers both. */
 			m->requester = m->requested && m->requester != to ? ZELOS_J1939_ADDR_GLOBAL
 									  : to;
@@ -178,11 +177,16 @@ static void on_request(struct zelos_j1939 *j, uint8_t da, uint8_t sa,
 		}
 	}
 
+	if (j->on_request != NULL && j->on_request(pgn, sa, da, j->user)) {
+		return;
+	}
+
 	/* J1939-21: a request addressed to us for a PGN we lack gets a NACK. */
 	if (da != ZELOS_J1939_ADDR_GLOBAL) {
-		j->nack_pending = true;
-		j->nack_to = sa;
-		j->nack_pgn = pgn;
+		j->ack_pending = true;
+		j->ack_control = ZELOS_J1939_NACK;
+		j->ack_to = sa;
+		j->ack_pgn = pgn;
 	}
 }
 
@@ -243,6 +247,9 @@ void zelos_j1939_on_frame(struct zelos_j1939 *j, const struct zelos_j1939_frame 
 		on_request(j, da, sa, frame, now_ms);
 	} else if (pgn == ZELOS_J1939_PGN_TP_CM) {
 		on_tp_cm(j, da, sa, frame, now_ms);
+	} else if (PDU1(pgn) && da == j->address && j->state == ZELOS_J1939_CLAIMED &&
+		   j->on_pg != NULL) {
+		j->on_pg(pgn, sa, frame->data, frame->len, j->user);
 	}
 }
 
@@ -260,13 +267,14 @@ static void send_claim(struct zelos_j1939 *j, uint32_t now_ms)
 	}
 }
 
-static void send_nack(struct zelos_j1939 *j)
+/* To everyone, byte 5 naming who is answered. */
+static void send_ack(struct zelos_j1939 *j)
 {
-	uint8_t d[8] = {ACK_NACK, 0xFF, 0xFF, 0xFF, j->nack_to};
+	uint8_t d[8] = {j->ack_control, 0xFF, 0xFF, 0xFF, j->ack_to};
 
-	sys_put_le24(j->nack_pgn, &d[5]);
+	sys_put_le24(j->ack_pgn, &d[5]);
 	emit(j, PRIO_CLAIM, ZELOS_J1939_PGN_ACK, d, sizeof(d));
-	j->nack_pending = false;
+	j->ack_pending = false;
 }
 
 static void bam_start(struct zelos_j1939 *j, const struct zelos_j1939_msg *m, uint32_t now_ms)
@@ -397,7 +405,8 @@ static void send_msgs(struct zelos_j1939 *j, uint32_t now_ms)
 			}
 			bam_start(j, m, now_ms);
 		} else {
-			emit(j, m->priority, m->pgn, m->data, (uint8_t)m->len);
+			/* A PDU1 PG to its requester; a PDU2 id carries no destination. */
+			emit_to(j, m->priority, m->pgn, m->requester, m->data, (uint8_t)m->len);
 		}
 
 		m->requested = false;
@@ -430,8 +439,8 @@ void zelos_j1939_poll(struct zelos_j1939 *j, uint32_t now_ms)
 		return;
 	}
 
-	if (j->nack_pending) {
-		send_nack(j);
+	if (j->ack_pending) {
+		send_ack(j);
 	}
 	bam_step(j, now_ms);
 	rts_step(j, now_ms);

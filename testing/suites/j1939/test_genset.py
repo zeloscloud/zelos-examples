@@ -2,7 +2,9 @@
 generator PGs at their periods with values that agree across PGs, the status
 fields following the mode, a controller's TSC1 overriding the governor, DM1
 growing from one DTC in a frame to two by BAM, DM2 on request by transport,
-SOFT and CI.
+SOFT and CI, and the rest of J1939-73 a service tool asks for: the other DTC
+lists with counts that agree, readiness, calibration, a freeze frame, clearing
+DTCs, a commanded test and memory access behind a seed and key.
 
 Frames are checked directly and decoded with cantools from dbc/genset.dbc.
 Transport is reassembled by python-can-j1939, an independent stack: as the
@@ -684,3 +686,329 @@ def test_component_id_by_bam_to_everyone(bus, node):
     fields = bytes(data).split(b"*")
     assert fields[-1] == b"" and len(fields) == 5, data
     assert fields[0] == b"Zelos" and fields[1] == b"GENSET-FULL", data
+
+
+# J1939-73 beyond DM1 and DM2. The fixed 8-byte ones are in the DBC; the rest are parsed here.
+DM5, DM7, DM14, DM15, DM21, DM22, DM26, DM29, DM34 = (GENSET.get_message_by_name(n) for n in ("DM5", "DM7", "DM14", "DM15", "DM21", "DM22", "DM26", "DM29", "DM34"))
+PGN_DM3, PGN_DM5, PGN_DM11, PGN_DM26 = 65228, 65230, 65235, 64952
+PGN_DM7, PGN_DM14, PGN_DM15, PGN_DM16, PGN_DM22, PGN_DM30 = 58112, 55552, 55296, 55040, 49920, 41984
+PGN_DM19, PGN_DM20, PGN_DM21, PGN_DM24, PGN_DM25, PGN_DM29, PGN_DM31, PGN_DM33, PGN_DM34, PGN_DM56 = 54016, 49664, 49408, 64950, 64951, 40448, 41728, 41216, 40960, 64711
+# The DTC lists, all laid out as DM1.
+DTC_LISTS = {"DM1": PGN_DM1, "DM2": PGN_DM2, "DM6": 65231, "DM12": 65236, "DM23": 64949, "DM27": 64898, "DM28": 64896}
+ACK = 0
+NO_RECORD = bytes.fromhex("0000000000ffffff")
+# From nodes/genset: its memory, 64 bytes at pointer 0, byte n starting as 0xA0 + n, and its key for a seed.
+MEMORY = bytes(0xA0 + n for n in range(64))
+MEM_KEY = 0x1939
+MEM_READ, MEM_WRITE, MEM_COMPLETED = 1, 2, 4
+MEM_PROCEED, MEM_FAILED = 0, 5
+NO_KEY = 0xFFFF
+# The freeze frame's SPNs, in DM24's order: engine speed, coolant temperature, oil pressure, load.
+FREEZE_SPNS = [190, 110, 100, 92]
+HOT_ON_C = 105
+
+
+def pdu(pgn, data, da, prio=6):
+    """A PG from us to da, not yet sent."""
+    pg = j1939.ParameterGroupNumber(pgn >> 16, pgn >> 8, pgn)
+    if pg.is_pdu1_format:
+        pg.pdu_specific = da
+    mid = j1939.MessageId(priority=prio, parameter_group_number=pg.value, source_address=TESTER)
+    return can.Message(arbitration_id=mid.can_id, data=data, is_extended_id=True)
+
+
+def answer(bus, sa, pgn, to=None, node_s=bench.WAIT_S):
+    """The payload of the next PG pgn from the node: a frame, or by transport, where
+    python-can-j1939 grants the windows of an RTS/CTS session to us.
+
+    to: a frame of ours to send first; only what follows it on the bus counts.
+    """
+    got = []
+    ecu = j1939.ElectronicControlUnit(send_message=lambda can_id, ext, data, fd_format=False: bus.send(can.Message(arbitration_id=can_id, data=bytes(data), is_extended_id=True)))
+
+    def on_pg(prio, p, src, ts, d):
+        # Reassembled only: a single frame is taken off the bus below. A PDU1 PGN may carry its destination.
+        if src == sa and len(d) > 8 and p in (pgn, pgn | TESTER, pgn | GLOBAL):
+            got.append(bytes(d))
+
+    ecu.subscribe(on_pg, device_address=TESTER)
+    armed = to is None
+
+    def step(frames):
+        nonlocal armed
+        m = frames[-1]
+        if not m.is_extended_id:
+            return False
+        if not armed:
+            armed = m.arbitration_id == to.arbitration_id and bytes(m.data) == bytes(to.data)
+        elif theirs(m):
+            if is_from(pgn, sa)(m):
+                got.append(bytes(m.data))
+            else:
+                ecu.notify(m.arbitration_id, bytearray(m.data), m.timestamp)
+        return bool(got)
+
+    try:
+        if to is not None:
+            bus.send(to)
+        until(bus, step, node_s)
+    finally:
+        ecu.stop()
+    return got[0]
+
+
+def ask(bus, sa, pgn):
+    """What the node answers our request for pgn with."""
+    return answer(bus, sa, pgn, pdu(PGN.REQUEST, pgn.to_bytes(3, "little"), sa))
+
+
+def dtc_lists(bus, sa):
+    """{DM: {(spn, fmi)}} of every DTC list, each asked for."""
+    return {name: {d[:2] for d in dtcs_of(ask(bus, sa, pgn))} for name, pgn in DTC_LISTS.items()}
+
+
+def assert_counts(bus, sa, lists):
+    """DM5 and DM29 count what the lists hold."""
+    dm5 = DM5.decode(ask(bus, sa, PGN_DM5), decode_choices=False)
+    assert (dm5["ActiveTroubleCodes"], dm5["PreviouslyActiveDiagnosticTroubleCodes"]) == (len(lists["DM1"]), len(lists["DM2"])), (dm5, lists)
+    dm29 = DM29.decode(ask(bus, sa, PGN_DM29), decode_choices=False)
+    counts = [dm29[k] for k in ("PendingDTCs", "AllPendingDTCs", "MILOnDTCs", "PreviouslyMILOnDTCs", "PermanentDTCs")]
+    assert counts == [len(lists[k]) for k in ("DM6", "DM27", "DM12", "DM23", "DM28")], (dm29, lists)
+
+
+def spn_support(data):
+    """[(spn, in the freeze frame, in the data stream, in test results, length)] of a DM24, in its order."""
+    assert len(data) % 4 == 0, data.hex()
+    return [(r[0] | r[1] << 8 | (r[2] >> 5) << 16, not r[2] & 1, not r[2] & 2, not r[2] & 4, r[3]) for r in (data[i : i + 4] for i in range(0, len(data), 4))]
+
+
+def check_dm19(data):
+    assert len(data) == 20 and int.from_bytes(data[:4], "little") == 0x0A11CA1B, data.hex()
+    assert data[4:].rstrip(b"\0 ") == b"ZELOS-GENSET", data
+
+
+def check_dm20(data):
+    assert len(data) == 4 + 7 * 3 and int.from_bytes(data[:2], "little") == 120 and int.from_bytes(data[2:4], "little") == 100, data.hex()
+    ratios = {int.from_bytes(r[:3], "little") & 0x7FFFF: (int.from_bytes(r[3:5], "little"), int.from_bytes(r[5:7], "little")) for r in (data[i : i + 7] for i in range(4, len(data), 7))}
+    # Engine speed has no monitor: numerator and denominator not available.
+    assert ratios == {110: (95, 100), 100: (98, 100), 190: (0xFFFF, 0xFFFF)}, ratios
+
+
+def check_dm24(data):
+    spns = spn_support(data)
+    assert [spn for spn, freeze, *_ in spns if freeze] == FREEZE_SPNS, spns
+    assert {spn for spn, _, _, tested, _ in spns if tested} == {110, 100} and all(stream for _, _, stream, _, _ in spns), spns
+
+
+def check_dm31(data):
+    """Each DTC that is or was active with the lamp it lights: amber for coolant, red for oil pressure."""
+    assert len(data) == 12, data.hex()
+    lamp = {(*next(iter(dtcs_of(b"\0\0" + r[:4])))[:2],): r[4] for r in (data[:6], data[6:])}
+    assert lamp == {DTC_COOLANT: 0x04, DTC_OIL: 0x10} and data[5] == data[11] == 0xFF, data.hex()
+
+
+def check_dm33(data):
+    assert len(data) == 9 and data[0] == 1 and data[5:] == b"\xff" * 4, data.hex()
+
+
+def check_dm34(data):
+    d = DM34.decode(data, decode_choices=False)
+    # Idling: outside both control areas; deficiency areas not available.
+    assert (d["NOxNTEControlAreaStatus"], d["PMNTEControlAreaStatus"], d["NOxNTEDeficiencyAreaStatus"], d["PMNTEDeficiencyAreaStatus"]) == (0, 0, 3, 3), d
+    assert data[0] & 3 == data[1] & 3 == 3 and data[2:] == b"\xff" * 6, data.hex()
+
+
+def check_dm56(data):
+    assert data[:8] == b"2026E-MY" and data.endswith(b"*") and data[8:-1].decode("ascii"), data
+
+
+def check_dm21(data):
+    d = DM21.decode(data, decode_choices=False)
+    # No MIL, and a genset goes nowhere.
+    assert d["DistanceTravelledWhileMILIsActivated"] == d["DistanceSinceDTCsCleared"] == d["MinutesRunByEngineWhileMILIsActivated"] == 0 and d["TimeSinceDTCsCleared"] <= 64255, d
+
+
+def check_dm26(data):
+    # Fuel system and comprehensive component monitors complete; exhaust gas sensor complete, boost pressure not.
+    assert data[3:] == bytes.fromhex("0620020002") and int.from_bytes(data[:2], "little") <= 64255, data.hex()
+
+
+@pytest.mark.parametrize(
+    "pgn, check",
+    [(PGN_DM19, check_dm19), (PGN_DM20, check_dm20), (PGN_DM21, check_dm21), (PGN_DM24, check_dm24), (PGN_DM26, check_dm26), (PGN_DM31, check_dm31), (PGN_DM33, check_dm33), (PGN_DM34, check_dm34), (PGN_DM56, check_dm56)],
+    ids=["DM19", "DM20", "DM21", "DM24", "DM26", "DM31", "DM33", "DM34", "DM56"],
+)
+def test_answers_diagnostic_request(bus, node, pgn, check):
+    """Asked, the genset answers us: a frame, or RTS/CTS for the longer ones. Its engine idles under no VCU or a played one."""
+    sa, _ = node
+    with vcu(bus, sa) as set_mode:
+        set_mode(STANDBY)
+        # Idle and cooled, as DM31 and DM34 are checked.
+        first(bus, lambda m: is_from(PGN_DM1, sa)(m) and not dtcs_of(m.data), 2 * VCU_CYCLE_S + bench.WAIT_S)
+        check(ask(bus, sa, pgn))
+
+
+def test_pdu1_answer_goes_to_the_requester(bus, node):
+    """A global request for a PDU1 PG is answered to whoever asked, not to everyone."""
+    sa, _ = node
+    request(bus, PGN_DM29)
+    reply = first(bus, is_from(PGN_DM29, sa))[-1]
+    assert parse(reply)[1] == TESTER and len(reply.data) == 8, hex(reply.arbitration_id)
+
+
+def test_dtc_lists_counts_and_clearing(bus, node):
+    """Idle, the faults are history: every list holds what its DM names and DM5
+    and DM29 count them. One is cleared by DM22, the rest by DM3. Hot, both are
+    active and pending, DM27 goes by transport and DM25 holds the frame frozen
+    when the coolant fault set, laid out as DM24 says. DM11 clears them; they
+    are back at once, counted from one. Cooled, the history is as it began.
+    """
+    sa, _ = node
+    eec1 = is_from(PGN_EEC1, sa)
+    both = {DTC_COOLANT, DTC_OIL}
+
+    def no_dtc(m):
+        return is_from(PGN_DM1, sa)(m) and not dtcs_of(m.data)
+
+    def dm22(control, dtc):
+        return pdu(PGN_DM22, bytes([control, 0xFF, 0xFF, 0xFF, 0xFF, dtc[0] & 0xFF, dtc[0] >> 8, dtc[1]]), sa)
+
+    def acks(frames):
+        return [bytes(m.data) for m in frames if is_from(PGN_ACK, sa)(m)]
+
+    with vcu(bus, sa) as set_mode:
+        set_mode(STANDBY)
+        first(bus, no_dtc, 2 * VCU_CYCLE_S + bench.WAIT_S)
+        lists = dtc_lists(bus, sa)
+        assert lists == {"DM1": set(), "DM2": both, "DM6": set(), "DM12": set(), "DM23": {DTC_COOLANT}, "DM27": set(), "DM28": both}, lists
+        assert_counts(bus, sa, lists)
+        assert ask(bus, sa, PGN_DM25) == NO_RECORD
+
+        # DM22: (command, DTC) and the control byte and indicator of the answer.
+        for control, dtc, reply in [
+            (1, DTC_COOLANT, (2, 0xFF)),  # previously active: cleared
+            (1, DTC_COOLANT, (3, 3)),  # no longer previously active
+            (17, DTC_OIL, (19, 4)),  # not active
+            (17, (190, 0), (19, 2)),  # not a DTC of this node
+        ]:
+            got = answer(bus, sa, PGN_DM22, dm22(control, dtc))
+            assert tuple(got[:2]) == reply and got[2:] == bytes(dm22(control, dtc).data[2:]), (control, dtc, got.hex())
+        assert {d[:2] for d in dtcs_of(ask(bus, sa, PGN_DM2))} == {DTC_OIL}
+
+        # DM3 to everyone: acted on, not acknowledged.
+        request(bus, PGN_DM3)
+        assert not acks(gather(bus, lambda got: sum(map(eec1, got)) >= 3))
+        lists = dtc_lists(bus, sa)
+        assert lists["DM2"] == lists["DM23"] == set() and lists["DM28"] == both, lists
+        assert_counts(bus, sa, lists)
+        assert ask(bus, sa, PGN_DM31) == NO_RECORD
+
+        set_mode(DRIVE)
+        first(bus, bam_of(PGN_DM1, sa), 2 * VCU_CYCLE_S + bench.WAIT_S)
+        lists = dtc_lists(bus, sa)
+        assert lists == {"DM1": both, "DM2": set(), "DM6": {DTC_COOLANT}, "DM12": {DTC_COOLANT}, "DM23": set(), "DM27": both, "DM28": both}, lists
+        assert_counts(bus, sa, lists)
+
+        frozen = ask(bus, sa, PGN_DM25)
+        sizes = [size for _, freeze, _, _, size in spn_support(ask(bus, sa, PGN_DM24)) if freeze]
+        assert frozen[0] == len(frozen) - 1 == 4 + sum(sizes), frozen.hex()
+        assert {d[:2] for d in dtcs_of(b"\0\0" + frozen[1:5])} == {DTC_COOLANT}, frozen.hex()
+        # Engine speed, then the coolant, 1 degC per bit from -40: over the threshold when it set.
+        assert int.from_bytes(frozen[5:7], "little") / 8 > IDLE_RPM and frozen[7] - 40 >= HOT_ON_C, frozen.hex()
+
+        # DM11 to the node: acknowledged, to everyone, naming us.
+        request(bus, PGN_DM11, da=sa)
+        ack = first(bus, is_from(PGN_ACK, sa))[-1]
+        assert parse(ack)[1] == GLOBAL and bytes(ack.data) == bytes([ACK, 0xFF, 0xFF, 0xFF, TESTER]) + PGN_DM11.to_bytes(3, "little"), bytes(ack.data).hex()
+        # Still hot: the model raises both again, their counts restarted.
+        assert dtcs_of(ask(bus, sa, PGN_DM1)) == {(*DTC_COOLANT, 1), (*DTC_OIL, 1)}
+
+        # Cooled, both are history again, as the other tests find them.
+        set_mode(CHARGE)
+        first(bus, no_dtc, 2 * VCU_CYCLE_S + bench.WAIT_S)
+        assert {d[:2] for d in dtcs_of(ask(bus, sa, PGN_DM2))} == both
+
+
+@pytest.mark.parametrize("spn, fmi, limits", [(110, 0, (HOT_ON_C + 40, 0xFFFF)), (100, 1, (0xFFFF, 200 // 4)), (190, 31, (0xFFFF, 0xFFFF))], ids=["coolant", "oil-pressure", "no-such-test"])
+def test_dm7_commands_a_test_answered_by_dm30(bus, node, spn, fmi, limits):
+    """DM7 for an SPN's tests gets DM30 by RTS/CTS: the value as the SPN's PG carries it,
+    against the limit its DTC sets at; an SPN without a test cannot be performed."""
+    sa, _ = node
+    result = answer(bus, sa, PGN_DM30, pdu(PGN_DM7, bytes([247, spn & 0xFF, spn >> 8, 31, 0xFF, 0xFF, 0xFF, 0xFF]), sa))
+    assert len(result) == 12 and result[0] == 247 and (result[1] | result[2] << 8, result[3]) == (spn, fmi), result.hex()
+    value, high, low = (int.from_bytes(result[i : i + 2], "little") for i in (6, 8, 10))
+    # 0xFB01: cannot be performed, as oil pressure with the engine below idle; then no limits.
+    if value == 0xFB01:
+        assert spn != 110 and (high, low) == (0xFFFF, 0xFFFF), result.hex()
+    else:
+        assert spn != 190 and value <= 250 and (high, low) == limits, result.hex()
+
+
+def dm14(sa, command, pointer, length, key):
+    data = DM14.encode({"Length": length & 0xFF, "LengthHigh": length >> 8, "Command": command, "PointerType": 0, "Pointer": pointer, "PointerExtension": 0, "KeyOrUserLevel": key})
+    # Byte 2 bit 1 is sent as one.
+    return pdu(PGN_DM14, bytes([data[0], data[1] | 1, *data[2:]]), sa)
+
+
+def dm15(bus, sa, to=None):
+    return DM15.decode(answer(bus, sa, PGN_DM15, to), decode_choices=False)
+
+
+def unlock(bus, sa, command, pointer, length):
+    """DM14 twice: a user level gets a seed and nothing granted, the key gets the access. The granting DM15."""
+    challenge = dm15(bus, sa, dm14(sa, command, pointer, length, 7))
+    assert (challenge["Status"], challenge["LengthAllowed"]) == (MEM_PROCEED, 0) and challenge["Seed"] not in (0, NO_KEY), challenge
+    granted = dm15(bus, sa, dm14(sa, command, pointer, length, challenge["Seed"] ^ MEM_KEY))
+    assert (granted["Status"], granted["LengthAllowed"], granted["Seed"]) == (MEM_PROCEED, length, NO_KEY), granted
+    return granted
+
+
+def read_memory(bus, sa, pointer, length):
+    unlock(bus, sa, MEM_READ, pointer, length)
+    data = answer(bus, sa, PGN_DM16)
+    assert dm15(bus, sa)["Status"] == MEM_COMPLETED
+    bus.send(dm14(sa, MEM_COMPLETED, pointer, length, NO_KEY))
+    # The count, or 0xFF above 7 bytes, where DM16 goes by transport; a frame is padded.
+    assert data[0] == (length if length <= 7 else 0xFF) and len(data) == max(1 + length, 8), data.hex()
+    return data[1 : 1 + length]
+
+
+def write_memory(bus, sa, pointer, data):
+    unlock(bus, sa, MEM_WRITE, pointer, len(data))
+    assert dm15(bus, sa, pdu(PGN_DM16, bytes([len(data), *data]), sa, prio=7))["Status"] == MEM_COMPLETED
+    bus.send(dm14(sa, MEM_COMPLETED, pointer, len(data), NO_KEY))
+
+
+def test_memory_access_by_seed_and_key(bus, node):
+    """DM14 to DM16: no access without the key; with it a read in a frame, a
+    longer one by RTS/CTS, and a write that reads back. The memory is left as
+    it began."""
+    sa, _ = node
+    # An earlier access of ours, left open, is closed.
+    bus.send(dm14(sa, MEM_COMPLETED, 0, 1, NO_KEY))
+
+    assert read_memory(bus, sa, 0x10, 4) == MEMORY[0x10:0x14]
+    assert read_memory(bus, sa, 0, 16) == MEMORY[:16]
+
+    write_memory(bus, sa, 0x20, b"\x01\x02\x03\x04")
+    try:
+        assert read_memory(bus, sa, 0x1E, 7) == MEMORY[0x1E:0x20] + b"\x01\x02\x03\x04" + MEMORY[0x24:0x25]
+    finally:
+        write_memory(bus, sa, 0x20, MEMORY[0x20:0x24])
+    assert read_memory(bus, sa, 0x20, 4) == MEMORY[0x20:0x24]
+
+
+@pytest.mark.parametrize(
+    "command, pointer, length, error",
+    [(MEM_READ, 64, 1, 0x100), (MEM_READ, 0, 0, 0x102), (MEM_READ, 60, 5, 0x102), (MEM_WRITE, 0, 8, 0x102), (0, 0, 1, 0x1), (MEM_READ, 0, 4, 0x1003)],
+    ids=["pointer-outside", "no-length", "past-the-end", "write-over-a-frame", "erase-unsupported", "wrong-key"],
+)
+def test_memory_access_refused(bus, node, command, pointer, length, error):
+    """A request the node cannot grant fails with DM15: operation failed, the error indicator and EDCP extension 7."""
+    sa, _ = node
+    bus.send(dm14(sa, MEM_COMPLETED, 0, 1, NO_KEY))
+    reply = dm15(bus, sa, dm14(sa, command, pointer, length, 7))
+    if error == 0x1003:
+        # The same request again with a key that is not the seed's.
+        reply = dm15(bus, sa, dm14(sa, command, pointer, length, reply["Seed"] ^ MEM_KEY ^ 1))
+    assert (reply["Status"], reply["LengthAllowed"], reply["EDCParameter"], reply["EDCPExtension"], reply["Seed"]) == (MEM_FAILED, 0, error, 7, NO_KEY), reply

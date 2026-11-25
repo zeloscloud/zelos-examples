@@ -1,7 +1,8 @@
 /*
- * SAE J1939 for a node: address claim, requests, periodic messages and
- * transport for messages longer than one frame: TP.BAM to everyone, RTS/CTS
- * to the node that asked.
+ * SAE J1939 for a node: address claim, requests and their acknowledgment,
+ * periodic messages, commands addressed to the node, and transport for
+ * messages longer than one frame: TP.BAM to everyone, RTS/CTS to the node
+ * that asked.
  *
  * The core is sans-IO: it takes received frames and the time, and hands
  * frames to send to a callback. It never blocks or sleeps, so it runs the same
@@ -65,10 +66,15 @@ struct zelos_j1939_frame {
 	uint8_t data[8];
 };
 
+/* J1939-21 Acknowledgment control bytes. */
+#define ZELOS_J1939_ACK  0U
+#define ZELOS_J1939_NACK 1U
+
 /*
- * A message the node sends: periodically, when requested, or both. PDU2 PGNs
- * only. Longer than 8 bytes goes by BAM, except the answer to a request
- * addressed to this node, which goes by RTS/CTS to the requester.
+ * A message the node sends: periodically, when requested, or both. Longer
+ * than 8 bytes goes by BAM, except the answer to a request addressed to this
+ * node, which goes by RTS/CTS to the requester. A PDU1 PGN is sent to whoever
+ * asked for it, a global request included.
  */
 struct zelos_j1939_msg {
 	uint32_t pgn;
@@ -84,6 +90,8 @@ struct zelos_j1939_msg {
 	/* At most ZELOS_J1939_MAX_LEN. */
 	uint16_t len;
 	uint8_t *data;
+	/* Sent only by zelos_j1939_send_to(): a request for it is NACKed. */
+	bool reply_only;
 
 	/* Owned by the core. */
 	uint32_t due_ms;
@@ -106,6 +114,18 @@ struct zelos_j1939 {
 	size_t n_msgs;
 	void (*send)(const struct zelos_j1939_frame *frame, void *user);
 	void *user;
+	/*
+	 * Optional, both called from zelos_j1939_on_frame() once the address is
+	 * claimed. on_request: a request for a PGN outside msgs, to this node
+	 * or to everyone (da); true takes it, false leaves one to this node
+	 * NACKed. on_pg: a single-frame PDU1 PG addressed to this node that the
+	 * core has no use for.
+	 */
+	bool (*on_request)(uint32_t pgn, uint8_t sa, uint8_t da, void *user);
+	void (*on_pg)(uint32_t pgn, uint8_t sa, const uint8_t *data, uint8_t len, void *user);
+	/* The PDU1 PGNs on_pg wants: the Zephyr glue filters on them. */
+	const uint32_t *rx_pgns;
+	size_t n_rx_pgns;
 
 	/* Read-only for the caller. */
 	enum zelos_j1939_state state;
@@ -117,9 +137,11 @@ struct zelos_j1939 {
 	bool claim_pending;
 	bool claim_started;
 	uint8_t tried;
-	bool nack_pending;
-	uint8_t nack_to;
-	uint32_t nack_pgn;
+	/* One Acknowledgment to send on the next poll. */
+	bool ack_pending;
+	uint8_t ack_control;
+	uint8_t ack_to;
+	uint32_t ack_pgn;
 	struct {
 		bool active;
 		uint32_t pgn;
@@ -151,7 +173,7 @@ struct zelos_j1939 {
 
 /*
  * Start claiming the preferred address. Sends nothing until the next poll.
- * Returns -EINVAL if a message has a PDU1 PGN.
+ * Returns 0.
  */
 int zelos_j1939_init(struct zelos_j1939 *j, uint32_t now_ms);
 
@@ -164,12 +186,25 @@ void zelos_j1939_poll(struct zelos_j1939 *j, uint32_t now_ms);
 
 /*
  * Zephyr glue. Needs zelos_can_init() first. One J1939 node per firmware: this
- * subscribes to requests, claims and TP.CM, sets j->send, and runs the core on its own
- * thread every CONFIG_ZELOS_J1939_TICK_MS. At most 24 messages.
+ * subscribes to requests, claims, TP.CM and j->rx_pgns, sets j->send, and runs
+ * the core on its own thread every CONFIG_ZELOS_J1939_TICK_MS, which is where
+ * on_request and on_pg are called. At most 48 messages.
  */
 int zelos_j1939_start(struct zelos_j1939 *j);
 
 /* Replace a message's payload. msg->data must hold len bytes. */
 void zelos_j1939_set(struct zelos_j1939_msg *msg, const uint8_t *data, uint16_t len);
+
+/* Send a message to one node on the next poll: a frame, or RTS/CTS when longer. */
+void zelos_j1939_send_to(struct zelos_j1939_msg *msg, uint8_t da);
+
+/* Whether a message still waits to go out, or its transport session is running. */
+bool zelos_j1939_pending(struct zelos_j1939 *j, const struct zelos_j1939_msg *msg);
+
+/*
+ * Positive Acknowledgment of a request or command for pgn from node `to`, on
+ * the next poll: to the global address, naming `to`, as the NACK goes.
+ */
+void zelos_j1939_ack(struct zelos_j1939 *j, uint8_t to, uint32_t pgn);
 
 #endif /* ZELOS_J1939_H_ */
