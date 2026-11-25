@@ -174,6 +174,9 @@ model sets and heals them; the node has no MIL.
 | DM33 | 41216 | Request | timer 1: minutes derated; its second timer not available |
 | DM34 | 40960 | Request | NOx and PM control areas: inside under load, outside otherwise |
 | DM56 | 64711 | Request | `2026E-MYZELOS GENSET*` |
+| DM35, DM42 | 40704, 64862 | Request | the active DTCs, as DM1 |
+| DM4 | 65229 | Request | one freeze frame, 13 bytes: `0C`, the DTC, then speed, coolant, oil pressure and load as their PGs carry them and `FF FF FF`; from boot the coolant fault's of the node's history, then that of the first DTC to set |
+| DM58 | 64475 | DM7 with test identifier 245 | the SPN's data as its PG carries it (engine speed 190, coolant 110), `FF` past it |
 | DM11 | 65235 | Request | clears the active DTCs and their counts; a positive Acknowledgment (to `0xFF`, byte 5 the requester) if asked of the genset, nothing if asked of everyone |
 | DM3 | 65228 | Request | the same for the previously active DTCs |
 | DM22 | 49920 | DM22 to the genset: control byte 1 (previously active) or 17 (active), `FF FF FF FF`, SPN and FMI | DM22 to the sender: control byte + 1 cleared, + 2 refused with byte 2 the reason (2 unknown DTC, 3 not previously active, 4 not active) |

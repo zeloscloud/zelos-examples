@@ -944,6 +944,29 @@ def test_dm7_commands_a_test_answered_by_dm30(bus, node, spn, fmi, limits):
         assert spn != 190 and value <= 250 and (high, low) == limits, result.hex()
 
 
+PGN_DM4, PGN_DM35, PGN_DM42, PGN_DM58 = 65229, 40704, 64862, 64475
+
+
+def test_dm35_dm42_dm4_and_dm58(bus, node):
+    """DM35 and DM42 list what DM1 lists. DM4 is one freeze frame: the bytes that follow,
+    a DTC, 8 data bytes. DM7 with the rationality test identifier gets DM58: the SPN's data
+    as its PG carries it."""
+    sa, _ = node
+    active = dtcs_of(ask(bus, sa, PGN_DM1))
+    assert dtcs_of(ask(bus, sa, PGN_DM35)) == active == dtcs_of(ask(bus, sa, PGN_DM42))
+
+    frame = ask(bus, sa, PGN_DM4)
+    assert len(frame) == 13 and frame[0] == 12, frame.hex()
+    assert {d[:2] for d in dtcs_of(bytes(2) + frame[1:5])} <= {DTC_COOLANT, DTC_OIL}, frame.hex()
+    assert 0 < int.from_bytes(frame[5:7], "little") / 8 <= 2000 and frame[10:] == b"\xff" * 3, frame.hex()
+
+    speed = answer(bus, sa, PGN_DM58, pdu(PGN_DM7, bytes([245, 190, 0, 0x1F, 0xFF, 0xFF, 0xFF, 0xFF]), sa))
+    assert speed[:4] == bytes([245, 190, 0, 0x1F]) and speed[6:] == b"\xff\xff", speed.hex()
+    assert 0 <= int.from_bytes(speed[4:6], "little") / 8 <= 2000, speed.hex()
+    none = answer(bus, sa, PGN_DM58, pdu(PGN_DM7, bytes([245, 92, 0, 0x1F, 0xFF, 0xFF, 0xFF, 0xFF]), sa))
+    assert none == bytes([245, 92, 0, 0x1F]) + b"\xff" * 4, none.hex()
+
+
 def dm14(sa, command, pointer, length, key):
     data = DM14.encode({"Length": length & 0xFF, "LengthHigh": length >> 8, "Command": command, "PointerType": 0, "Pointer": pointer, "PointerExtension": 0, "KeyOrUserLevel": key})
     # Byte 2 bit 1 is sent as one.

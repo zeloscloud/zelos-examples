@@ -150,6 +150,7 @@ LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 
 /* J1939-73 PGNs the DBC does not describe: variable length, or a request with no data. */
 #define PGN_DM3  65228U
+#define PGN_DM4  65229U
 #define PGN_DM6  65231U
 #define PGN_DM11 65235U
 #define PGN_DM12 65236U
@@ -165,6 +166,9 @@ LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 #define PGN_DM31 41728U
 #define PGN_DM33 41216U
 #define PGN_DM56 64711U
+#define PGN_DM35 40704U
+#define PGN_DM42 64862U
+#define PGN_DM58 64475U
 
 /* DM5 and DM26. Compliance 17: engine manufacturer diagnostics. */
 #define OBD_COMPLIANCE 17U
@@ -182,6 +186,8 @@ LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 
 /* DM7 and DM30: the test identifier for every test of an SPN, and the special values. */
 #define TEST_ALL         247U
+#define TEST_RATIONALITY 245U
+#define SPN_ENGINE_SPEED 190U
 #define TEST_CANNOT_RUN  0xFB01U
 #define TEST_NO_LIMIT    0xFFFFU
 #define SLOT_UNAVAILABLE 0xFFFFU
@@ -362,6 +368,10 @@ enum msg {
 	M_DM16,
 	M_DM22,
 	M_DM30,
+	M_DM4,
+	M_DM35,
+	M_DM42,
+	M_DM58,
 	N_MSGS,
 };
 
@@ -371,6 +381,9 @@ static uint8_t pg[N_PG][8];
 static uint8_t dm1[ZELOS_J1939_MAX_LEN];
 static uint8_t dm2[ZELOS_J1939_MAX_LEN];
 static uint8_t dm6[DTC_LIST_LEN];
+/* DM35 and DM42 list the active DTCs, as DM1. */
+static uint8_t dm35[DTC_LIST_LEN];
+static uint8_t dm42[DTC_LIST_LEN];
 static uint8_t dm12[DTC_LIST_LEN];
 static uint8_t dm23[DTC_LIST_LEN];
 static uint8_t dm27[DTC_LIST_LEN];
@@ -420,6 +433,15 @@ static uint8_t dm15[8];
 static uint8_t dm16[1U + MEM_READ_MAX];
 static uint8_t dm22[8];
 static uint8_t dm30[12];
+/*
+ * DM4: the bytes that follow, the DTC, then 8 data bytes of the node's own:
+ * speed, coolant, oil pressure and load as their PGs carry them, 0xFF after.
+ * From boot the frame of the coolant fault in the node's history.
+ */
+#define DM4_DATA_LEN 8U
+static uint8_t dm4[1U + 4U + DM4_DATA_LEN];
+/* DM58: the test identifier, the SPN, its data as its PG carries it. */
+static uint8_t dm58[8];
 /* J1939-71 SOFT: the number of fields, then each field ending in '*'. */
 static uint8_t soft[] = "\x03" "ZELOS-GENSET*" "v1.1.0*" "zelos-examples node genset*";
 #define SOFT_LEN (sizeof(soft) - 1U)
@@ -501,6 +523,10 @@ static struct zelos_j1939_msg msgs[N_MSGS] = {
 	REPLY(M_DM16, PGN_DM16, 7, dm16),
 	REPLY(M_DM22, PGN_OF(GENSET_DM22_FRAME_ID), 6, dm22),
 	REPLY(M_DM30, PGN_DM30, 6, dm30),
+	DM(M_DM4, PGN_DM4, dm4, sizeof(dm4)),
+	DM(M_DM35, PGN_DM35, dm35, 8),
+	DM(M_DM42, PGN_DM42, dm42, 8),
+	REPLY(M_DM58, PGN_DM58, 6, dm58),
 };
 
 /* Which list each DTC-list DM carries. */
@@ -510,7 +536,7 @@ static const struct {
 } dtc_lists[] = {
 	{M_DM1, LIST_ACTIVE},      {M_DM2, LIST_PREVIOUS},         {M_DM6, LIST_PENDING_EMISSION},
 	{M_DM12, LIST_MIL_ON},     {M_DM23, LIST_PREVIOUS_MIL_ON}, {M_DM27, LIST_PENDING},
-	{M_DM28, LIST_PERMANENT},
+	{M_DM28, LIST_PERMANENT},  {M_DM35, LIST_ACTIVE},          {M_DM42, LIST_ACTIVE},
 };
 
 /* The bits of each PG the DBC leaves out, sent as ones: not available. */
@@ -1049,6 +1075,18 @@ static void publish(const struct engine *e)
 	zelos_j1939_set(&msgs[M_DM33], d, sizeof(dm33));
 }
 
+/* DM4: the DTC and the 5 snapshot bytes of DM25, padded to DM4's 8. */
+static void freeze_dm4(const uint8_t *dtc, const uint8_t *data)
+{
+	uint8_t d[sizeof(dm4)];
+
+	memset(d, 0xFF, sizeof(d));
+	d[0] = sizeof(d) - 1U;
+	memcpy(&d[1], dtc, 4);
+	memcpy(&d[5], data, FREEZE_DATA_LEN);
+	zelos_j1939_set(&msgs[M_DM4], d, sizeof(d));
+}
+
 /*
  * DM25: when the first DTC sets, its 4 bytes and the freeze-frame SPNs of
  * DM24, in DM24's order and lengths, as their PGs carry them. Held while a DTC
@@ -1077,6 +1115,7 @@ static void freeze(struct engine *e)
 	d[8] = ENC(efl_p1, engine_oil_pressure, e->oil_kpa);
 	d[9] = ENC(eec2, engine_percent_load_at_current_speed, e->torque_pct);
 	zelos_j1939_set(&msgs[M_DM25], d, sizeof(d));
+	freeze_dm4(&d[1], &d[5]);
 }
 
 /* DM11 clears the active DTCs, DM3 the previously active: gone, their counts with them. */
@@ -1129,6 +1168,29 @@ static void clear_one(const struct diag_rx *rx)
 }
 
 /*
+ * DM7 with the rationality test identifier: DM58 answers with the SPN's data
+ * as its PG carries it, 0xFF past its length; all 0xFF for an SPN the node
+ * has no such data for.
+ */
+static void rationality(const struct engine *e, const struct diag_rx *rx, uint32_t spn)
+{
+	uint8_t d[sizeof(dm58)];
+
+	memset(d, 0xFF, sizeof(d));
+	d[0] = TEST_RATIONALITY;
+	d[1] = rx->data[1];
+	d[2] = rx->data[2];
+	d[3] = rx->data[3] | 0x1FU; /* the SPN's top bits; the rest ones */
+	if (spn == SPN_ENGINE_SPEED) {
+		sys_put_le16(ENC(eec1, engine_speed, e->rpm), &d[4]);
+	} else if (spn == dtcs[DTC_COOLANT].spn) {
+		d[4] = ENC(et1, engine_coolant_temp, e->coolant_c);
+	}
+	zelos_j1939_set(&msgs[M_DM58], d, sizeof(d));
+	zelos_j1939_send_to(&msgs[M_DM58], rx->sa);
+}
+
+/*
  * DM7 commands a test; DM30 answers with its result: the SPN's value as its
  * PG carries it, against the limit its DTC sets at. A test the node lacks, or
  * oil pressure with the engine below idle, cannot be performed.
@@ -1141,6 +1203,10 @@ static void command_test(const struct engine *e, const struct diag_rx *rx)
 	uint16_t max = TEST_NO_LIMIT;
 	uint16_t min = TEST_NO_LIMIT;
 
+	if (rx->data[0] == TEST_RATIONALITY) {
+		rationality(e, rx, spn);
+		return;
+	}
 	memcpy(d, rx->data, 4);
 	if (rx->data[0] == TEST_ALL && spn == dtcs[DTC_COOLANT].spn) {
 		d[3] = (rx->data[3] & 0xE0U) | dtcs[DTC_COOLANT].fmi;
@@ -1366,6 +1432,14 @@ int genset_start(void)
 
 	for (size_t i = 0; i < MEM_SIZE; i++) {
 		memory[i] = (uint8_t)(0xA0U + i);
+	}
+	{
+		/* The frame of the coolant fault in the history: idling, warm. */
+		static const uint8_t snapshot[FREEZE_DATA_LEN] = {0x20, 0x1C, 130, 100, 0};
+		uint8_t dtc[4];
+
+		put_dtc(dtc, &dtcs[DTC_COOLANT]);
+		freeze_dm4(dtc, snapshot);
 	}
 	publish(&engine);
 	if (zelos_j1939_start(&j1939) != 0) {
