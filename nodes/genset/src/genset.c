@@ -539,8 +539,8 @@ static bool on_request(uint32_t pgn, uint8_t sa, uint8_t da, void *user)
 	if (pgn != PGN_DM3 && pgn != PGN_DM11) {
 		return false;
 	}
-	(void)k_msgq_put(&genset_diag_msgq, &rx, K_NO_WAIT);
-	return true;
+	/* A full queue leaves it untaken: one sent to the node is NACKed. */
+	return k_msgq_put(&genset_diag_msgq, &rx, K_NO_WAIT) == 0;
 }
 
 static void on_pg(uint32_t pgn, uint8_t sa, const uint8_t *data, uint8_t len, void *user)
@@ -788,10 +788,11 @@ static void step(struct engine *e)
 	} else if (e->warm && e->coolant_c < WARM_OFF_C) {
 		e->warm = false;
 	}
-	e->since_start_ms = e->rpm > 0.0f ? e->since_start_ms + LOOP_MS : 0U;
-	e->since_clear_ms += LOOP_MS;
+	/* The timers stop at their top, 49 days on, rather than wrap. */
+	e->since_start_ms = e->rpm > 0.0f ? MIN(e->since_start_ms, UINT32_MAX - LOOP_MS) + LOOP_MS : 0U;
+	e->since_clear_ms = MIN(e->since_clear_ms, UINT32_MAX - LOOP_MS) + LOOP_MS;
 	if (e->hot) {
-		e->hot_ms += LOOP_MS;
+		e->hot_ms = MIN(e->hot_ms, UINT32_MAX - LOOP_MS) + LOOP_MS;
 	}
 
 	/* Electrical: P = T * w, S = P / pf, I = P / (3 V pf). */
@@ -1004,27 +1005,27 @@ static void publish(const struct engine *e)
 	}
 
 	/* Readiness and counts, of the lists as just sent. No MIL, and a genset goes nowhere: zeros. */
-	PUT(M_DM5, dm5, .active_trouble_codes = count(LIST_ACTIVE),
-	    .previously_active_diagnostic_trouble_codes = count(LIST_PREVIOUS),
+	PUT(M_DM5, dm5, .active_dtc_count = count(LIST_ACTIVE),
+	    .previously_active_dtc_count = count(LIST_PREVIOUS),
 	    .obd_compliance = OBD_COMPLIANCE,
-	    .continuously_monitored_systems_support_status = MONITORS_CONTINUOUS,
-	    .non_continuously_monitored_systems_support = MONITORS_SUPPORT,
-	    .non_continuously_monitored_systems_status = MONITORS_INCOMPLETE);
-	PUT(M_DM21, dm21, .distance_travelled_while_mil_is_activated = 0, .distance_since_dt_cs_cleared = 0,
-	    .minutes_run_by_engine_while_mil_is_activated = 0,
-	    .time_since_dt_cs_cleared = (uint16_t)MIN(e->since_clear_ms / 60000U, MAX_16));
+	    .continuous_monitors = MONITORS_CONTINUOUS,
+	    .non_continuous_supported = MONITORS_SUPPORT,
+	    .non_continuous_not_complete = MONITORS_INCOMPLETE);
+	PUT(M_DM21, dm21, .distance_mil_on = 0, .distance_since_clear = 0,
+	    .time_mil_on = 0,
+	    .time_since_clear = (uint16_t)MIN(e->since_clear_ms / 60000U, MAX_16));
 	PUT(M_DM26, dm26, .time_since_engine_start = (uint16_t)MIN(e->since_start_ms / 1000U, MAX_16),
-	    .number_of_warm_ups_since_dt_cs_cleared = e->warmups,
-	    .continuously_monitored_systems_enable_completed_status = MONITORS_CONTINUOUS,
-	    .non_continuously_monitored_systems_enable_status = MONITORS_SUPPORT,
-	    .non_continuously_monitored_systems_complete_status = MONITORS_INCOMPLETE);
-	PUT(M_DM29, dm29, .pending_dt_cs = count(LIST_PENDING_EMISSION), .all_pending_dt_cs = count(LIST_PENDING),
-	    .mil_on_dt_cs = count(LIST_MIL_ON), .previously_mil_on_dt_cs = count(LIST_PREVIOUS_MIL_ON),
-	    .permanent_dt_cs = count(LIST_PERMANENT));
+	    .warm_ups_since_clear = e->warmups,
+	    .continuous_monitors_this_trip = MONITORS_CONTINUOUS,
+	    .non_continuous_enabled = MONITORS_SUPPORT,
+	    .non_continuous_not_complete_this_trip = MONITORS_INCOMPLETE);
+	PUT(M_DM29, dm29, .pending_dtc_count = count(LIST_PENDING_EMISSION), .all_pending_dtc_count = count(LIST_PENDING),
+	    .mil_on_dtc_count = count(LIST_MIL_ON), .previously_mil_on_dtc_count = count(LIST_PREVIOUS_MIL_ON),
+	    .permanent_dtc_count = count(LIST_PERMANENT));
 	/* In the control areas under load; no carve-out; deficiencies not available. */
-	PUT(M_DM34, dm34, .n_ox_nte_deficiency_area_status = 3, .manufacturer_specific_n_ox_nte_carve_out_area_status = 0,
-	    .n_ox_nte_control_area_status = load >= 0.5f, .pmnte_deficiency_area_status = 3,
-	    .manufacturer_specific_pmnte_carve_out_area_status = 0, .pmnte_control_area_status = load >= 0.5f);
+	PUT(M_DM34, dm34, .nox_deficiency_area = 3, .nox_carve_out_area = 0,
+	    .nox_control_area = load >= 0.5f, .pm_deficiency_area = 3,
+	    .pm_carve_out_area = 0, .pm_control_area = load >= 0.5f);
 
 	/* DM31: every DTC that is or was active, with its lamp on. */
 	len = 0;

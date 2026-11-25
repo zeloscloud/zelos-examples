@@ -770,9 +770,9 @@ def dtc_lists(bus, sa):
 def assert_counts(bus, sa, lists):
     """DM5 and DM29 count what the lists hold."""
     dm5 = DM5.decode(ask(bus, sa, PGN_DM5), decode_choices=False)
-    assert (dm5["ActiveTroubleCodes"], dm5["PreviouslyActiveDiagnosticTroubleCodes"]) == (len(lists["DM1"]), len(lists["DM2"])), (dm5, lists)
+    assert (dm5["ActiveDtcCount"], dm5["PreviouslyActiveDtcCount"]) == (len(lists["DM1"]), len(lists["DM2"])), (dm5, lists)
     dm29 = DM29.decode(ask(bus, sa, PGN_DM29), decode_choices=False)
-    counts = [dm29[k] for k in ("PendingDTCs", "AllPendingDTCs", "MILOnDTCs", "PreviouslyMILOnDTCs", "PermanentDTCs")]
+    counts = [dm29[k] for k in ("PendingDtcCount", "AllPendingDtcCount", "MilOnDtcCount", "PreviouslyMilOnDtcCount", "PermanentDtcCount")]
     assert counts == [len(lists[k]) for k in ("DM6", "DM27", "DM12", "DM23", "DM28")], (dm29, lists)
 
 
@@ -814,7 +814,7 @@ def check_dm33(data):
 def check_dm34(data):
     d = DM34.decode(data, decode_choices=False)
     # Idling: outside both control areas; deficiency areas not available.
-    assert (d["NOxNTEControlAreaStatus"], d["PMNTEControlAreaStatus"], d["NOxNTEDeficiencyAreaStatus"], d["PMNTEDeficiencyAreaStatus"]) == (0, 0, 3, 3), d
+    assert (d["NoxControlArea"], d["PmControlArea"], d["NoxDeficiencyArea"], d["PmDeficiencyArea"]) == (0, 0, 3, 3), d
     assert data[0] & 3 == data[1] & 3 == 3 and data[2:] == b"\xff" * 6, data.hex()
 
 
@@ -825,7 +825,7 @@ def check_dm56(data):
 def check_dm21(data):
     d = DM21.decode(data, decode_choices=False)
     # No MIL, and a genset goes nowhere.
-    assert d["DistanceTravelledWhileMILIsActivated"] == d["DistanceSinceDTCsCleared"] == d["MinutesRunByEngineWhileMILIsActivated"] == 0 and d["TimeSinceDTCsCleared"] <= 64255, d
+    assert d["DistanceMilOn"] == d["DistanceSinceClear"] == d["TimeMilOn"] == 0 and d["TimeSinceClear"] <= 64255, d
 
 
 def check_dm26(data):

@@ -162,7 +162,7 @@ model sets and heals them; the node has no MIL.
 | DM23 | 64949 | Request | previously active and emission-related |
 | DM27 | 64898 | Request | pending: coolant from 100 degC, oil pressure below 240 kPa, so before each is active |
 | DM28 | 64896 | Request | permanent: both, whatever a tool clears |
-| DM5 | 65230 | Request | counts of DM1 and DM2, OBD compliance 17, monitors supported and complete |
+| DM5 | 65230 | Request | counts of DM1 and DM2, OBD compliance 17, the monitors the node has: complete, but for boost pressure control |
 | DM29 | 40448 | Request | counts of DM6, DM27, DM12, DM23, DM28 |
 | DM21 | 49408 | Request | distances and MIL time 0, minutes since a tool cleared DTCs |
 | DM26 | 64952 | Request | seconds since engine start, warm-ups since DTCs were cleared, monitors as DM5 |
@@ -183,6 +183,8 @@ model sets and heals them; the node has no MIL.
 A fault a tool clears while its cause persists is active again within 50 ms,
 counted from one. Previously active DTCs a tool clears stay out of DM2 until
 the engine has run hot and cooled again; DM28 keeps both.
+
+The node handles commands once every 50 ms and keeps one answer per kind: of two DM22, DM7 or DM14 commands inside one such pass, only the last is answered.
 
 Memory access (DM14, DM15, DM16) reaches 64 simulated bytes at pointer
 `0x000000`, pointer extension 0; byte n starts as `0xA0 + n` and a write lasts

@@ -355,32 +355,32 @@ extern "C" {
 #define GENSET_DM2_DTC2_SPN_HIGH_NAME "DTC2_SPN_High"
 #define GENSET_DM2_DTC2_OC_NAME "DTC2_OC"
 #define GENSET_DM2_DTC2_CM_NAME "DTC2_CM"
-#define GENSET_DM5_ACTIVE_TROUBLE_CODES_NAME "ActiveTroubleCodes"
-#define GENSET_DM5_PREVIOUSLY_ACTIVE_DIAGNOSTIC_TROUBLE_CODES_NAME "PreviouslyActiveDiagnosticTroubleCodes"
-#define GENSET_DM5_OBD_COMPLIANCE_NAME "OBDCompliance"
-#define GENSET_DM5_CONTINUOUSLY_MONITORED_SYSTEMS_SUPPORT_STATUS_NAME "ContinuouslyMonitoredSystemsSupportStatus"
-#define GENSET_DM5_NON_CONTINUOUSLY_MONITORED_SYSTEMS_SUPPORT_NAME "NonContinuouslyMonitoredSystemsSupport"
-#define GENSET_DM5_NON_CONTINUOUSLY_MONITORED_SYSTEMS_STATUS_NAME "NonContinuouslyMonitoredSystemsStatus"
+#define GENSET_DM5_ACTIVE_DTC_COUNT_NAME "ActiveDtcCount"
+#define GENSET_DM5_PREVIOUSLY_ACTIVE_DTC_COUNT_NAME "PreviouslyActiveDtcCount"
+#define GENSET_DM5_OBD_COMPLIANCE_NAME "ObdCompliance"
+#define GENSET_DM5_CONTINUOUS_MONITORS_NAME "ContinuousMonitors"
+#define GENSET_DM5_NON_CONTINUOUS_SUPPORTED_NAME "NonContinuousSupported"
+#define GENSET_DM5_NON_CONTINUOUS_NOT_COMPLETE_NAME "NonContinuousNotComplete"
 #define GENSET_DM26_TIME_SINCE_ENGINE_START_NAME "TimeSinceEngineStart"
-#define GENSET_DM26_NUMBER_OF_WARM_UPS_SINCE_DT_CS_CLEARED_NAME "NumberOfWarmUpsSinceDTCsCleared"
-#define GENSET_DM26_CONTINUOUSLY_MONITORED_SYSTEMS_ENABLE_COMPLETED_STATUS_NAME "ContinuouslyMonitoredSystemsEnableCompletedStatus"
-#define GENSET_DM26_NON_CONTINUOUSLY_MONITORED_SYSTEMS_ENABLE_STATUS_NAME "NonContinuouslyMonitoredSystemsEnableStatus"
-#define GENSET_DM26_NON_CONTINUOUSLY_MONITORED_SYSTEMS_COMPLETE_STATUS_NAME "NonContinuouslyMonitoredSystemsCompleteStatus"
-#define GENSET_DM21_DISTANCE_TRAVELLED_WHILE_MIL_IS_ACTIVATED_NAME "DistanceTravelledWhileMILIsActivated"
-#define GENSET_DM21_DISTANCE_SINCE_DT_CS_CLEARED_NAME "DistanceSinceDTCsCleared"
-#define GENSET_DM21_MINUTES_RUN_BY_ENGINE_WHILE_MIL_IS_ACTIVATED_NAME "MinutesRunByEngineWhileMILIsActivated"
-#define GENSET_DM21_TIME_SINCE_DT_CS_CLEARED_NAME "TimeSinceDTCsCleared"
-#define GENSET_DM29_PENDING_DT_CS_NAME "PendingDTCs"
-#define GENSET_DM29_ALL_PENDING_DT_CS_NAME "AllPendingDTCs"
-#define GENSET_DM29_MIL_ON_DT_CS_NAME "MILOnDTCs"
-#define GENSET_DM29_PREVIOUSLY_MIL_ON_DT_CS_NAME "PreviouslyMILOnDTCs"
-#define GENSET_DM29_PERMANENT_DT_CS_NAME "PermanentDTCs"
-#define GENSET_DM34_N_OX_NTE_DEFICIENCY_AREA_STATUS_NAME "NOxNTEDeficiencyAreaStatus"
-#define GENSET_DM34_MANUFACTURER_SPECIFIC_N_OX_NTE_CARVE_OUT_AREA_STATUS_NAME "ManufacturerSpecificNOxNTECarveOutAreaStatus"
-#define GENSET_DM34_N_OX_NTE_CONTROL_AREA_STATUS_NAME "NOxNTEControlAreaStatus"
-#define GENSET_DM34_PMNTE_DEFICIENCY_AREA_STATUS_NAME "PMNTEDeficiencyAreaStatus"
-#define GENSET_DM34_MANUFACTURER_SPECIFIC_PMNTE_CARVE_OUT_AREA_STATUS_NAME "ManufacturerSpecificPMNTECarveOutAreaStatus"
-#define GENSET_DM34_PMNTE_CONTROL_AREA_STATUS_NAME "PMNTEControlAreaStatus"
+#define GENSET_DM26_WARM_UPS_SINCE_CLEAR_NAME "WarmUpsSinceClear"
+#define GENSET_DM26_CONTINUOUS_MONITORS_THIS_TRIP_NAME "ContinuousMonitorsThisTrip"
+#define GENSET_DM26_NON_CONTINUOUS_ENABLED_NAME "NonContinuousEnabled"
+#define GENSET_DM26_NON_CONTINUOUS_NOT_COMPLETE_THIS_TRIP_NAME "NonContinuousNotCompleteThisTrip"
+#define GENSET_DM21_DISTANCE_MIL_ON_NAME "DistanceMilOn"
+#define GENSET_DM21_DISTANCE_SINCE_CLEAR_NAME "DistanceSinceClear"
+#define GENSET_DM21_TIME_MIL_ON_NAME "TimeMilOn"
+#define GENSET_DM21_TIME_SINCE_CLEAR_NAME "TimeSinceClear"
+#define GENSET_DM29_PENDING_DTC_COUNT_NAME "PendingDtcCount"
+#define GENSET_DM29_ALL_PENDING_DTC_COUNT_NAME "AllPendingDtcCount"
+#define GENSET_DM29_MIL_ON_DTC_COUNT_NAME "MilOnDtcCount"
+#define GENSET_DM29_PREVIOUSLY_MIL_ON_DTC_COUNT_NAME "PreviouslyMilOnDtcCount"
+#define GENSET_DM29_PERMANENT_DTC_COUNT_NAME "PermanentDtcCount"
+#define GENSET_DM34_NOX_DEFICIENCY_AREA_NAME "NoxDeficiencyArea"
+#define GENSET_DM34_NOX_CARVE_OUT_AREA_NAME "NoxCarveOutArea"
+#define GENSET_DM34_NOX_CONTROL_AREA_NAME "NoxControlArea"
+#define GENSET_DM34_PM_DEFICIENCY_AREA_NAME "PmDeficiencyArea"
+#define GENSET_DM34_PM_CARVE_OUT_AREA_NAME "PmCarveOutArea"
+#define GENSET_DM34_PM_CONTROL_AREA_NAME "PmControlArea"
 #define GENSET_DM15_LENGTH_ALLOWED_NAME "LengthAllowed"
 #define GENSET_DM15_STATUS_NAME "Status"
 #define GENSET_DM15_LENGTH_ALLOWED_HIGH_NAME "LengthAllowedHigh"
@@ -1686,14 +1686,14 @@ struct genset_dm5_t {
      * Scale: 1
      * Offset: 0
      */
-    uint8_t active_trouble_codes;
+    uint8_t active_dtc_count;
 
     /**
      * Range: 0..255 (0..255 -)
      * Scale: 1
      * Offset: 0
      */
-    uint8_t previously_active_diagnostic_trouble_codes;
+    uint8_t previously_active_dtc_count;
 
     /**
      * Range: 0..255 (0..255 -)
@@ -1707,21 +1707,21 @@ struct genset_dm5_t {
      * Scale: 1
      * Offset: 0
      */
-    uint8_t continuously_monitored_systems_support_status;
+    uint8_t continuous_monitors;
 
     /**
      * Range: 0..65535 (0..65535 -)
      * Scale: 1
      * Offset: 0
      */
-    uint16_t non_continuously_monitored_systems_support;
+    uint16_t non_continuous_supported;
 
     /**
      * Range: 0..65535 (0..65535 -)
      * Scale: 1
      * Offset: 0
      */
-    uint16_t non_continuously_monitored_systems_status;
+    uint16_t non_continuous_not_complete;
 };
 
 /**
@@ -1744,28 +1744,28 @@ struct genset_dm26_t {
      * Scale: 1
      * Offset: 0
      */
-    uint8_t number_of_warm_ups_since_dt_cs_cleared;
+    uint8_t warm_ups_since_clear;
 
     /**
      * Range: 0..255 (0..255 -)
      * Scale: 1
      * Offset: 0
      */
-    uint8_t continuously_monitored_systems_enable_completed_status;
+    uint8_t continuous_monitors_this_trip;
 
     /**
      * Range: 0..65535 (0..65535 -)
      * Scale: 1
      * Offset: 0
      */
-    uint16_t non_continuously_monitored_systems_enable_status;
+    uint16_t non_continuous_enabled;
 
     /**
      * Range: 0..65535 (0..65535 -)
      * Scale: 1
      * Offset: 0
      */
-    uint16_t non_continuously_monitored_systems_complete_status;
+    uint16_t non_continuous_not_complete_this_trip;
 };
 
 /**
@@ -1781,28 +1781,28 @@ struct genset_dm21_t {
      * Scale: 1
      * Offset: 0
      */
-    uint16_t distance_travelled_while_mil_is_activated;
+    uint16_t distance_mil_on;
 
     /**
      * Range: 0..65535 (0..65535 km)
      * Scale: 1
      * Offset: 0
      */
-    uint16_t distance_since_dt_cs_cleared;
+    uint16_t distance_since_clear;
 
     /**
      * Range: 0..65535 (0..65535 min)
      * Scale: 1
      * Offset: 0
      */
-    uint16_t minutes_run_by_engine_while_mil_is_activated;
+    uint16_t time_mil_on;
 
     /**
      * Range: 0..65535 (0..65535 min)
      * Scale: 1
      * Offset: 0
      */
-    uint16_t time_since_dt_cs_cleared;
+    uint16_t time_since_clear;
 };
 
 /**
@@ -1818,35 +1818,35 @@ struct genset_dm29_t {
      * Scale: 1
      * Offset: 0
      */
-    uint8_t pending_dt_cs;
+    uint8_t pending_dtc_count;
 
     /**
      * Range: 0..255 (0..255 -)
      * Scale: 1
      * Offset: 0
      */
-    uint8_t all_pending_dt_cs;
+    uint8_t all_pending_dtc_count;
 
     /**
      * Range: 0..255 (0..255 -)
      * Scale: 1
      * Offset: 0
      */
-    uint8_t mil_on_dt_cs;
+    uint8_t mil_on_dtc_count;
 
     /**
      * Range: 0..255 (0..255 -)
      * Scale: 1
      * Offset: 0
      */
-    uint8_t previously_mil_on_dt_cs;
+    uint8_t previously_mil_on_dtc_count;
 
     /**
      * Range: 0..255 (0..255 -)
      * Scale: 1
      * Offset: 0
      */
-    uint8_t permanent_dt_cs;
+    uint8_t permanent_dtc_count;
 };
 
 /**
@@ -1862,42 +1862,42 @@ struct genset_dm34_t {
      * Scale: 1
      * Offset: 0
      */
-    uint8_t n_ox_nte_deficiency_area_status;
+    uint8_t nox_deficiency_area;
 
     /**
      * Range: 0..3 (0..3 -)
      * Scale: 1
      * Offset: 0
      */
-    uint8_t manufacturer_specific_n_ox_nte_carve_out_area_status;
+    uint8_t nox_carve_out_area;
 
     /**
      * Range: 0..3 (0..3 -)
      * Scale: 1
      * Offset: 0
      */
-    uint8_t n_ox_nte_control_area_status;
+    uint8_t nox_control_area;
 
     /**
      * Range: 0..3 (0..3 -)
      * Scale: 1
      * Offset: 0
      */
-    uint8_t pmnte_deficiency_area_status;
+    uint8_t pm_deficiency_area;
 
     /**
      * Range: 0..3 (0..3 -)
      * Scale: 1
      * Offset: 0
      */
-    uint8_t manufacturer_specific_pmnte_carve_out_area_status;
+    uint8_t pm_carve_out_area;
 
     /**
      * Range: 0..3 (0..3 -)
      * Scale: 1
      * Offset: 0
      */
-    uint8_t pmnte_control_area_status;
+    uint8_t pm_control_area;
 };
 
 /**
@@ -9177,7 +9177,7 @@ int genset_dm5_init(struct genset_dm5_t *msg_p);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm5_active_trouble_codes_encode(float value);
+uint8_t genset_dm5_active_dtc_count_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9186,7 +9186,7 @@ uint8_t genset_dm5_active_trouble_codes_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm5_active_trouble_codes_decode(uint8_t value);
+float genset_dm5_active_dtc_count_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9195,7 +9195,7 @@ float genset_dm5_active_trouble_codes_decode(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm5_active_trouble_codes_is_in_range(uint8_t value);
+bool genset_dm5_active_dtc_count_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9208,7 +9208,7 @@ bool genset_dm5_active_trouble_codes_is_in_range(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm5_active_trouble_codes_is_in_phys_range(float value);
+bool genset_dm5_active_dtc_count_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9217,7 +9217,7 @@ bool genset_dm5_active_trouble_codes_is_in_phys_range(float value);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm5_previously_active_diagnostic_trouble_codes_encode(float value);
+uint8_t genset_dm5_previously_active_dtc_count_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9226,7 +9226,7 @@ uint8_t genset_dm5_previously_active_diagnostic_trouble_codes_encode(float value
  *
  * @return Decoded signal.
  */
-float genset_dm5_previously_active_diagnostic_trouble_codes_decode(uint8_t value);
+float genset_dm5_previously_active_dtc_count_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9235,7 +9235,7 @@ float genset_dm5_previously_active_diagnostic_trouble_codes_decode(uint8_t value
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm5_previously_active_diagnostic_trouble_codes_is_in_range(uint8_t value);
+bool genset_dm5_previously_active_dtc_count_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9248,7 +9248,7 @@ bool genset_dm5_previously_active_diagnostic_trouble_codes_is_in_range(uint8_t v
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm5_previously_active_diagnostic_trouble_codes_is_in_phys_range(float value);
+bool genset_dm5_previously_active_dtc_count_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9297,7 +9297,7 @@ bool genset_dm5_obd_compliance_is_in_phys_range(float value);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm5_continuously_monitored_systems_support_status_encode(float value);
+uint8_t genset_dm5_continuous_monitors_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9306,7 +9306,7 @@ uint8_t genset_dm5_continuously_monitored_systems_support_status_encode(float va
  *
  * @return Decoded signal.
  */
-float genset_dm5_continuously_monitored_systems_support_status_decode(uint8_t value);
+float genset_dm5_continuous_monitors_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9315,7 +9315,7 @@ float genset_dm5_continuously_monitored_systems_support_status_decode(uint8_t va
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm5_continuously_monitored_systems_support_status_is_in_range(uint8_t value);
+bool genset_dm5_continuous_monitors_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9328,7 +9328,7 @@ bool genset_dm5_continuously_monitored_systems_support_status_is_in_range(uint8_
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm5_continuously_monitored_systems_support_status_is_in_phys_range(float value);
+bool genset_dm5_continuous_monitors_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9337,7 +9337,7 @@ bool genset_dm5_continuously_monitored_systems_support_status_is_in_phys_range(f
  *
  * @return Encoded signal.
  */
-uint16_t genset_dm5_non_continuously_monitored_systems_support_encode(float value);
+uint16_t genset_dm5_non_continuous_supported_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9346,7 +9346,7 @@ uint16_t genset_dm5_non_continuously_monitored_systems_support_encode(float valu
  *
  * @return Decoded signal.
  */
-float genset_dm5_non_continuously_monitored_systems_support_decode(uint16_t value);
+float genset_dm5_non_continuous_supported_decode(uint16_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9355,7 +9355,7 @@ float genset_dm5_non_continuously_monitored_systems_support_decode(uint16_t valu
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm5_non_continuously_monitored_systems_support_is_in_range(uint16_t value);
+bool genset_dm5_non_continuous_supported_is_in_range(uint16_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9368,7 +9368,7 @@ bool genset_dm5_non_continuously_monitored_systems_support_is_in_range(uint16_t 
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm5_non_continuously_monitored_systems_support_is_in_phys_range(float value);
+bool genset_dm5_non_continuous_supported_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9377,7 +9377,7 @@ bool genset_dm5_non_continuously_monitored_systems_support_is_in_phys_range(floa
  *
  * @return Encoded signal.
  */
-uint16_t genset_dm5_non_continuously_monitored_systems_status_encode(float value);
+uint16_t genset_dm5_non_continuous_not_complete_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9386,7 +9386,7 @@ uint16_t genset_dm5_non_continuously_monitored_systems_status_encode(float value
  *
  * @return Decoded signal.
  */
-float genset_dm5_non_continuously_monitored_systems_status_decode(uint16_t value);
+float genset_dm5_non_continuous_not_complete_decode(uint16_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9395,7 +9395,7 @@ float genset_dm5_non_continuously_monitored_systems_status_decode(uint16_t value
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm5_non_continuously_monitored_systems_status_is_in_range(uint16_t value);
+bool genset_dm5_non_continuous_not_complete_is_in_range(uint16_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9408,7 +9408,7 @@ bool genset_dm5_non_continuously_monitored_systems_status_is_in_range(uint16_t v
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm5_non_continuously_monitored_systems_status_is_in_phys_range(float value);
+bool genset_dm5_non_continuous_not_complete_is_in_phys_range(float value);
 
 /**
  * Pack message DM26.
@@ -9494,7 +9494,7 @@ bool genset_dm26_time_since_engine_start_is_in_phys_range(float value);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm26_number_of_warm_ups_since_dt_cs_cleared_encode(float value);
+uint8_t genset_dm26_warm_ups_since_clear_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9503,7 +9503,7 @@ uint8_t genset_dm26_number_of_warm_ups_since_dt_cs_cleared_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm26_number_of_warm_ups_since_dt_cs_cleared_decode(uint8_t value);
+float genset_dm26_warm_ups_since_clear_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9512,7 +9512,7 @@ float genset_dm26_number_of_warm_ups_since_dt_cs_cleared_decode(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm26_number_of_warm_ups_since_dt_cs_cleared_is_in_range(uint8_t value);
+bool genset_dm26_warm_ups_since_clear_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9525,7 +9525,7 @@ bool genset_dm26_number_of_warm_ups_since_dt_cs_cleared_is_in_range(uint8_t valu
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm26_number_of_warm_ups_since_dt_cs_cleared_is_in_phys_range(float value);
+bool genset_dm26_warm_ups_since_clear_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9534,7 +9534,7 @@ bool genset_dm26_number_of_warm_ups_since_dt_cs_cleared_is_in_phys_range(float v
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm26_continuously_monitored_systems_enable_completed_status_encode(float value);
+uint8_t genset_dm26_continuous_monitors_this_trip_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9543,7 +9543,7 @@ uint8_t genset_dm26_continuously_monitored_systems_enable_completed_status_encod
  *
  * @return Decoded signal.
  */
-float genset_dm26_continuously_monitored_systems_enable_completed_status_decode(uint8_t value);
+float genset_dm26_continuous_monitors_this_trip_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9552,7 +9552,7 @@ float genset_dm26_continuously_monitored_systems_enable_completed_status_decode(
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm26_continuously_monitored_systems_enable_completed_status_is_in_range(uint8_t value);
+bool genset_dm26_continuous_monitors_this_trip_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9565,7 +9565,7 @@ bool genset_dm26_continuously_monitored_systems_enable_completed_status_is_in_ra
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm26_continuously_monitored_systems_enable_completed_status_is_in_phys_range(float value);
+bool genset_dm26_continuous_monitors_this_trip_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9574,7 +9574,7 @@ bool genset_dm26_continuously_monitored_systems_enable_completed_status_is_in_ph
  *
  * @return Encoded signal.
  */
-uint16_t genset_dm26_non_continuously_monitored_systems_enable_status_encode(float value);
+uint16_t genset_dm26_non_continuous_enabled_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9583,7 +9583,7 @@ uint16_t genset_dm26_non_continuously_monitored_systems_enable_status_encode(flo
  *
  * @return Decoded signal.
  */
-float genset_dm26_non_continuously_monitored_systems_enable_status_decode(uint16_t value);
+float genset_dm26_non_continuous_enabled_decode(uint16_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9592,7 +9592,7 @@ float genset_dm26_non_continuously_monitored_systems_enable_status_decode(uint16
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm26_non_continuously_monitored_systems_enable_status_is_in_range(uint16_t value);
+bool genset_dm26_non_continuous_enabled_is_in_range(uint16_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9605,7 +9605,7 @@ bool genset_dm26_non_continuously_monitored_systems_enable_status_is_in_range(ui
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm26_non_continuously_monitored_systems_enable_status_is_in_phys_range(float value);
+bool genset_dm26_non_continuous_enabled_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9614,7 +9614,7 @@ bool genset_dm26_non_continuously_monitored_systems_enable_status_is_in_phys_ran
  *
  * @return Encoded signal.
  */
-uint16_t genset_dm26_non_continuously_monitored_systems_complete_status_encode(float value);
+uint16_t genset_dm26_non_continuous_not_complete_this_trip_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9623,7 +9623,7 @@ uint16_t genset_dm26_non_continuously_monitored_systems_complete_status_encode(f
  *
  * @return Decoded signal.
  */
-float genset_dm26_non_continuously_monitored_systems_complete_status_decode(uint16_t value);
+float genset_dm26_non_continuous_not_complete_this_trip_decode(uint16_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9632,7 +9632,7 @@ float genset_dm26_non_continuously_monitored_systems_complete_status_decode(uint
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm26_non_continuously_monitored_systems_complete_status_is_in_range(uint16_t value);
+bool genset_dm26_non_continuous_not_complete_this_trip_is_in_range(uint16_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9645,7 +9645,7 @@ bool genset_dm26_non_continuously_monitored_systems_complete_status_is_in_range(
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm26_non_continuously_monitored_systems_complete_status_is_in_phys_range(float value);
+bool genset_dm26_non_continuous_not_complete_this_trip_is_in_phys_range(float value);
 
 /**
  * Pack message DM21.
@@ -9691,7 +9691,7 @@ int genset_dm21_init(struct genset_dm21_t *msg_p);
  *
  * @return Encoded signal.
  */
-uint16_t genset_dm21_distance_travelled_while_mil_is_activated_encode(float value);
+uint16_t genset_dm21_distance_mil_on_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9700,7 +9700,7 @@ uint16_t genset_dm21_distance_travelled_while_mil_is_activated_encode(float valu
  *
  * @return Decoded signal.
  */
-float genset_dm21_distance_travelled_while_mil_is_activated_decode(uint16_t value);
+float genset_dm21_distance_mil_on_decode(uint16_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9709,7 +9709,7 @@ float genset_dm21_distance_travelled_while_mil_is_activated_decode(uint16_t valu
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm21_distance_travelled_while_mil_is_activated_is_in_range(uint16_t value);
+bool genset_dm21_distance_mil_on_is_in_range(uint16_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9722,7 +9722,7 @@ bool genset_dm21_distance_travelled_while_mil_is_activated_is_in_range(uint16_t 
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm21_distance_travelled_while_mil_is_activated_is_in_phys_range(float value);
+bool genset_dm21_distance_mil_on_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9731,7 +9731,7 @@ bool genset_dm21_distance_travelled_while_mil_is_activated_is_in_phys_range(floa
  *
  * @return Encoded signal.
  */
-uint16_t genset_dm21_distance_since_dt_cs_cleared_encode(float value);
+uint16_t genset_dm21_distance_since_clear_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9740,7 +9740,7 @@ uint16_t genset_dm21_distance_since_dt_cs_cleared_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm21_distance_since_dt_cs_cleared_decode(uint16_t value);
+float genset_dm21_distance_since_clear_decode(uint16_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9749,7 +9749,7 @@ float genset_dm21_distance_since_dt_cs_cleared_decode(uint16_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm21_distance_since_dt_cs_cleared_is_in_range(uint16_t value);
+bool genset_dm21_distance_since_clear_is_in_range(uint16_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9762,7 +9762,7 @@ bool genset_dm21_distance_since_dt_cs_cleared_is_in_range(uint16_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm21_distance_since_dt_cs_cleared_is_in_phys_range(float value);
+bool genset_dm21_distance_since_clear_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9771,7 +9771,7 @@ bool genset_dm21_distance_since_dt_cs_cleared_is_in_phys_range(float value);
  *
  * @return Encoded signal.
  */
-uint16_t genset_dm21_minutes_run_by_engine_while_mil_is_activated_encode(float value);
+uint16_t genset_dm21_time_mil_on_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9780,7 +9780,7 @@ uint16_t genset_dm21_minutes_run_by_engine_while_mil_is_activated_encode(float v
  *
  * @return Decoded signal.
  */
-float genset_dm21_minutes_run_by_engine_while_mil_is_activated_decode(uint16_t value);
+float genset_dm21_time_mil_on_decode(uint16_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9789,7 +9789,7 @@ float genset_dm21_minutes_run_by_engine_while_mil_is_activated_decode(uint16_t v
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm21_minutes_run_by_engine_while_mil_is_activated_is_in_range(uint16_t value);
+bool genset_dm21_time_mil_on_is_in_range(uint16_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9802,7 +9802,7 @@ bool genset_dm21_minutes_run_by_engine_while_mil_is_activated_is_in_range(uint16
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm21_minutes_run_by_engine_while_mil_is_activated_is_in_phys_range(float value);
+bool genset_dm21_time_mil_on_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9811,7 +9811,7 @@ bool genset_dm21_minutes_run_by_engine_while_mil_is_activated_is_in_phys_range(f
  *
  * @return Encoded signal.
  */
-uint16_t genset_dm21_time_since_dt_cs_cleared_encode(float value);
+uint16_t genset_dm21_time_since_clear_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9820,7 +9820,7 @@ uint16_t genset_dm21_time_since_dt_cs_cleared_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm21_time_since_dt_cs_cleared_decode(uint16_t value);
+float genset_dm21_time_since_clear_decode(uint16_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9829,7 +9829,7 @@ float genset_dm21_time_since_dt_cs_cleared_decode(uint16_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm21_time_since_dt_cs_cleared_is_in_range(uint16_t value);
+bool genset_dm21_time_since_clear_is_in_range(uint16_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9842,7 +9842,7 @@ bool genset_dm21_time_since_dt_cs_cleared_is_in_range(uint16_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm21_time_since_dt_cs_cleared_is_in_phys_range(float value);
+bool genset_dm21_time_since_clear_is_in_phys_range(float value);
 
 /**
  * Pack message DM29.
@@ -9888,7 +9888,7 @@ int genset_dm29_init(struct genset_dm29_t *msg_p);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm29_pending_dt_cs_encode(float value);
+uint8_t genset_dm29_pending_dtc_count_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9897,7 +9897,7 @@ uint8_t genset_dm29_pending_dt_cs_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm29_pending_dt_cs_decode(uint8_t value);
+float genset_dm29_pending_dtc_count_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9906,7 +9906,7 @@ float genset_dm29_pending_dt_cs_decode(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm29_pending_dt_cs_is_in_range(uint8_t value);
+bool genset_dm29_pending_dtc_count_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9919,7 +9919,7 @@ bool genset_dm29_pending_dt_cs_is_in_range(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm29_pending_dt_cs_is_in_phys_range(float value);
+bool genset_dm29_pending_dtc_count_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9928,7 +9928,7 @@ bool genset_dm29_pending_dt_cs_is_in_phys_range(float value);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm29_all_pending_dt_cs_encode(float value);
+uint8_t genset_dm29_all_pending_dtc_count_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9937,7 +9937,7 @@ uint8_t genset_dm29_all_pending_dt_cs_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm29_all_pending_dt_cs_decode(uint8_t value);
+float genset_dm29_all_pending_dtc_count_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9946,7 +9946,7 @@ float genset_dm29_all_pending_dt_cs_decode(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm29_all_pending_dt_cs_is_in_range(uint8_t value);
+bool genset_dm29_all_pending_dtc_count_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9959,7 +9959,7 @@ bool genset_dm29_all_pending_dt_cs_is_in_range(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm29_all_pending_dt_cs_is_in_phys_range(float value);
+bool genset_dm29_all_pending_dtc_count_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -9968,7 +9968,7 @@ bool genset_dm29_all_pending_dt_cs_is_in_phys_range(float value);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm29_mil_on_dt_cs_encode(float value);
+uint8_t genset_dm29_mil_on_dtc_count_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -9977,7 +9977,7 @@ uint8_t genset_dm29_mil_on_dt_cs_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm29_mil_on_dt_cs_decode(uint8_t value);
+float genset_dm29_mil_on_dtc_count_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -9986,7 +9986,7 @@ float genset_dm29_mil_on_dt_cs_decode(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm29_mil_on_dt_cs_is_in_range(uint8_t value);
+bool genset_dm29_mil_on_dtc_count_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -9999,7 +9999,7 @@ bool genset_dm29_mil_on_dt_cs_is_in_range(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm29_mil_on_dt_cs_is_in_phys_range(float value);
+bool genset_dm29_mil_on_dtc_count_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -10008,7 +10008,7 @@ bool genset_dm29_mil_on_dt_cs_is_in_phys_range(float value);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm29_previously_mil_on_dt_cs_encode(float value);
+uint8_t genset_dm29_previously_mil_on_dtc_count_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -10017,7 +10017,7 @@ uint8_t genset_dm29_previously_mil_on_dt_cs_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm29_previously_mil_on_dt_cs_decode(uint8_t value);
+float genset_dm29_previously_mil_on_dtc_count_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -10026,7 +10026,7 @@ float genset_dm29_previously_mil_on_dt_cs_decode(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm29_previously_mil_on_dt_cs_is_in_range(uint8_t value);
+bool genset_dm29_previously_mil_on_dtc_count_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -10039,7 +10039,7 @@ bool genset_dm29_previously_mil_on_dt_cs_is_in_range(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm29_previously_mil_on_dt_cs_is_in_phys_range(float value);
+bool genset_dm29_previously_mil_on_dtc_count_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -10048,7 +10048,7 @@ bool genset_dm29_previously_mil_on_dt_cs_is_in_phys_range(float value);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm29_permanent_dt_cs_encode(float value);
+uint8_t genset_dm29_permanent_dtc_count_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -10057,7 +10057,7 @@ uint8_t genset_dm29_permanent_dt_cs_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm29_permanent_dt_cs_decode(uint8_t value);
+float genset_dm29_permanent_dtc_count_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -10066,7 +10066,7 @@ float genset_dm29_permanent_dt_cs_decode(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm29_permanent_dt_cs_is_in_range(uint8_t value);
+bool genset_dm29_permanent_dtc_count_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -10079,7 +10079,7 @@ bool genset_dm29_permanent_dt_cs_is_in_range(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm29_permanent_dt_cs_is_in_phys_range(float value);
+bool genset_dm29_permanent_dtc_count_is_in_phys_range(float value);
 
 /**
  * Pack message DM34.
@@ -10125,7 +10125,7 @@ int genset_dm34_init(struct genset_dm34_t *msg_p);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm34_n_ox_nte_deficiency_area_status_encode(float value);
+uint8_t genset_dm34_nox_deficiency_area_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -10134,7 +10134,7 @@ uint8_t genset_dm34_n_ox_nte_deficiency_area_status_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm34_n_ox_nte_deficiency_area_status_decode(uint8_t value);
+float genset_dm34_nox_deficiency_area_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -10143,7 +10143,7 @@ float genset_dm34_n_ox_nte_deficiency_area_status_decode(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_n_ox_nte_deficiency_area_status_is_in_range(uint8_t value);
+bool genset_dm34_nox_deficiency_area_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -10156,7 +10156,7 @@ bool genset_dm34_n_ox_nte_deficiency_area_status_is_in_range(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_n_ox_nte_deficiency_area_status_is_in_phys_range(float value);
+bool genset_dm34_nox_deficiency_area_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -10165,7 +10165,7 @@ bool genset_dm34_n_ox_nte_deficiency_area_status_is_in_phys_range(float value);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_encode(float value);
+uint8_t genset_dm34_nox_carve_out_area_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -10174,7 +10174,7 @@ uint8_t genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_encode(
  *
  * @return Decoded signal.
  */
-float genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_decode(uint8_t value);
+float genset_dm34_nox_carve_out_area_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -10183,7 +10183,7 @@ float genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_decode(ui
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_is_in_range(uint8_t value);
+bool genset_dm34_nox_carve_out_area_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -10196,7 +10196,7 @@ bool genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_is_in_rang
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_is_in_phys_range(float value);
+bool genset_dm34_nox_carve_out_area_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -10205,7 +10205,7 @@ bool genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_is_in_phys
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm34_n_ox_nte_control_area_status_encode(float value);
+uint8_t genset_dm34_nox_control_area_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -10214,7 +10214,7 @@ uint8_t genset_dm34_n_ox_nte_control_area_status_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm34_n_ox_nte_control_area_status_decode(uint8_t value);
+float genset_dm34_nox_control_area_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -10223,7 +10223,7 @@ float genset_dm34_n_ox_nte_control_area_status_decode(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_n_ox_nte_control_area_status_is_in_range(uint8_t value);
+bool genset_dm34_nox_control_area_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -10236,7 +10236,7 @@ bool genset_dm34_n_ox_nte_control_area_status_is_in_range(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_n_ox_nte_control_area_status_is_in_phys_range(float value);
+bool genset_dm34_nox_control_area_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -10245,7 +10245,7 @@ bool genset_dm34_n_ox_nte_control_area_status_is_in_phys_range(float value);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm34_pmnte_deficiency_area_status_encode(float value);
+uint8_t genset_dm34_pm_deficiency_area_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -10254,7 +10254,7 @@ uint8_t genset_dm34_pmnte_deficiency_area_status_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm34_pmnte_deficiency_area_status_decode(uint8_t value);
+float genset_dm34_pm_deficiency_area_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -10263,7 +10263,7 @@ float genset_dm34_pmnte_deficiency_area_status_decode(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_pmnte_deficiency_area_status_is_in_range(uint8_t value);
+bool genset_dm34_pm_deficiency_area_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -10276,7 +10276,7 @@ bool genset_dm34_pmnte_deficiency_area_status_is_in_range(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_pmnte_deficiency_area_status_is_in_phys_range(float value);
+bool genset_dm34_pm_deficiency_area_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -10285,7 +10285,7 @@ bool genset_dm34_pmnte_deficiency_area_status_is_in_phys_range(float value);
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_encode(float value);
+uint8_t genset_dm34_pm_carve_out_area_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -10294,7 +10294,7 @@ uint8_t genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_encode(flo
  *
  * @return Decoded signal.
  */
-float genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_decode(uint8_t value);
+float genset_dm34_pm_carve_out_area_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -10303,7 +10303,7 @@ float genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_decode(uint8
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_is_in_range(uint8_t value);
+bool genset_dm34_pm_carve_out_area_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -10316,7 +10316,7 @@ bool genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_is_in_range(u
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_is_in_phys_range(float value);
+bool genset_dm34_pm_carve_out_area_is_in_phys_range(float value);
 
 /**
  * Encode given signal by applying scaling and offset.
@@ -10325,7 +10325,7 @@ bool genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_is_in_phys_ra
  *
  * @return Encoded signal.
  */
-uint8_t genset_dm34_pmnte_control_area_status_encode(float value);
+uint8_t genset_dm34_pm_control_area_encode(float value);
 
 /**
  * Decode given signal by applying scaling and offset.
@@ -10334,7 +10334,7 @@ uint8_t genset_dm34_pmnte_control_area_status_encode(float value);
  *
  * @return Decoded signal.
  */
-float genset_dm34_pmnte_control_area_status_decode(uint8_t value);
+float genset_dm34_pm_control_area_decode(uint8_t value);
 
 /**
  * Check that given signal is in allowed range.
@@ -10343,7 +10343,7 @@ float genset_dm34_pmnte_control_area_status_decode(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_pmnte_control_area_status_is_in_range(uint8_t value);
+bool genset_dm34_pm_control_area_is_in_range(uint8_t value);
 
 /**
  * Check that given physical value is in allowed range before encoding.
@@ -10356,7 +10356,7 @@ bool genset_dm34_pmnte_control_area_status_is_in_range(uint8_t value);
  *
  * @return true if in range, false otherwise.
  */
-bool genset_dm34_pmnte_control_area_status_is_in_phys_range(float value);
+bool genset_dm34_pm_control_area_is_in_phys_range(float value);
 
 /**
  * Pack message DM15.

@@ -262,40 +262,40 @@ BO_ 2566835072 DM2: 10 GENSET
  SG_ ProtectLamp : 0|2@1+ (1,0) [0|3] "" Vector__XXX
 
 BO_ 2566835840 DM5: 8 GENSET
- SG_ NonContinuouslyMonitoredSystemsS : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
- SG_ NonContinuouslyMonitoredSys_0000 : 32|16@1+ (1,0) [0|65535] "" Vector__XXX
- SG_ ContinuouslyMonitoredSystemsSupp : 24|8@1+ (1,0) [0|255] "" Vector__XXX
- SG_ OBDCompliance : 16|8@1+ (1,0) [0|255] "" Vector__XXX
- SG_ PreviouslyActiveDiagnosticTroubl : 8|8@1+ (1,0) [0|255] "" Vector__XXX
- SG_ ActiveTroubleCodes : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ NonContinuousNotComplete : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ NonContinuousSupported : 32|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ ContinuousMonitors : 24|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ ObdCompliance : 16|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ PreviouslyActiveDtcCount : 8|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ ActiveDtcCount : 0|8@1+ (1,0) [0|255] "" Vector__XXX
 
 BO_ 2566764672 DM26: 8 GENSET
- SG_ NonContinuouslyMonitoredSystemsC : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
- SG_ NonContinuouslyMonitoredSystemsE : 32|16@1+ (1,0) [0|65535] "" Vector__XXX
- SG_ ContinuouslyMonitoredSystemsEnab : 24|8@1+ (1,0) [0|255] "" Vector__XXX
- SG_ NumberOfWarmUpsSinceDTCsCleared : 16|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ NonContinuousNotCompleteThisTrip : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ NonContinuousEnabled : 32|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ ContinuousMonitorsThisTrip : 24|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ WarmUpsSinceClear : 16|8@1+ (1,0) [0|255] "" Vector__XXX
  SG_ TimeSinceEngineStart : 0|16@1+ (1,0) [0|65535] "s" Vector__XXX
 
 BO_ 2562849152 DM21: 8 GENSET
- SG_ TimeSinceDTCsCleared : 48|16@1+ (1,0) [0|65535] "min" Vector__XXX
- SG_ MinutesRunByEngineWhileMILIsActi : 32|16@1+ (1,0) [0|65535] "min" Vector__XXX
- SG_ DistanceSinceDTCsCleared : 16|16@1+ (1,0) [0|65535] "km" Vector__XXX
- SG_ DistanceTravelledWhileMILIsActiv : 0|16@1+ (1,0) [0|65535] "km" Vector__XXX
+ SG_ TimeSinceClear : 48|16@1+ (1,0) [0|65535] "min" Vector__XXX
+ SG_ TimeMilOn : 32|16@1+ (1,0) [0|65535] "min" Vector__XXX
+ SG_ DistanceSinceClear : 16|16@1+ (1,0) [0|65535] "km" Vector__XXX
+ SG_ DistanceMilOn : 0|16@1+ (1,0) [0|65535] "km" Vector__XXX
 
 BO_ 2560555392 DM29: 8 GENSET
- SG_ PermanentDTCs : 32|8@1+ (1,0) [0|255] "" Vector__XXX
- SG_ PreviouslyMILOnDTCs : 24|8@1+ (1,0) [0|255] "" Vector__XXX
- SG_ MILOnDTCs : 16|8@1+ (1,0) [0|255] "" Vector__XXX
- SG_ AllPendingDTCs : 8|8@1+ (1,0) [0|255] "" Vector__XXX
- SG_ PendingDTCs : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ PermanentDtcCount : 32|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ PreviouslyMilOnDtcCount : 24|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ MilOnDtcCount : 16|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ AllPendingDtcCount : 8|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ PendingDtcCount : 0|8@1+ (1,0) [0|255] "" Vector__XXX
 
 BO_ 2560686464 DM34: 8 GENSET
- SG_ PMNTEControlAreaStatus : 14|2@1+ (1,0) [0|3] "" Vector__XXX
- SG_ ManufacturerSpecificPMNTECarveOu : 12|2@1+ (1,0) [0|3] "" Vector__XXX
- SG_ PMNTEDeficiencyAreaStatus : 10|2@1+ (1,0) [0|3] "" Vector__XXX
- SG_ NOxNTEControlAreaStatus : 6|2@1+ (1,0) [0|3] "" Vector__XXX
- SG_ ManufacturerSpecificNOxNTECarveO : 4|2@1+ (1,0) [0|3] "" Vector__XXX
- SG_ NOxNTEDeficiencyAreaStatus : 2|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ PmControlArea : 14|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ PmCarveOutArea : 12|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ PmDeficiencyArea : 10|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ NoxControlArea : 6|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ NoxCarveOutArea : 4|2@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ NoxDeficiencyArea : 2|2@1+ (1,0) [0|3] "" Vector__XXX
 
 BO_ 2564356480 DM15: 8 GENSET
  SG_ Seed : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
@@ -660,21 +660,10 @@ BA_ "VFrameFormat" BO_ 2566834816 3;
 BA_ "GenMsgCycleTime" BO_ 2566834816 1000;
 BA_ "VFrameFormat" BO_ 2566835072 3;
 BA_ "VFrameFormat" BO_ 2566835840 3;
-BA_ "SystemSignalLongSymbol" SG_ 2566835840 NonContinuouslyMonitoredSystemsS "NonContinuouslyMonitoredSystemsStatus";
-BA_ "SystemSignalLongSymbol" SG_ 2566835840 NonContinuouslyMonitoredSys_0000 "NonContinuouslyMonitoredSystemsSupport";
-BA_ "SystemSignalLongSymbol" SG_ 2566835840 ContinuouslyMonitoredSystemsSupp "ContinuouslyMonitoredSystemsSupportStatus";
-BA_ "SystemSignalLongSymbol" SG_ 2566835840 PreviouslyActiveDiagnosticTroubl "PreviouslyActiveDiagnosticTroubleCodes";
 BA_ "VFrameFormat" BO_ 2566764672 3;
-BA_ "SystemSignalLongSymbol" SG_ 2566764672 NonContinuouslyMonitoredSystemsC "NonContinuouslyMonitoredSystemsCompleteStatus";
-BA_ "SystemSignalLongSymbol" SG_ 2566764672 NonContinuouslyMonitoredSystemsE "NonContinuouslyMonitoredSystemsEnableStatus";
-BA_ "SystemSignalLongSymbol" SG_ 2566764672 ContinuouslyMonitoredSystemsEnab "ContinuouslyMonitoredSystemsEnableCompletedStatus";
 BA_ "VFrameFormat" BO_ 2562849152 3;
-BA_ "SystemSignalLongSymbol" SG_ 2562849152 MinutesRunByEngineWhileMILIsActi "MinutesRunByEngineWhileMILIsActivated";
-BA_ "SystemSignalLongSymbol" SG_ 2562849152 DistanceTravelledWhileMILIsActiv "DistanceTravelledWhileMILIsActivated";
 BA_ "VFrameFormat" BO_ 2560555392 3;
 BA_ "VFrameFormat" BO_ 2560686464 3;
-BA_ "SystemSignalLongSymbol" SG_ 2560686464 ManufacturerSpecificPMNTECarveOu "ManufacturerSpecificPMNTECarveOutAreaStatus";
-BA_ "SystemSignalLongSymbol" SG_ 2560686464 ManufacturerSpecificNOxNTECarveO "ManufacturerSpecificNOxNTECarveOutAreaStatus";
 BA_ "VFrameFormat" BO_ 2564356480 3;
 BA_ "VFrameFormat" BO_ 2562980224 3;
 BA_ "VFrameFormat" BO_ 2564391161 3;

@@ -4193,14 +4193,14 @@ int genset_dm5_pack(
 
     memset(&dst_p[0], 0, 8);
 
-    dst_p[0] |= pack_left_shift_u8(src_p->active_trouble_codes, 0u, 0xffu);
-    dst_p[1] |= pack_left_shift_u8(src_p->previously_active_diagnostic_trouble_codes, 0u, 0xffu);
+    dst_p[0] |= pack_left_shift_u8(src_p->active_dtc_count, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->previously_active_dtc_count, 0u, 0xffu);
     dst_p[2] |= pack_left_shift_u8(src_p->obd_compliance, 0u, 0xffu);
-    dst_p[3] |= pack_left_shift_u8(src_p->continuously_monitored_systems_support_status, 0u, 0xffu);
-    dst_p[4] |= pack_left_shift_u16(src_p->non_continuously_monitored_systems_support, 0u, 0xffu);
-    dst_p[5] |= pack_right_shift_u16(src_p->non_continuously_monitored_systems_support, 8u, 0xffu);
-    dst_p[6] |= pack_left_shift_u16(src_p->non_continuously_monitored_systems_status, 0u, 0xffu);
-    dst_p[7] |= pack_right_shift_u16(src_p->non_continuously_monitored_systems_status, 8u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->continuous_monitors, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->non_continuous_supported, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->non_continuous_supported, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->non_continuous_not_complete, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->non_continuous_not_complete, 8u, 0xffu);
 
     return (8);
 }
@@ -4214,14 +4214,14 @@ int genset_dm5_unpack(
         return (-EINVAL);
     }
 
-    dst_p->active_trouble_codes = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
-    dst_p->previously_active_diagnostic_trouble_codes = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->active_dtc_count = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->previously_active_dtc_count = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
     dst_p->obd_compliance = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
-    dst_p->continuously_monitored_systems_support_status = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
-    dst_p->non_continuously_monitored_systems_support = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
-    dst_p->non_continuously_monitored_systems_support |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
-    dst_p->non_continuously_monitored_systems_status = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
-    dst_p->non_continuously_monitored_systems_status |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+    dst_p->continuous_monitors = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->non_continuous_supported = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->non_continuous_supported |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->non_continuous_not_complete = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->non_continuous_not_complete |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
 
     return (0);
 }
@@ -4235,46 +4235,46 @@ int genset_dm5_init(struct genset_dm5_t *msg_p)
     return 0;
 }
 
-uint8_t genset_dm5_active_trouble_codes_encode(float value)
+uint8_t genset_dm5_active_dtc_count_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm5_active_trouble_codes_decode(uint8_t value)
+float genset_dm5_active_dtc_count_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm5_active_trouble_codes_is_in_range(uint8_t value)
+bool genset_dm5_active_dtc_count_is_in_range(uint8_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm5_active_trouble_codes_is_in_phys_range(float value)
+bool genset_dm5_active_dtc_count_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 255.0f));
 }
 
-uint8_t genset_dm5_previously_active_diagnostic_trouble_codes_encode(float value)
+uint8_t genset_dm5_previously_active_dtc_count_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm5_previously_active_diagnostic_trouble_codes_decode(uint8_t value)
+float genset_dm5_previously_active_dtc_count_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm5_previously_active_diagnostic_trouble_codes_is_in_range(uint8_t value)
+bool genset_dm5_previously_active_dtc_count_is_in_range(uint8_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm5_previously_active_diagnostic_trouble_codes_is_in_phys_range(float value)
+bool genset_dm5_previously_active_dtc_count_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 255.0f));
 }
@@ -4301,68 +4301,68 @@ bool genset_dm5_obd_compliance_is_in_phys_range(float value)
     return ((value >= 0.0f) && (value <= 255.0f));
 }
 
-uint8_t genset_dm5_continuously_monitored_systems_support_status_encode(float value)
+uint8_t genset_dm5_continuous_monitors_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm5_continuously_monitored_systems_support_status_decode(uint8_t value)
+float genset_dm5_continuous_monitors_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm5_continuously_monitored_systems_support_status_is_in_range(uint8_t value)
+bool genset_dm5_continuous_monitors_is_in_range(uint8_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm5_continuously_monitored_systems_support_status_is_in_phys_range(float value)
+bool genset_dm5_continuous_monitors_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 255.0f));
 }
 
-uint16_t genset_dm5_non_continuously_monitored_systems_support_encode(float value)
+uint16_t genset_dm5_non_continuous_supported_encode(float value)
 {
     return (uint16_t)(value);
 }
 
-float genset_dm5_non_continuously_monitored_systems_support_decode(uint16_t value)
+float genset_dm5_non_continuous_supported_decode(uint16_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm5_non_continuously_monitored_systems_support_is_in_range(uint16_t value)
+bool genset_dm5_non_continuous_supported_is_in_range(uint16_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm5_non_continuously_monitored_systems_support_is_in_phys_range(float value)
+bool genset_dm5_non_continuous_supported_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 65535.0f));
 }
 
-uint16_t genset_dm5_non_continuously_monitored_systems_status_encode(float value)
+uint16_t genset_dm5_non_continuous_not_complete_encode(float value)
 {
     return (uint16_t)(value);
 }
 
-float genset_dm5_non_continuously_monitored_systems_status_decode(uint16_t value)
+float genset_dm5_non_continuous_not_complete_decode(uint16_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm5_non_continuously_monitored_systems_status_is_in_range(uint16_t value)
+bool genset_dm5_non_continuous_not_complete_is_in_range(uint16_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm5_non_continuously_monitored_systems_status_is_in_phys_range(float value)
+bool genset_dm5_non_continuous_not_complete_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 65535.0f));
 }
@@ -4380,12 +4380,12 @@ int genset_dm26_pack(
 
     dst_p[0] |= pack_left_shift_u16(src_p->time_since_engine_start, 0u, 0xffu);
     dst_p[1] |= pack_right_shift_u16(src_p->time_since_engine_start, 8u, 0xffu);
-    dst_p[2] |= pack_left_shift_u8(src_p->number_of_warm_ups_since_dt_cs_cleared, 0u, 0xffu);
-    dst_p[3] |= pack_left_shift_u8(src_p->continuously_monitored_systems_enable_completed_status, 0u, 0xffu);
-    dst_p[4] |= pack_left_shift_u16(src_p->non_continuously_monitored_systems_enable_status, 0u, 0xffu);
-    dst_p[5] |= pack_right_shift_u16(src_p->non_continuously_monitored_systems_enable_status, 8u, 0xffu);
-    dst_p[6] |= pack_left_shift_u16(src_p->non_continuously_monitored_systems_complete_status, 0u, 0xffu);
-    dst_p[7] |= pack_right_shift_u16(src_p->non_continuously_monitored_systems_complete_status, 8u, 0xffu);
+    dst_p[2] |= pack_left_shift_u8(src_p->warm_ups_since_clear, 0u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->continuous_monitors_this_trip, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->non_continuous_enabled, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->non_continuous_enabled, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->non_continuous_not_complete_this_trip, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->non_continuous_not_complete_this_trip, 8u, 0xffu);
 
     return (8);
 }
@@ -4401,12 +4401,12 @@ int genset_dm26_unpack(
 
     dst_p->time_since_engine_start = unpack_right_shift_u16(src_p[0], 0u, 0xffu);
     dst_p->time_since_engine_start |= unpack_left_shift_u16(src_p[1], 8u, 0xffu);
-    dst_p->number_of_warm_ups_since_dt_cs_cleared = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
-    dst_p->continuously_monitored_systems_enable_completed_status = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
-    dst_p->non_continuously_monitored_systems_enable_status = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
-    dst_p->non_continuously_monitored_systems_enable_status |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
-    dst_p->non_continuously_monitored_systems_complete_status = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
-    dst_p->non_continuously_monitored_systems_complete_status |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+    dst_p->warm_ups_since_clear = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
+    dst_p->continuous_monitors_this_trip = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->non_continuous_enabled = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->non_continuous_enabled |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->non_continuous_not_complete_this_trip = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->non_continuous_not_complete_this_trip |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
 
     return (0);
 }
@@ -4442,90 +4442,90 @@ bool genset_dm26_time_since_engine_start_is_in_phys_range(float value)
     return ((value >= 0.0f) && (value <= 65535.0f));
 }
 
-uint8_t genset_dm26_number_of_warm_ups_since_dt_cs_cleared_encode(float value)
+uint8_t genset_dm26_warm_ups_since_clear_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm26_number_of_warm_ups_since_dt_cs_cleared_decode(uint8_t value)
+float genset_dm26_warm_ups_since_clear_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm26_number_of_warm_ups_since_dt_cs_cleared_is_in_range(uint8_t value)
+bool genset_dm26_warm_ups_since_clear_is_in_range(uint8_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm26_number_of_warm_ups_since_dt_cs_cleared_is_in_phys_range(float value)
+bool genset_dm26_warm_ups_since_clear_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 255.0f));
 }
 
-uint8_t genset_dm26_continuously_monitored_systems_enable_completed_status_encode(float value)
+uint8_t genset_dm26_continuous_monitors_this_trip_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm26_continuously_monitored_systems_enable_completed_status_decode(uint8_t value)
+float genset_dm26_continuous_monitors_this_trip_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm26_continuously_monitored_systems_enable_completed_status_is_in_range(uint8_t value)
+bool genset_dm26_continuous_monitors_this_trip_is_in_range(uint8_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm26_continuously_monitored_systems_enable_completed_status_is_in_phys_range(float value)
+bool genset_dm26_continuous_monitors_this_trip_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 255.0f));
 }
 
-uint16_t genset_dm26_non_continuously_monitored_systems_enable_status_encode(float value)
+uint16_t genset_dm26_non_continuous_enabled_encode(float value)
 {
     return (uint16_t)(value);
 }
 
-float genset_dm26_non_continuously_monitored_systems_enable_status_decode(uint16_t value)
+float genset_dm26_non_continuous_enabled_decode(uint16_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm26_non_continuously_monitored_systems_enable_status_is_in_range(uint16_t value)
+bool genset_dm26_non_continuous_enabled_is_in_range(uint16_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm26_non_continuously_monitored_systems_enable_status_is_in_phys_range(float value)
+bool genset_dm26_non_continuous_enabled_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 65535.0f));
 }
 
-uint16_t genset_dm26_non_continuously_monitored_systems_complete_status_encode(float value)
+uint16_t genset_dm26_non_continuous_not_complete_this_trip_encode(float value)
 {
     return (uint16_t)(value);
 }
 
-float genset_dm26_non_continuously_monitored_systems_complete_status_decode(uint16_t value)
+float genset_dm26_non_continuous_not_complete_this_trip_decode(uint16_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm26_non_continuously_monitored_systems_complete_status_is_in_range(uint16_t value)
+bool genset_dm26_non_continuous_not_complete_this_trip_is_in_range(uint16_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm26_non_continuously_monitored_systems_complete_status_is_in_phys_range(float value)
+bool genset_dm26_non_continuous_not_complete_this_trip_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 65535.0f));
 }
@@ -4541,14 +4541,14 @@ int genset_dm21_pack(
 
     memset(&dst_p[0], 0, 8);
 
-    dst_p[0] |= pack_left_shift_u16(src_p->distance_travelled_while_mil_is_activated, 0u, 0xffu);
-    dst_p[1] |= pack_right_shift_u16(src_p->distance_travelled_while_mil_is_activated, 8u, 0xffu);
-    dst_p[2] |= pack_left_shift_u16(src_p->distance_since_dt_cs_cleared, 0u, 0xffu);
-    dst_p[3] |= pack_right_shift_u16(src_p->distance_since_dt_cs_cleared, 8u, 0xffu);
-    dst_p[4] |= pack_left_shift_u16(src_p->minutes_run_by_engine_while_mil_is_activated, 0u, 0xffu);
-    dst_p[5] |= pack_right_shift_u16(src_p->minutes_run_by_engine_while_mil_is_activated, 8u, 0xffu);
-    dst_p[6] |= pack_left_shift_u16(src_p->time_since_dt_cs_cleared, 0u, 0xffu);
-    dst_p[7] |= pack_right_shift_u16(src_p->time_since_dt_cs_cleared, 8u, 0xffu);
+    dst_p[0] |= pack_left_shift_u16(src_p->distance_mil_on, 0u, 0xffu);
+    dst_p[1] |= pack_right_shift_u16(src_p->distance_mil_on, 8u, 0xffu);
+    dst_p[2] |= pack_left_shift_u16(src_p->distance_since_clear, 0u, 0xffu);
+    dst_p[3] |= pack_right_shift_u16(src_p->distance_since_clear, 8u, 0xffu);
+    dst_p[4] |= pack_left_shift_u16(src_p->time_mil_on, 0u, 0xffu);
+    dst_p[5] |= pack_right_shift_u16(src_p->time_mil_on, 8u, 0xffu);
+    dst_p[6] |= pack_left_shift_u16(src_p->time_since_clear, 0u, 0xffu);
+    dst_p[7] |= pack_right_shift_u16(src_p->time_since_clear, 8u, 0xffu);
 
     return (8);
 }
@@ -4562,14 +4562,14 @@ int genset_dm21_unpack(
         return (-EINVAL);
     }
 
-    dst_p->distance_travelled_while_mil_is_activated = unpack_right_shift_u16(src_p[0], 0u, 0xffu);
-    dst_p->distance_travelled_while_mil_is_activated |= unpack_left_shift_u16(src_p[1], 8u, 0xffu);
-    dst_p->distance_since_dt_cs_cleared = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
-    dst_p->distance_since_dt_cs_cleared |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
-    dst_p->minutes_run_by_engine_while_mil_is_activated = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
-    dst_p->minutes_run_by_engine_while_mil_is_activated |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
-    dst_p->time_since_dt_cs_cleared = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
-    dst_p->time_since_dt_cs_cleared |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
+    dst_p->distance_mil_on = unpack_right_shift_u16(src_p[0], 0u, 0xffu);
+    dst_p->distance_mil_on |= unpack_left_shift_u16(src_p[1], 8u, 0xffu);
+    dst_p->distance_since_clear = unpack_right_shift_u16(src_p[2], 0u, 0xffu);
+    dst_p->distance_since_clear |= unpack_left_shift_u16(src_p[3], 8u, 0xffu);
+    dst_p->time_mil_on = unpack_right_shift_u16(src_p[4], 0u, 0xffu);
+    dst_p->time_mil_on |= unpack_left_shift_u16(src_p[5], 8u, 0xffu);
+    dst_p->time_since_clear = unpack_right_shift_u16(src_p[6], 0u, 0xffu);
+    dst_p->time_since_clear |= unpack_left_shift_u16(src_p[7], 8u, 0xffu);
 
     return (0);
 }
@@ -4583,90 +4583,90 @@ int genset_dm21_init(struct genset_dm21_t *msg_p)
     return 0;
 }
 
-uint16_t genset_dm21_distance_travelled_while_mil_is_activated_encode(float value)
+uint16_t genset_dm21_distance_mil_on_encode(float value)
 {
     return (uint16_t)(value);
 }
 
-float genset_dm21_distance_travelled_while_mil_is_activated_decode(uint16_t value)
+float genset_dm21_distance_mil_on_decode(uint16_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm21_distance_travelled_while_mil_is_activated_is_in_range(uint16_t value)
+bool genset_dm21_distance_mil_on_is_in_range(uint16_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm21_distance_travelled_while_mil_is_activated_is_in_phys_range(float value)
+bool genset_dm21_distance_mil_on_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 65535.0f));
 }
 
-uint16_t genset_dm21_distance_since_dt_cs_cleared_encode(float value)
+uint16_t genset_dm21_distance_since_clear_encode(float value)
 {
     return (uint16_t)(value);
 }
 
-float genset_dm21_distance_since_dt_cs_cleared_decode(uint16_t value)
+float genset_dm21_distance_since_clear_decode(uint16_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm21_distance_since_dt_cs_cleared_is_in_range(uint16_t value)
+bool genset_dm21_distance_since_clear_is_in_range(uint16_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm21_distance_since_dt_cs_cleared_is_in_phys_range(float value)
+bool genset_dm21_distance_since_clear_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 65535.0f));
 }
 
-uint16_t genset_dm21_minutes_run_by_engine_while_mil_is_activated_encode(float value)
+uint16_t genset_dm21_time_mil_on_encode(float value)
 {
     return (uint16_t)(value);
 }
 
-float genset_dm21_minutes_run_by_engine_while_mil_is_activated_decode(uint16_t value)
+float genset_dm21_time_mil_on_decode(uint16_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm21_minutes_run_by_engine_while_mil_is_activated_is_in_range(uint16_t value)
+bool genset_dm21_time_mil_on_is_in_range(uint16_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm21_minutes_run_by_engine_while_mil_is_activated_is_in_phys_range(float value)
+bool genset_dm21_time_mil_on_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 65535.0f));
 }
 
-uint16_t genset_dm21_time_since_dt_cs_cleared_encode(float value)
+uint16_t genset_dm21_time_since_clear_encode(float value)
 {
     return (uint16_t)(value);
 }
 
-float genset_dm21_time_since_dt_cs_cleared_decode(uint16_t value)
+float genset_dm21_time_since_clear_decode(uint16_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm21_time_since_dt_cs_cleared_is_in_range(uint16_t value)
+bool genset_dm21_time_since_clear_is_in_range(uint16_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm21_time_since_dt_cs_cleared_is_in_phys_range(float value)
+bool genset_dm21_time_since_clear_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 65535.0f));
 }
@@ -4682,11 +4682,11 @@ int genset_dm29_pack(
 
     memset(&dst_p[0], 0, 8);
 
-    dst_p[0] |= pack_left_shift_u8(src_p->pending_dt_cs, 0u, 0xffu);
-    dst_p[1] |= pack_left_shift_u8(src_p->all_pending_dt_cs, 0u, 0xffu);
-    dst_p[2] |= pack_left_shift_u8(src_p->mil_on_dt_cs, 0u, 0xffu);
-    dst_p[3] |= pack_left_shift_u8(src_p->previously_mil_on_dt_cs, 0u, 0xffu);
-    dst_p[4] |= pack_left_shift_u8(src_p->permanent_dt_cs, 0u, 0xffu);
+    dst_p[0] |= pack_left_shift_u8(src_p->pending_dtc_count, 0u, 0xffu);
+    dst_p[1] |= pack_left_shift_u8(src_p->all_pending_dtc_count, 0u, 0xffu);
+    dst_p[2] |= pack_left_shift_u8(src_p->mil_on_dtc_count, 0u, 0xffu);
+    dst_p[3] |= pack_left_shift_u8(src_p->previously_mil_on_dtc_count, 0u, 0xffu);
+    dst_p[4] |= pack_left_shift_u8(src_p->permanent_dtc_count, 0u, 0xffu);
 
     return (8);
 }
@@ -4700,11 +4700,11 @@ int genset_dm29_unpack(
         return (-EINVAL);
     }
 
-    dst_p->pending_dt_cs = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
-    dst_p->all_pending_dt_cs = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
-    dst_p->mil_on_dt_cs = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
-    dst_p->previously_mil_on_dt_cs = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
-    dst_p->permanent_dt_cs = unpack_right_shift_u8(src_p[4], 0u, 0xffu);
+    dst_p->pending_dtc_count = unpack_right_shift_u8(src_p[0], 0u, 0xffu);
+    dst_p->all_pending_dtc_count = unpack_right_shift_u8(src_p[1], 0u, 0xffu);
+    dst_p->mil_on_dtc_count = unpack_right_shift_u8(src_p[2], 0u, 0xffu);
+    dst_p->previously_mil_on_dtc_count = unpack_right_shift_u8(src_p[3], 0u, 0xffu);
+    dst_p->permanent_dtc_count = unpack_right_shift_u8(src_p[4], 0u, 0xffu);
 
     return (0);
 }
@@ -4718,112 +4718,112 @@ int genset_dm29_init(struct genset_dm29_t *msg_p)
     return 0;
 }
 
-uint8_t genset_dm29_pending_dt_cs_encode(float value)
+uint8_t genset_dm29_pending_dtc_count_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm29_pending_dt_cs_decode(uint8_t value)
+float genset_dm29_pending_dtc_count_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm29_pending_dt_cs_is_in_range(uint8_t value)
+bool genset_dm29_pending_dtc_count_is_in_range(uint8_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm29_pending_dt_cs_is_in_phys_range(float value)
+bool genset_dm29_pending_dtc_count_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 255.0f));
 }
 
-uint8_t genset_dm29_all_pending_dt_cs_encode(float value)
+uint8_t genset_dm29_all_pending_dtc_count_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm29_all_pending_dt_cs_decode(uint8_t value)
+float genset_dm29_all_pending_dtc_count_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm29_all_pending_dt_cs_is_in_range(uint8_t value)
+bool genset_dm29_all_pending_dtc_count_is_in_range(uint8_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm29_all_pending_dt_cs_is_in_phys_range(float value)
+bool genset_dm29_all_pending_dtc_count_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 255.0f));
 }
 
-uint8_t genset_dm29_mil_on_dt_cs_encode(float value)
+uint8_t genset_dm29_mil_on_dtc_count_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm29_mil_on_dt_cs_decode(uint8_t value)
+float genset_dm29_mil_on_dtc_count_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm29_mil_on_dt_cs_is_in_range(uint8_t value)
+bool genset_dm29_mil_on_dtc_count_is_in_range(uint8_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm29_mil_on_dt_cs_is_in_phys_range(float value)
+bool genset_dm29_mil_on_dtc_count_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 255.0f));
 }
 
-uint8_t genset_dm29_previously_mil_on_dt_cs_encode(float value)
+uint8_t genset_dm29_previously_mil_on_dtc_count_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm29_previously_mil_on_dt_cs_decode(uint8_t value)
+float genset_dm29_previously_mil_on_dtc_count_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm29_previously_mil_on_dt_cs_is_in_range(uint8_t value)
+bool genset_dm29_previously_mil_on_dtc_count_is_in_range(uint8_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm29_previously_mil_on_dt_cs_is_in_phys_range(float value)
+bool genset_dm29_previously_mil_on_dtc_count_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 255.0f));
 }
 
-uint8_t genset_dm29_permanent_dt_cs_encode(float value)
+uint8_t genset_dm29_permanent_dtc_count_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm29_permanent_dt_cs_decode(uint8_t value)
+float genset_dm29_permanent_dtc_count_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm29_permanent_dt_cs_is_in_range(uint8_t value)
+bool genset_dm29_permanent_dtc_count_is_in_range(uint8_t value)
 {
     (void)value;
 
     return (true);
 }
 
-bool genset_dm29_permanent_dt_cs_is_in_phys_range(float value)
+bool genset_dm29_permanent_dtc_count_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 255.0f));
 }
@@ -4839,12 +4839,12 @@ int genset_dm34_pack(
 
     memset(&dst_p[0], 0, 8);
 
-    dst_p[0] |= pack_left_shift_u8(src_p->n_ox_nte_deficiency_area_status, 2u, 0x0cu);
-    dst_p[0] |= pack_left_shift_u8(src_p->manufacturer_specific_n_ox_nte_carve_out_area_status, 4u, 0x30u);
-    dst_p[0] |= pack_left_shift_u8(src_p->n_ox_nte_control_area_status, 6u, 0xc0u);
-    dst_p[1] |= pack_left_shift_u8(src_p->pmnte_deficiency_area_status, 2u, 0x0cu);
-    dst_p[1] |= pack_left_shift_u8(src_p->manufacturer_specific_pmnte_carve_out_area_status, 4u, 0x30u);
-    dst_p[1] |= pack_left_shift_u8(src_p->pmnte_control_area_status, 6u, 0xc0u);
+    dst_p[0] |= pack_left_shift_u8(src_p->nox_deficiency_area, 2u, 0x0cu);
+    dst_p[0] |= pack_left_shift_u8(src_p->nox_carve_out_area, 4u, 0x30u);
+    dst_p[0] |= pack_left_shift_u8(src_p->nox_control_area, 6u, 0xc0u);
+    dst_p[1] |= pack_left_shift_u8(src_p->pm_deficiency_area, 2u, 0x0cu);
+    dst_p[1] |= pack_left_shift_u8(src_p->pm_carve_out_area, 4u, 0x30u);
+    dst_p[1] |= pack_left_shift_u8(src_p->pm_control_area, 6u, 0xc0u);
 
     return (8);
 }
@@ -4858,12 +4858,12 @@ int genset_dm34_unpack(
         return (-EINVAL);
     }
 
-    dst_p->n_ox_nte_deficiency_area_status = unpack_right_shift_u8(src_p[0], 2u, 0x0cu);
-    dst_p->manufacturer_specific_n_ox_nte_carve_out_area_status = unpack_right_shift_u8(src_p[0], 4u, 0x30u);
-    dst_p->n_ox_nte_control_area_status = unpack_right_shift_u8(src_p[0], 6u, 0xc0u);
-    dst_p->pmnte_deficiency_area_status = unpack_right_shift_u8(src_p[1], 2u, 0x0cu);
-    dst_p->manufacturer_specific_pmnte_carve_out_area_status = unpack_right_shift_u8(src_p[1], 4u, 0x30u);
-    dst_p->pmnte_control_area_status = unpack_right_shift_u8(src_p[1], 6u, 0xc0u);
+    dst_p->nox_deficiency_area = unpack_right_shift_u8(src_p[0], 2u, 0x0cu);
+    dst_p->nox_carve_out_area = unpack_right_shift_u8(src_p[0], 4u, 0x30u);
+    dst_p->nox_control_area = unpack_right_shift_u8(src_p[0], 6u, 0xc0u);
+    dst_p->pm_deficiency_area = unpack_right_shift_u8(src_p[1], 2u, 0x0cu);
+    dst_p->pm_carve_out_area = unpack_right_shift_u8(src_p[1], 4u, 0x30u);
+    dst_p->pm_control_area = unpack_right_shift_u8(src_p[1], 6u, 0xc0u);
 
     return (0);
 }
@@ -4877,122 +4877,122 @@ int genset_dm34_init(struct genset_dm34_t *msg_p)
     return 0;
 }
 
-uint8_t genset_dm34_n_ox_nte_deficiency_area_status_encode(float value)
+uint8_t genset_dm34_nox_deficiency_area_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm34_n_ox_nte_deficiency_area_status_decode(uint8_t value)
+float genset_dm34_nox_deficiency_area_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm34_n_ox_nte_deficiency_area_status_is_in_range(uint8_t value)
+bool genset_dm34_nox_deficiency_area_is_in_range(uint8_t value)
 {
     return (value <= 3u);
 }
 
-bool genset_dm34_n_ox_nte_deficiency_area_status_is_in_phys_range(float value)
+bool genset_dm34_nox_deficiency_area_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 3.0f));
 }
 
-uint8_t genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_encode(float value)
+uint8_t genset_dm34_nox_carve_out_area_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_decode(uint8_t value)
+float genset_dm34_nox_carve_out_area_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_is_in_range(uint8_t value)
+bool genset_dm34_nox_carve_out_area_is_in_range(uint8_t value)
 {
     return (value <= 3u);
 }
 
-bool genset_dm34_manufacturer_specific_n_ox_nte_carve_out_area_status_is_in_phys_range(float value)
+bool genset_dm34_nox_carve_out_area_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 3.0f));
 }
 
-uint8_t genset_dm34_n_ox_nte_control_area_status_encode(float value)
+uint8_t genset_dm34_nox_control_area_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm34_n_ox_nte_control_area_status_decode(uint8_t value)
+float genset_dm34_nox_control_area_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm34_n_ox_nte_control_area_status_is_in_range(uint8_t value)
+bool genset_dm34_nox_control_area_is_in_range(uint8_t value)
 {
     return (value <= 3u);
 }
 
-bool genset_dm34_n_ox_nte_control_area_status_is_in_phys_range(float value)
+bool genset_dm34_nox_control_area_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 3.0f));
 }
 
-uint8_t genset_dm34_pmnte_deficiency_area_status_encode(float value)
+uint8_t genset_dm34_pm_deficiency_area_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm34_pmnte_deficiency_area_status_decode(uint8_t value)
+float genset_dm34_pm_deficiency_area_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm34_pmnte_deficiency_area_status_is_in_range(uint8_t value)
+bool genset_dm34_pm_deficiency_area_is_in_range(uint8_t value)
 {
     return (value <= 3u);
 }
 
-bool genset_dm34_pmnte_deficiency_area_status_is_in_phys_range(float value)
+bool genset_dm34_pm_deficiency_area_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 3.0f));
 }
 
-uint8_t genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_encode(float value)
+uint8_t genset_dm34_pm_carve_out_area_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_decode(uint8_t value)
+float genset_dm34_pm_carve_out_area_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_is_in_range(uint8_t value)
+bool genset_dm34_pm_carve_out_area_is_in_range(uint8_t value)
 {
     return (value <= 3u);
 }
 
-bool genset_dm34_manufacturer_specific_pmnte_carve_out_area_status_is_in_phys_range(float value)
+bool genset_dm34_pm_carve_out_area_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 3.0f));
 }
 
-uint8_t genset_dm34_pmnte_control_area_status_encode(float value)
+uint8_t genset_dm34_pm_control_area_encode(float value)
 {
     return (uint8_t)(value);
 }
 
-float genset_dm34_pmnte_control_area_status_decode(uint8_t value)
+float genset_dm34_pm_control_area_decode(uint8_t value)
 {
     return ((float)value);
 }
 
-bool genset_dm34_pmnte_control_area_status_is_in_range(uint8_t value)
+bool genset_dm34_pm_control_area_is_in_range(uint8_t value)
 {
     return (value <= 3u);
 }
 
-bool genset_dm34_pmnte_control_area_status_is_in_phys_range(float value)
+bool genset_dm34_pm_control_area_is_in_phys_range(float value)
 {
     return ((value >= 0.0f) && (value <= 3.0f));
 }
