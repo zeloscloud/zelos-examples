@@ -122,17 +122,93 @@ CANopen devices out of `0x101`-`0x180`, so no CANopen node can collide with it.
 The genset follows the VCU's mode: rated speed under load while driving, idle
 in standby, stopped while charging. It is an engine and a generator set on
 J1939: ten engine PGs of J1939-71 (EEC1, EEC2, ET1, EFL/P1, VEP1, HOURS, LFC,
-LFE, AMB, IC1) and seven generator PGs of J1939-75 (average and per-phase AC
+LFE, AMB, IC1, EEC3, CCVS1) and seven generator PGs of J1939-75 (average and per-phase AC
 quantities, total real, apparent and reactive power, power factor, energy), all
 from one model, so frequency follows speed, P = 3 V I pf, and energy, fuel and
 hours integrate; about 111 frames a second, every layout from `../dbc/genset.dbc`.
 Under load its coolant runs hot: DM1 carries SPN 110 in one frame with the
 amber lamp, then SPN 100 (oil pressure) joins it with the red lamp and DM1
 goes by BAM; cooled, DM1 is empty and DM2, on request, lists what was active.
-Asked for DM2 or its software identification (SOFT), it answers the requester
-by RTS/CTS, or everyone by BAM; a request for a PGN it lacks gets a NACK. The
+EEC1 and EEC2 carry their status fields (torque and starter mode, the
+controlling device, the pedal switches), EEC3 the governor's target and
+CCVS1 the brake, PTO and cruise states, so the decoder's sub-byte fields see
+real values; a controller's TSC1 to the genset overrides the governor and is
+named in EEC1. Asked for DM2, its software (SOFT) or component identification
+(CI), it answers the requester by RTS/CTS, or everyone by BAM; a request for a
+PGN it lacks gets a NACK. A service tool gets the rest of J1939-73 from it:
+see [J1939 diagnostics](#j1939-diagnostics). The
 PDU switches eight outputs on command, reports inputs and per-channel current,
 and trips channel 8, which is shorted.
+
+## J1939 diagnostics
+
+The genset answers a Request (PGN 59904, three bytes: the PGN asked for, low
+byte first) sent to its address or to `0xFF`, from any tool that sends a PG
+by PGN. A PDU2 answer to a global request goes
+to everyone, by BAM when over 8 bytes; an answer to a request addressed to the
+genset, and every PDU1 answer, goes to the requester, by RTS/CTS when over 8
+bytes. A PGN it lacks gets a NACK.
+
+Its two DTCs are SPN 110 FMI 0 (coolant temperature, amber lamp, the only
+emission-related one) and SPN 100 FMI 1 (oil pressure, red lamp). The engine
+model sets and heals them; the node has no MIL.
+
+| DM | PGN | Ask with | Answer |
+|---|---|---|---|
+| DM1 | 65226 | sent every second; Request | active DTCs |
+| DM2 | 65227 | Request | previously active DTCs |
+| DM6 | 65231 | Request | pending and emission-related |
+| DM12 | 65236 | Request | active and emission-related |
+| DM23 | 64949 | Request | previously active and emission-related |
+| DM27 | 64898 | Request | pending: coolant from 100 degC, oil pressure below 240 kPa, so before each is active |
+| DM28 | 64896 | Request | permanent: both, whatever a tool clears |
+| DM5 | 65230 | Request | counts of DM1 and DM2, OBD compliance 17, the monitors the node has: complete, but for boost pressure control |
+| DM29 | 40448 | Request | counts of DM6, DM27, DM12, DM23, DM28 |
+| DM21 | 49408 | Request | distances and MIL time 0, minutes since a tool cleared DTCs |
+| DM26 | 64952 | Request | seconds since engine start, warm-ups since DTCs were cleared, monitors as DM5 |
+| DM19 | 54016 | Request | one calibration: CVN `0x0A11CA1B`, id `ZELOS-GENSET`, zero-padded to 16 bytes |
+| DM20 | 49664 | Request | 120 ignition cycles, 100 with monitoring conditions; ratios SPN 110 95/100, SPN 100 98/100, SPN 190 not supported |
+| DM24 | 64950 | Request | SPNs 190, 110, 100, 92 (freeze frame and data stream; 110 and 100 also test results), 175, 183 (data stream), with lengths |
+| DM25 | 64951 | Request | while a DTC is active, the freeze frame taken when the first one set: the DTC, then SPNs 190, 110, 100, 92 as their PGs carry them; otherwise `00 00 00 00 00 FF FF FF` |
+| DM31 | 41728 | Request | each DTC that is or was active with its lamp |
+| DM33 | 41216 | Request | timer 1: minutes derated; its second timer not available |
+| DM34 | 40960 | Request | NOx and PM control areas: inside under load, outside otherwise |
+| DM56 | 64711 | Request | `2026E-MYZELOS GENSET*` |
+| DM35, DM42 | 40704, 64862 | Request | the active DTCs, as DM1 |
+| DM4 | 65229 | Request | one freeze frame, 13 bytes: `0C`, the DTC, then speed, coolant, oil pressure and load as their PGs carry them and `FF FF FF`; from boot the coolant fault's of the node's history, then that of the first DTC to set |
+| DM58 | 64475 | DM7 with test identifier 245 | the SPN's data as its PG carries it (engine speed 190, coolant 110), `FF` past it |
+| DM11 | 65235 | Request | clears the active DTCs and their counts; a positive Acknowledgment (to `0xFF`, byte 5 the requester) if asked of the genset, nothing if asked of everyone |
+| DM3 | 65228 | Request | the same for the previously active DTCs |
+| DM22 | 49920 | DM22 to the genset: control byte 1 (previously active) or 17 (active), `FF FF FF FF`, SPN and FMI | DM22 to the sender: control byte + 1 cleared, + 2 refused with byte 2 the reason (2 unknown DTC, 3 not previously active, 4 not active) |
+| DM7 | 58112 | DM7 to the genset: test 247, SPN and FMI, `FF FF FF FF` | DM30 (41984) to the sender: SPN 110 or 100 as its PG carries it, with the limit its DTC sets at; any other test "cannot be performed" (`0xFB01`). The SLOT identifier is `0xFFFF` |
+| DM14, DM16 | 55552, 55040 | see below | DM15 (55296), DM16 |
+
+A fault a tool clears while its cause persists is active again within 50 ms,
+counted from one. Previously active DTCs a tool clears stay out of DM2 until
+the engine has run hot and cooled again; DM28 keeps both.
+
+The node handles commands once every 50 ms and keeps one answer per kind: of two DM22, DM7 or DM14 commands inside one such pass, only the last is answered.
+
+Memory access (DM14, DM15, DM16) reaches 64 simulated bytes at pointer
+`0x000000`, pointer extension 0; byte n starts as `0xA0 + n` and a write lasts
+until reset. The length counts bytes.
+
+1. DM14 with command 1 (read) or 2 (write), pointer and length; the key field
+   carries a user level, which the genset ignores. DM15 answers "proceed" with
+   length 0 and a 16-bit seed: nothing is granted yet.
+2. The same DM14 again with the key, `seed XOR 0x1939`. DM15 answers "proceed"
+   with the length and seed `0xFFFF`.
+3. A read: the genset sends DM16, then DM15 "operation completed". A write:
+   the tool sends DM16, and DM15 "operation completed" follows.
+4. The tool closes with DM14 command 4.
+
+A read is at most 63 bytes, a write at most 7: the genset receives single
+frames only. DM16's first byte counts the data bytes up to 7, in a frame
+padded with `0xFF`; above 7 it is `0xFF` and DM16 goes by RTS/CTS, as
+python-can-j1939 sends it. A request that cannot be granted gets DM15
+"operation failed" with EDCP extension 7 and an error indicator: `0x100` for a
+pointer outside the memory, `0x102` for a length of 0, past its end or over the
+limit, `0x1003` for a wrong key, `0x1` for any other command.
 
 ## What the suites prove
 
@@ -142,7 +218,7 @@ and trips channel 8, which is shorted.
 | `../testing/suites/uds` | DC-DC | A conformance suite for any UDS server on any python-can bus: this node, or the UDS extension's demo ECU in-process. Used as a tester uses an ECU: zelos-can opens the bus, can-isotp carries, udsoncan asks. Every Tier A service with its NRCs and their ISO 14229-1 order, physical and functional; sessions, S3, P2; both security levels, lockout and power-up delay; memory by address; erase, download, check, upload of 64 KiB. `test_dcdc_node.py`, against the node itself: 0x28 stops DCDC_Status, the setpoint drives the output, DTCs follow the model through operation cycles, a reset is a fresh boot, XCP and UDS share the ECU. Core conformance: ztests in `../tests/lib/uds` |
 | `../testing/suites/obd` | DC-DC | A scan tool's view of the same server, SAE J1979 on 0x7DF: supported PIDs walked from the bitmaps; PIDs against DCDC_Status; MIL and DTC count; a lost BMS pending in its first cycle and confirmed in its second, the MIL off after three passing cycles, the freeze frame stored with the pending code; a permanent DTC surviving 0x04 and gone after one passing cycle; J1979-2 protocol identification, multi-DID subsets, no 0x13 to OBD requests; the VIN (multi-frame) and ECU identity; J1979-2 (OBDonUDS) DIDs and 0x19 0x42/0x55/0x56 equal to the legacy services; silence to unsupported requests. Runs alone in CI (`just test-bench obd`) too, so its fault tests can play the BMS |
 | `../testing/suites/autosar` | DC-DC | Decoded as a bench decodes an AUTOSAR ECU, from the ARXML alone: ids, lengths and cycles as described; E2E profile 1 (by hand), 2 and 5 (cantools) CRCs and counters; the container's PDUs in turn; the multiplexed PDU's alternatives; the SecOC MAC verified with the key; every value equal to DCDC_Status's of the same sample; UDS on the CanTp addresses the ARXML gives, its flow control as described; 0x28 silences the PDUs. The ARXML carries `bench.dbc` unchanged. Core: ztests in `../tests/lib/autosar` with the PRS E2E examples |
-| `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; every slow PG answered on request, a NACK for one the node lacks; every PG at its period; values agreeing across PGs (frequency and voltage from speed, P = 3 V I pf, S and Q, balanced phases, fuel only while turning) and the counters integrating speed, fuel rate and power; DM1 with one DTC in a frame, then two by BAM, lamps and occurrence counts as they should be, reassembled by python-can-j1939; DM2 by BAM to a global request and by RTS/CTS to ours, python-can-j1939 granting the windows; SOFT by RTS/CTS and by BAM. Originator conformance (windows, retransmit, abort, T3/T4): ztests in `../tests/lib/j1939` |
+| `../testing/suites/j1939` | genset | Address claim on request; defending against a higher NAME and yielding to a lower one; every slow PG answered on request, a NACK for one the node lacks; every PG at its period; values agreeing across PGs (frequency and voltage from speed, P = 3 V I pf, S and Q, balanced phases, fuel only while turning) and the counters integrating speed, fuel rate and power; the status fields following the mode; TSC1 speed control and a speed limit honoured and reported in EEC1, dropped on its timeout; DM1 with one DTC in a frame, then two by BAM, lamps and occurrence counts as they should be, reassembled by python-can-j1939; DM2 by BAM to a global request and by RTS/CTS to ours, python-can-j1939 granting the windows; SOFT by RTS/CTS and by BAM, CI by BAM; the J1939-73 messages above: each answered on request, a PDU1 answer to the requester, every DTC list against DM5's and DM29's counts idle and hot, DM22, DM3 and DM11 clearing and acknowledged, the freeze frame laid out as DM24 says, DM7 answered by DM30, memory read and written behind the seed and key and each refusal's error indicator. Originator conformance (windows, retransmit, abort, T3/T4): ztests in `../tests/lib/j1939` |
 | `../testing/suites/canopen` | PDU | Boot-up and heartbeat; NMT start, stop and pre-operational; SDO identity and downloads; RPDO commands reflected in TPDOs; an overcurrent trip raises EMCY and recovers; SYNC answered by the synchronous TPDO |
 | `../testing/suites/eth` | DC-DC | The board's Ethernet (`../lib/eth`): link 100 Mb/s full duplex, the static address up after conflict detection, ping, the host's neighbour entry equal to the node's MAC, and the node's counters (UDS DID `0x0111`, read over CAN). The host end is whichever interface is on the node's subnet: the bench's `tap0`, or the hardware bench's own |
 | `../testing/suites/doip` | DC-DC | Its UDS server as a DoIP entity (ISO 13400-2, `../lib/doip`), checked with a client written from the standard and with zelos-can's (doipclient), as the UDS and OBD extensions connect: vehicle identification by plain request, EID and VIN, answered within 500 ms, and one responder to a broadcast; entity status, power mode, header NACKs; routing activation's codes (0x10, 0x00, 0x02, 0x03 and 0x01 decided by alive checks, 0x06), initial inactivity; diagnostic messages acknowledged, NACKed (0x02, 0x03, 0x04 above MDS) or answered; three announcements 500 ms apart after a reset. The UDS conformance suite, unchanged, over DoIP. One server, two transports: a CAN tester's session gives the DoIP tester 0x21 and only OBD, and S3 still ends it; a closed DoIP owner's output returns at once; a pending routine answers its own tester. Core: ztests in `../tests/lib/doip` |
