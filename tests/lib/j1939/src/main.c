@@ -211,14 +211,17 @@ ZTEST(j1939, test_requests)
 
 static uint32_t command_pgn;
 static uint8_t command_len;
+static uint8_t command_da;
 
 static bool take_dm11(uint32_t pgn, uint8_t sa, uint8_t da, void *user)
 {
 	return pgn == PGN_DM11;
 }
 
-static void take_command(uint32_t pgn, uint8_t sa, const uint8_t *data, uint8_t len, void *user)
+static void take_command(uint32_t pgn, uint8_t sa, uint8_t da, const uint8_t *data, uint8_t len,
+			 void *user)
 {
+	command_da = da;
 	command_pgn = pgn;
 	command_len = len;
 }
@@ -272,6 +275,34 @@ ZTEST(j1939, test_application_hooks)
 	inject(ID(6, 0xE300U | SA, TESTER), dm21, 8);
 	zassert_equal(command_pgn, 0xE300U);
 	zassert_equal(command_len, 8);
+	zassert_equal(command_da, SA);
+	/* One to everyone reaches it too, as such. */
+	inject(ID(6, 0xDFFFU, TESTER), dm21, 8);
+	zassert_equal(command_pgn, 0xDF00U);
+	zassert_equal(command_da, ZELOS_J1939_ADDR_GLOBAL);
+}
+
+/* Quiet: no periodic sends, requests still answered, the phase kept after. */
+ZTEST(j1939, test_quiet)
+{
+	int from, at;
+
+	start(FIXED);
+	run_until(1500);
+	j.quiet = true;
+	from = n_sent;
+	run_until(4400);
+	zassert_equal(n_sent, from);
+
+	inject_request(SA, PGN_ET1);
+	run_until(4500);
+	zassert_equal(n_sent, from + 1);
+
+	j.quiet = false;
+	run_until(6400);
+	zassert_equal(n_sent, from + 3);
+	at = find(ID(6, PGN_ET1, SA), from + 1);
+	zassert_equal(sent[at + 1].at - sent[at].at, 1000);
 }
 
 /* DM1 went out by BAM: the announcement, then three packets at legal gaps. */

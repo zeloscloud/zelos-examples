@@ -247,9 +247,9 @@ void zelos_j1939_on_frame(struct zelos_j1939 *j, const struct zelos_j1939_frame 
 		on_request(j, da, sa, frame, now_ms);
 	} else if (pgn == ZELOS_J1939_PGN_TP_CM) {
 		on_tp_cm(j, da, sa, frame, now_ms);
-	} else if (PDU1(pgn) && da == j->address && j->state == ZELOS_J1939_CLAIMED &&
-		   j->on_pg != NULL) {
-		j->on_pg(pgn, sa, frame->data, frame->len, j->user);
+	} else if (PDU1(pgn) && (da == j->address || da == ZELOS_J1939_ADDR_GLOBAL) &&
+		   j->state == ZELOS_J1939_CLAIMED && j->on_pg != NULL) {
+		j->on_pg(pgn, sa, da, frame->data, frame->len, j->user);
 	}
 }
 
@@ -383,6 +383,12 @@ static void send_msgs(struct zelos_j1939 *j, uint32_t now_ms)
 	for (size_t i = 0; i < j->n_msgs; i++) {
 		struct zelos_j1939_msg *m = &j->msgs[i];
 		bool periodic = m->period_ms != 0U && reached(now_ms, m->due_ms);
+
+		if (periodic && j->quiet) {
+			/* Held, in phase for when the sends come back. */
+			m->due_ms += m->period_ms;
+			periodic = false;
+		}
 		/* A periodic send answers a pending request too: it goes to everyone. */
 		bool to_one = !periodic && m->requester != ZELOS_J1939_ADDR_GLOBAL;
 

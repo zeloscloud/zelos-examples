@@ -118,14 +118,18 @@ struct zelos_j1939 {
 	 * Optional, both called from zelos_j1939_on_frame() once the address is
 	 * claimed. on_request: a request for a PGN outside msgs, to this node
 	 * or to everyone (da); true takes it, false leaves one to this node
-	 * NACKed. on_pg: a single-frame PDU1 PG addressed to this node that the
+	 * NACKed. on_pg: a single-frame PDU1 PG to this node or to everyone (da) that the
 	 * core has no use for.
 	 */
 	bool (*on_request)(uint32_t pgn, uint8_t sa, uint8_t da, void *user);
-	void (*on_pg)(uint32_t pgn, uint8_t sa, const uint8_t *data, uint8_t len, void *user);
+	void (*on_pg)(uint32_t pgn, uint8_t sa, uint8_t da, const uint8_t *data, uint8_t len,
+		      void *user);
 	/* The PDU1 PGNs on_pg wants: the Zephyr glue filters on them. */
 	const uint32_t *rx_pgns;
 	size_t n_rx_pgns;
+
+	/* The periodic sends are held; requests are still answered (DM13). */
+	bool quiet;
 
 	/* Read-only for the caller. */
 	enum zelos_j1939_state state;
@@ -200,6 +204,9 @@ void zelos_j1939_send_to(struct zelos_j1939_msg *msg, uint8_t da);
 
 /* Whether a message still waits to go out, or its transport session is running. */
 bool zelos_j1939_pending(struct zelos_j1939 *j, const struct zelos_j1939_msg *msg);
+
+/* Hold, or resume, the periodic sends; requests are answered either way. */
+void zelos_j1939_quiet(struct zelos_j1939 *j, bool quiet);
 
 /*
  * Positive Acknowledgment of a request or command for pgn from node `to`, on

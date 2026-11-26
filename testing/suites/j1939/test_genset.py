@@ -1035,3 +1035,50 @@ def test_memory_access_refused(bus, node, command, pointer, length, error):
         # The same request again with a key that is not the seed's.
         reply = dm15(bus, sa, dm14(sa, command, pointer, length, reply["Seed"] ^ MEM_KEY ^ 1))
     assert (reply["Status"], reply["LengthAllowed"], reply["EDCParameter"], reply["EDCPExtension"], reply["Seed"]) == (MEM_FAILED, 0, error, 7, NO_KEY), reply
+
+
+PGN_DM13 = 57088
+# From nodes/genset: a stop holds this long past the last one.
+DM13_HOLD_S = 6.0
+DM13_STOP, DM13_START = bytes([0xFC]) + b"\xff" * 7, bytes([0xFD]) + b"\xff" * 7
+
+
+def periodic_from(frames, sa):
+    """The node's periodic PGs among frames."""
+    pgns = {pgn_of(m.frame_id) for m in PERIODIC}
+    return [m for m in frames if theirs(m) and parse(m)[2] == sa and parse(m)[0] in pgns]
+
+
+@pytest.mark.parametrize("da", ["node", "global"])
+def test_dm13_stops_and_starts_the_broadcasts(bus, node, da):
+    """DM13 stop, to the node or to everyone, holds every periodic PG while requests
+    are still answered; DM13 start brings them back at once."""
+    sa, _ = node
+    to = sa if da == "node" else GLOBAL
+    try:
+        send(bus, 6, PGN_DM13, DM13_STOP, da=to)
+        # What was already on its way, then silence well inside the hold.
+        collect(bus, 0.5)
+        assert periodic_from(collect(bus, 2.0), sa) == []
+        request(bus, PGN_HOURS, da=sa)
+        first(bus, is_from(PGN_HOURS, sa))
+    finally:
+        send(bus, 6, PGN_DM13, DM13_START, da=to)
+    got = window(bus, sa, 10)
+    assert {parse(m)[0] for m in periodic_from(got, sa)} >= {PGN_EEC1, PGN_EEC2}
+
+
+def test_dm13_stop_ends_by_itself(bus, node):
+    """A stop that is not renewed ends after the hold, and one that is, holds on."""
+    sa, _ = node
+    send(bus, 6, PGN_DM13, DM13_STOP, da=sa)
+    collect(bus, 0.5)
+    try:
+        # Renewed every 2 s, quiet past one hold.
+        for _ in range(4):
+            assert periodic_from(collect(bus, 2.0), sa) == []
+            send(bus, 6, PGN_DM13, DM13_STOP, da=sa)
+        first(bus, is_from(PGN_EEC1, sa), DM13_HOLD_S + bench.WAIT_S)
+    finally:
+        send(bus, 6, PGN_DM13, DM13_START, da=sa)
+
