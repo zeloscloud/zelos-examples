@@ -154,6 +154,7 @@ LOG_MODULE_REGISTER(genset, LOG_LEVEL_INF);
 #define PGN_DM6  65231U
 #define PGN_DM11 65235U
 #define PGN_DM12 65236U
+#define PGN_DM13 57088U
 #define PGN_DM16 55040U
 #define PGN_DM19 54016U
 #define PGN_DM20 49664U
@@ -569,11 +570,17 @@ static bool on_request(uint32_t pgn, uint8_t sa, uint8_t da, void *user)
 	return k_msgq_put(&genset_diag_msgq, &rx, K_NO_WAIT) == 0;
 }
 
-static void on_pg(uint32_t pgn, uint8_t sa, const uint8_t *data, uint8_t len, void *user)
+static void on_pg(uint32_t pgn, uint8_t sa, uint8_t da, const uint8_t *data, uint8_t len,
+		  void *user)
 {
 	struct diag_rx rx = {.pgn = pgn, .sa = sa, .to_us = true, .len = len};
 
 	ARG_UNUSED(user);
+
+	/* Only DM13 is for everyone. */
+	if (da == ZELOS_J1939_ADDR_GLOBAL && pgn != PGN_DM13) {
+		return;
+	}
 
 	memcpy(rx.data, data, len);
 	(void)k_msgq_put(&genset_diag_msgq, &rx, K_NO_WAIT);
@@ -583,7 +590,7 @@ static void on_pg(uint32_t pgn, uint8_t sa, const uint8_t *data, uint8_t len, vo
 #define PGN_DM14 PGN_OF(GENSET_DM14_FRAME_ID)
 #define PGN_DM22 PGN_OF(GENSET_DM22_FRAME_ID)
 
-static const uint32_t rx_pgns[] = {PGN_DM7, PGN_DM14, PGN_DM16, PGN_DM22};
+static const uint32_t rx_pgns[] = {PGN_DM7, PGN_DM13, PGN_DM14, PGN_DM16, PGN_DM22};
 
 static struct zelos_j1939 j1939 = {
 	.name = NAME,
@@ -1351,11 +1358,47 @@ static void mem_step(void)
 }
 
 /* What a tool asked since the last pass. Before the model's step, so a cleared fault that persists is back in this pass. */
+/*
+ * DM13: byte 1 bits 1-2 command this network, bits 7-8 the data link the
+ * message came on; 0 stops the periodic sends, 1 starts them, else no change.
+ * A stop holds for DM13_HOLD_MS past the last one; the suspend signal and
+ * duration are not read.
+ */
+#define DM13_HOLD_MS 6000
+#define DM13_STOP    0U
+#define DM13_START   1U
+
+static int64_t quiet_until_ms;
+
+static void broadcast(const struct diag_rx *rx, int64_t now_ms)
+{
+	const uint8_t network = rx->data[0] & 0x03U;
+	const uint8_t link = rx->data[0] >> 6;
+
+	if (network == DM13_START || link == DM13_START) {
+		quiet_until_ms = 0;
+		zelos_j1939_quiet(&j1939, false);
+		LOG_INF("DM13 from 0x%02x: broadcasts on", rx->sa);
+	} else if (network == DM13_STOP || link == DM13_STOP) {
+		if (quiet_until_ms == 0) {
+			LOG_INF("DM13 from 0x%02x: broadcasts off", rx->sa);
+		}
+		quiet_until_ms = now_ms + DM13_HOLD_MS;
+		zelos_j1939_quiet(&j1939, true);
+	}
+}
+
 static void diagnose(struct engine *e)
 {
 	struct diag_rx rx;
+	const int64_t now_ms = k_uptime_get();
 
 	mem_step();
+	if (quiet_until_ms != 0 && now_ms >= quiet_until_ms) {
+		quiet_until_ms = 0;
+		zelos_j1939_quiet(&j1939, false);
+		LOG_INF("DM13 hold over: broadcasts on");
+	}
 
 	while (k_msgq_get(&genset_diag_msgq, &rx, K_NO_WAIT) == 0) {
 		if (rx.pgn == PGN_DM3 || rx.pgn == PGN_DM11) {
@@ -1368,6 +1411,8 @@ static void diagnose(struct engine *e)
 			mem_write(&rx);
 		} else if (rx.len < 8U) {
 			continue;
+		} else if (rx.pgn == PGN_DM13) {
+			broadcast(&rx, now_ms);
 		} else if (rx.pgn == PGN_DM22) {
 			clear_one(&rx);
 		} else if (rx.pgn == PGN_DM7) {

@@ -10,8 +10,8 @@
  * event FIFO is never full: Renode's model reads a full one as empty, and its
  * frames then never complete (16 at once, when the bus comes back).
  *
- *   28 std filters x 4 + 8 ext x 8 + (32 + 32) RX x 72 + 16 events x 8
- *   + 15 TX x 72 = 5992 bytes (0x1768) of the 10 KiB message RAM.
+ *   28 std filters x 4 + 10 ext x 8 + (32 + 32) RX x 72 + 16 events x 8
+ *   + 15 TX x 72 = 6008 bytes (0x1778) of the 10 KiB message RAM.
  *
  * Not one TX buffer, though it would keep Zephyr ISO-TP's CFs in order:
  * ISO-TP sends straight to the driver, so its CFs would take turns with
@@ -23,8 +23,8 @@
  */
 
 &fdcan1 {
-	reg = <0x4000a000 0x400>, <0x4000ac00 0x1768>;
-	bosch,mram-cfg = <0x0 28 8 32 32 0 16 15>;
+	reg = <0x4000a000 0x400>, <0x4000ac00 0x1778>;
+	bosch,mram-cfg = <0x0 28 10 32 32 0 16 15>;
 };
 
 &fdcan2 {

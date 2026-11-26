@@ -138,6 +138,13 @@ bool zelos_j1939_pending(struct zelos_j1939 *j, const struct zelos_j1939_msg *ms
 	return pending;
 }
 
+void zelos_j1939_quiet(struct zelos_j1939 *j, bool quiet)
+{
+	k_mutex_lock(&lock, K_FOREVER);
+	j->quiet = quiet;
+	k_mutex_unlock(&lock);
+}
+
 void zelos_j1939_ack(struct zelos_j1939 *j, uint8_t to, uint32_t pgn)
 {
 	k_mutex_lock(&lock, K_FOREVER);
